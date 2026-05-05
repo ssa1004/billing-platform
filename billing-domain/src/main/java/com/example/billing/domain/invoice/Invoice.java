@@ -1,0 +1,130 @@
+package com.example.billing.domain.invoice;
+
+import com.example.billing.domain.pricing.PricingSnapshot;
+import com.example.billing.domain.settlement.BillingPeriod;
+import com.example.billing.domain.shared.CustomerId;
+import com.example.billing.domain.shared.Money;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+
+/**
+ * 청구서 애그리거트. 한 customer × 한 BillingPeriod 당 하나만 존재 (uniqueness 는 DB constraint).
+ *
+ * <p>상태 전이는 {@link #issue}, {@link #markPaid}, {@link #markOverdue}, {@link #cancel}
+ * 메서드로만 가능. setter 없음.</p>
+ *
+ * <p>총액은 {@link InvoiceLine#lineTotal} 합. 가격 정책은 {@link PricingSnapshot} 으로 freeze
+ * 되므로 plan 변경에도 과거 청구서 영향 없음.</p>
+ */
+public final class Invoice {
+
+    private static final int DEFAULT_DUE_DAYS = 14;
+
+    private final UUID id;
+    private final CustomerId customerId;
+    private final BillingPeriod period;
+    private final List<InvoiceLine> lines;
+    private final Money total;
+    private final PricingSnapshot pricingSnapshot;
+    private final Instant createdAt;
+    private InvoiceStatus status;
+    private Instant issuedAt;
+    private Instant dueAt;
+    private Instant paidAt;
+    private long version;
+
+    private Invoice(UUID id, CustomerId customerId, BillingPeriod period, List<InvoiceLine> lines,
+                    Money total, PricingSnapshot pricingSnapshot, Instant createdAt,
+                    InvoiceStatus status, Instant issuedAt, Instant dueAt, Instant paidAt,
+                    long version) {
+        this.id = Objects.requireNonNull(id);
+        this.customerId = Objects.requireNonNull(customerId);
+        this.period = Objects.requireNonNull(period);
+        this.lines = List.copyOf(Objects.requireNonNull(lines));
+        this.total = Objects.requireNonNull(total);
+        this.pricingSnapshot = Objects.requireNonNull(pricingSnapshot);
+        this.createdAt = Objects.requireNonNull(createdAt);
+        this.status = Objects.requireNonNull(status);
+        this.issuedAt = issuedAt;
+        this.dueAt = dueAt;
+        this.paidAt = paidAt;
+        this.version = version;
+    }
+
+    public static Invoice draft(CustomerId customerId, BillingPeriod period,
+                                List<InvoiceLine> lines, PricingSnapshot pricingSnapshot,
+                                Clock clock) {
+        if (lines.isEmpty()) {
+            throw new IllegalArgumentException("invoice must have at least one line");
+        }
+        Money total = lines.stream()
+                .map(InvoiceLine::lineTotal)
+                .reduce(Money::add)
+                .orElseThrow();
+        return new Invoice(UUID.randomUUID(), customerId, period, lines, total,
+                pricingSnapshot, clock.instant(), InvoiceStatus.DRAFT,
+                null, null, null, 0L);
+    }
+
+    public static Invoice restore(UUID id, CustomerId customerId, BillingPeriod period,
+                                  List<InvoiceLine> lines, Money total,
+                                  PricingSnapshot pricingSnapshot, Instant createdAt,
+                                  InvoiceStatus status, Instant issuedAt, Instant dueAt,
+                                  Instant paidAt, long version) {
+        return new Invoice(id, customerId, period, lines, total, pricingSnapshot, createdAt,
+                status, issuedAt, dueAt, paidAt, version);
+    }
+
+    public void issue(Clock clock) {
+        if (status != InvoiceStatus.DRAFT) {
+            throw new IllegalInvoiceTransitionException(status, InvoiceStatus.ISSUED);
+        }
+        Instant now = clock.instant();
+        this.status = InvoiceStatus.ISSUED;
+        this.issuedAt = now;
+        this.dueAt = now.plus(DEFAULT_DUE_DAYS, ChronoUnit.DAYS);
+    }
+
+    public void markPaid(Clock clock) {
+        if (status != InvoiceStatus.ISSUED && status != InvoiceStatus.OVERDUE) {
+            throw new IllegalInvoiceTransitionException(status, InvoiceStatus.PAID);
+        }
+        this.status = InvoiceStatus.PAID;
+        this.paidAt = clock.instant();
+    }
+
+    public void markOverdue(Clock clock) {
+        if (status != InvoiceStatus.ISSUED) {
+            throw new IllegalInvoiceTransitionException(status, InvoiceStatus.OVERDUE);
+        }
+        if (dueAt == null || clock.instant().isBefore(dueAt)) {
+            throw new IllegalStateException("invoice not yet due");
+        }
+        this.status = InvoiceStatus.OVERDUE;
+    }
+
+    public void cancel() {
+        if (status.isFinal()) {
+            throw new IllegalInvoiceTransitionException(status, InvoiceStatus.CANCELLED);
+        }
+        this.status = InvoiceStatus.CANCELLED;
+    }
+
+    public UUID id() { return id; }
+    public CustomerId customerId() { return customerId; }
+    public BillingPeriod period() { return period; }
+    public List<InvoiceLine> lines() { return lines; }
+    public Money total() { return total; }
+    public PricingSnapshot pricingSnapshot() { return pricingSnapshot; }
+    public Instant createdAt() { return createdAt; }
+    public InvoiceStatus status() { return status; }
+    public Instant issuedAt() { return issuedAt; }
+    public Instant dueAt() { return dueAt; }
+    public Instant paidAt() { return paidAt; }
+    public long version() { return version; }
+}

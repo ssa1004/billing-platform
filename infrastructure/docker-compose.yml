@@ -2,12 +2,12 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: wallet
-      POSTGRES_USER: wallet
-      POSTGRES_PASSWORD: wallet
+      POSTGRES_DB: billing
+      POSTGRES_USER: billing
+      POSTGRES_PASSWORD: billing
     ports: ["5432:5432"]
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "wallet"]
+      test: ["CMD", "pg_isready", "-U", "billing"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -51,9 +51,9 @@ services:
     volumes:
       - ./wiremock/mappings:/home/wiremock/mappings:ro
 
-  # 운영 모드 시뮬레이션 — 위 4개 의존성 모두 구동된 상태에서 prepaid-wallet 자체도 컨테이너로
+  # 운영 모드 시뮬레이션 — 위 4개 의존성 모두 구동된 상태에서 billing-platform 자체도 컨테이너로
   # 실제 빌드/실행은 docker compose --profile app up 처럼 profile 분리하면 됨
-  wallet-app:
+  billing-app:
     profiles: [app]
     build:
       context: ..
@@ -61,9 +61,9 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
-      DB_USER: wallet
-      DB_PASSWORD: wallet
-      DB_NAME: wallet
+      DB_USER: billing
+      DB_PASSWORD: billing
+      DB_NAME: billing
       REDIS_HOST: redis
       KAFKA_BOOTSTRAP: kafka:9092
       PG_BASE_URL: http://wiremock:8080

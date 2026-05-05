@@ -9,7 +9,7 @@ spring:
   kafka:
     bootstrap-servers: ""
 
-wallet:
+billing:
   pg:
     enabled: false
     base-url: http://wiremock:8090
@@ -19,7 +19,7 @@ wallet:
       poll-interval-ms: 1000
       batch-size: 100
       send-timeout-ms: 5000
-      topic-prefix: "wallet."
+      topic-prefix: "billing."
   cache:
     redis-enabled: false
     local-ttl-seconds: 30

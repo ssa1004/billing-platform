@@ -1,11 +1,14 @@
 name: Wallet Platform CI
 
+# TODO: 포폴 단계 동안 push / PR trigger 잠시 OFF (수동 trigger 만 유지).
+#       자동 trigger 복원 시 아래 push / pull_request 블록 주석 해제.
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  #   tags: ["v*"]
+  # pull_request:
+  #   branches: [main]
 
 permissions:
   contents: read

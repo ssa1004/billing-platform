@@ -36,7 +36,7 @@ import java.time.ZoneOffset;
  * 되면 별도 Pod 로 분리 권장.</p>
  */
 @Component
-@Profile("!test-without-scheduler")
+@Profile({"prod", "scheduler"})
 public class BillingJobScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(BillingJobScheduler.class);

@@ -16,3 +16,8 @@
 | [0010](0010-spring-batch-reconciliation.md) | Spring Batch chunk + skip + retry 정산 | 적용 |
 | [0011](0011-two-layer-cache.md) | Caffeine L1 + Redis L2 두 단계 캐시 | 적용 |
 | [0012](0012-wiremock-pg-contract.md) | Wiremock으로 PG contract 테스트 | 적용 |
+| [0013](0013-settlement-advisory-lock.md) | 월별 정산 동시성 — Postgres advisory lock | 적용 |
+| [0014](0014-skip-locked-worker-pool.md) | Worker pool 병렬 처리 — `FOR UPDATE SKIP LOCKED` | 적용 |
+| [0015](0015-pricing-snapshot.md) | 청구서의 가격 정책 snapshot | 적용 |
+| [0016](0016-batch-scheduling-shedlock.md) | Batch Job 스케줄링 — `@Scheduled` + ShedLock | 적용 |
+| [0017](0017-multi-tenancy-row-level.md) | 멀티테넌시 — Row-Level Isolation (`customer_id`) | 적용 |

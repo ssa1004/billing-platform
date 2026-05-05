@@ -43,12 +43,10 @@ public class InvoiceJpaEntity {
     private InvoiceStatus status;
 
     /** InvoiceLine 리스트 + PricingSnapshot 의 JSON 직렬화. */
-    @Lob
-    @Column(name = "lines_json", nullable = false)
+    @Column(name = "lines_json", nullable = false, columnDefinition = "TEXT")
     private String linesJson;
 
-    @Lob
-    @Column(name = "pricing_snapshot_json", nullable = false)
+    @Column(name = "pricing_snapshot_json", nullable = false, columnDefinition = "TEXT")
     private String pricingSnapshotJson;
 
     @Column(name = "created_at", nullable = false)

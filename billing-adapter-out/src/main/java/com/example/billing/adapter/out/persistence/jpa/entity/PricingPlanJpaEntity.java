@@ -34,8 +34,7 @@ public class PricingPlanJpaEntity {
     private String name;
 
     /** Tier 리스트의 JSON 직렬화 (jackson). */
-    @Lob
-    @Column(name = "tiers_json", nullable = false)
+    @Column(name = "tiers_json", nullable = false, columnDefinition = "TEXT")
     private String tiersJson;
 
     @Column(name = "effective_from", nullable = false)

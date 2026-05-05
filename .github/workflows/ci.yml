@@ -67,6 +67,15 @@ jobs:
       - name: Run e2e Testcontainers
         run: ./gradlew --no-daemon :e2e-tests:test
 
+      - name: Upload e2e reports (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-reports
+          path: |
+            e2e-tests/build/reports/tests/**
+            e2e-tests/build/test-results/**
+
   # ─── 3. Static analysis (PR only) ───────────────────────────────
   static-analysis:
     name: OWASP Dependency-Check + ktlint

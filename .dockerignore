@@ -1,0 +1,12 @@
+.git
+.gradle
+**/build
+**/.gradle
+.idea
+.vscode
+*.iml
+docs
+infrastructure/k8s
+infrastructure/github-actions
+README.md
+PLAN.md

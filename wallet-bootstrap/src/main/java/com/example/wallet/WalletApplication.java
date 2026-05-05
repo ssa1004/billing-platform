@@ -13,7 +13,7 @@ import org.springframework.modulith.Modulith;
  */
 @SpringBootApplication(scanBasePackages = "com.example.wallet")
 @ConfigurationPropertiesScan(basePackages = "com.example.wallet.bootstrap.config")
-@Modulith(systemName = "wallet-platform")
+@Modulith(systemName = "prepaid-wallet")
 public class WalletApplication {
 
     public static void main(String[] args) {

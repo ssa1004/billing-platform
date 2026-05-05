@@ -1,0 +1,31 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  cache:
+    type: simple
+  kafka:
+    bootstrap-servers: ""
+
+wallet:
+  pg:
+    enabled: false
+    base-url: http://wiremock:8090
+  outbox:
+    relay:
+      enabled: false
+      poll-interval-ms: 1000
+      batch-size: 100
+      send-timeout-ms: 5000
+      topic-prefix: "wallet."
+  cache:
+    redis-enabled: false
+    local-ttl-seconds: 30
+    global-ttl-seconds: 300
+  security:
+    jwt:
+      enabled: false
+  idempotency:
+    ttl-hours: 24

@@ -15,7 +15,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface SpringDataInvoiceRepository extends JpaRepository<InvoiceJpaEntity, UUID> {
+public interface SpringDataInvoiceRepository extends JpaRepository<InvoiceJpaEntity, UUID>,
+        SpringDataInvoiceRepositoryAged {
 
     Optional<InvoiceJpaEntity> findByCustomerIdAndPeriodYearMonth(
             String customerId, String periodYearMonth);

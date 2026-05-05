@@ -87,6 +87,14 @@ public class JpaInvoiceRepositoryAdapter implements InvoiceRepository {
                 .stream().map(this::toDomain).toList();
     }
 
+    @Override
+    public List<Invoice> findUnpaid(java.time.Instant asOf, int limit) {
+        return jpa.findUnpaidAsOf(
+                List.of(InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE),
+                PageRequest.of(0, limit))
+                .stream().map(this::toDomain).toList();
+    }
+
     private Invoice toDomain(InvoiceJpaEntity e) {
         Money total = Money.of(e.getTotalAmount(), Currency.getInstance(e.getCurrencyCode()));
         List<InvoiceLine> lines = deserializeLines(e.getLinesJson());

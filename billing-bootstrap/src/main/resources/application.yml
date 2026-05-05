@@ -18,6 +18,11 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false              # @Scheduled trigger 만 사용 — 부팅 시 자동 실행 금지
   cache:
     type: caffeine
   kafka:

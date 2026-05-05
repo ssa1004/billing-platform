@@ -3,14 +3,14 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
-rootProject.name = "prepaid-wallet"
+rootProject.name = "billing-platform"
 
 include(
-    "wallet-domain",
-    "wallet-application",
-    "wallet-adapter-in",
-    "wallet-adapter-out",
-    "wallet-batch",
-    "wallet-bootstrap",
+    "billing-domain",
+    "billing-application",
+    "billing-adapter-in",
+    "billing-adapter-out",
+    "billing-batch",
+    "billing-bootstrap",
     "e2e-tests",
 )

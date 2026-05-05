@@ -8,7 +8,7 @@ plugins {
 }
 
 allprojects {
-    group = "com.example.wallet"
+    group = "com.example.billing"
     version = "0.1.0"
 
     repositories {

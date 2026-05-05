@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: wallet-platform-config
-  namespace: wallet
+  name: billing-platform-config
+  namespace: billing
 data:
-  DB_HOST: postgres.wallet.svc.cluster.local
-  DB_NAME: wallet
-  REDIS_HOST: redis.wallet.svc.cluster.local
-  KAFKA_BOOTSTRAP: kafka.wallet.svc.cluster.local:9092
+  DB_HOST: postgres.billing.svc.cluster.local
+  DB_NAME: billing
+  REDIS_HOST: redis.billing.svc.cluster.local
+  KAFKA_BOOTSTRAP: kafka.billing.svc.cluster.local:9092
   PG_BASE_URL: https://pg.example.com
-  OAUTH_ISSUER_URI: https://auth.example.com/realms/wallet
+  OAUTH_ISSUER_URI: https://auth.example.com/realms/billing
   OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo.observability.svc.cluster.local:4318
-  OTEL_SERVICE_NAME: wallet-platform
+  OTEL_SERVICE_NAME: billing-platform

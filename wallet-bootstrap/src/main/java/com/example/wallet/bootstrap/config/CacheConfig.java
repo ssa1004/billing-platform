@@ -12,14 +12,10 @@ import org.springframework.context.annotation.Configuration;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 캐시 설정.
+ * 캐시 설정 — Caffeine 인프로세스 캐시.
  *
- * <ul>
- *   <li>로컬/dev: Caffeine in-process L1 only (wallet.cache.redis-enabled=false)</li>
- *   <li>운영: Caffeine L1 + Redis L2 — 별도 RedisCacheConfig 가 활성 (TODO 향후 추가)</li>
- * </ul>
- *
- * 현재는 단순화 — Caffeine 만 등록. 2-tier 는 ADR-0011 의 향후 보강 항목.
+ * <p>운영의 2단계 캐시(Caffeine L1 + Redis L2) 는 ADR-0011 에 정리된 대로 별도 RedisCacheConfig 에서
+ * 활성화한다 ({@code wallet.cache.redis-enabled=true} 일 때).</p>
  */
 @Configuration
 @EnableCaching

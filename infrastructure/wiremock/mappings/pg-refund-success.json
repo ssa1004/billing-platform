@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/v1/payments/refund"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "approved": true,
+      "pgRefundId": "wm-refund-{{randomValue length=12 type='ALPHANUMERIC'}}",
+      "errorMessage": null
+    },
+    "transformers": ["response-template"]
+  }
+}

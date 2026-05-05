@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/v1/payments/authorize"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "approved": true,
+      "pgTransactionId": "wm-tx-{{randomValue length=12 type='ALPHANUMERIC'}}",
+      "errorCode": null,
+      "errorMessage": null
+    },
+    "transformers": ["response-template"]
+  }
+}

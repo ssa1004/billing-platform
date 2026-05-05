@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(classes = WalletApplication.class)
 @ActiveProfiles("it")
-class OrderPaymentFlowIT {
+class OrderPaymentFlowIT extends E2ECleanupSupport {
 
     @Container
     @ServiceConnection

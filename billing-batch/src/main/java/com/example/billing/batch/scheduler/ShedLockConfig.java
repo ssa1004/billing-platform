@@ -5,10 +5,10 @@ import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
 import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import javax.sql.DataSource;
-import java.time.Duration;
 
 /**
  * ShedLock 활성화 — multi-instance 환경에서 같은 @Scheduled 메서드가 동시에 실행되지 않도록
@@ -22,6 +22,7 @@ import java.time.Duration;
 @Configuration
 @EnableScheduling
 @EnableSchedulerLock(defaultLockAtMostFor = "PT1H")
+@Profile({"prod", "scheduler"})
 public class ShedLockConfig {
 
     @Bean

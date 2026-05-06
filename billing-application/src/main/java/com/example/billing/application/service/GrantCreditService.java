@@ -4,6 +4,7 @@ import com.example.billing.application.command.GrantCreditCommand;
 import com.example.billing.application.port.in.GrantCreditUseCase;
 import com.example.billing.application.port.out.CreditRepository;
 import com.example.billing.application.port.out.EventPublisher;
+import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.domain.credit.Credit;
 import com.example.billing.domain.credit.CreditEvents;
 import com.example.billing.domain.shared.CustomerId;
@@ -31,11 +32,13 @@ public class GrantCreditService implements GrantCreditUseCase {
 
     private final CreditRepository credits;
     private final EventPublisher events;
+    private final IdempotencyKeyStore idempotencyKeys;
     private final Clock clock;
 
     @Override
     @Transactional
     public Credit grant(GrantCreditCommand cmd) {
+        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
         Credit credit = Credit.grant(
                 CustomerId.of(cmd.customerId()),
                 cmd.type(),

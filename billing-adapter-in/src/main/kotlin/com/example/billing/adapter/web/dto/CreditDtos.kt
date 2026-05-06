@@ -40,3 +40,28 @@ data class ApplyCreditResponse(
     val appliedAmount: BigDecimal,
     val currency: String,
 )
+
+/** 통화별 사용 가능 잔액. */
+data class CreditBalanceResponse(
+    val customerId: String,
+    val balances: List<CurrencyBalance>,
+) {
+    data class CurrencyBalance(val currency: String, val amount: BigDecimal)
+}
+
+/** Credit 단건 view (응답용 — 도메인 노출 회피). */
+data class CreditView(
+    val id: String,
+    val customerId: String,
+    val type: String,
+    val currency: String,
+    val grantedAmount: BigDecimal,
+    val balance: BigDecimal,
+    val validFrom: String,
+    val validUntil: String?,
+    val status: String,
+    val reason: String?,
+)
+
+data class CreditListResponse(val items: List<CreditView>)
+

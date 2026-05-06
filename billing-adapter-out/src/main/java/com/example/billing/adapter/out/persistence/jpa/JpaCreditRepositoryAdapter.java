@@ -43,4 +43,20 @@ public class JpaCreditRepositoryAdapter implements CreditRepository {
                 .map(CreditJpaMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<Credit> findExpiringSoon(CustomerId customerId, Instant now, Instant until) {
+        return jpa.findExpiringSoon(customerId.value(), now, until).stream()
+                .map(CreditJpaMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Credit> findAllByCustomer(CustomerId customerId, int limit) {
+        return jpa.findByCustomerIdOrderByCreatedAtDesc(customerId.value(),
+                        org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream()
+                .map(CreditJpaMapper::toDomain)
+                .toList();
+    }
 }

@@ -38,4 +38,24 @@ public interface SpringDataCreditRepository extends JpaRepository<CreditJpaEntit
             """)
     List<CreditJpaEntity> findExpiredCandidates(@Param("now") Instant now,
                                                 org.springframework.data.domain.Pageable pageable);
+
+    /** [now, until] 사이에 만료될 ACTIVE — 알림 / 운영 화면. */
+    @Query("""
+            SELECT c FROM CreditJpaEntity c
+             WHERE c.customerId = :customerId
+               AND c.status = com.example.billing.domain.credit.CreditStatus.ACTIVE
+               AND c.balance > 0
+               AND c.validUntil IS NOT NULL
+               AND c.validUntil > :now
+               AND c.validUntil <= :until
+             ORDER BY c.validUntil ASC
+            """)
+    List<CreditJpaEntity> findExpiringSoon(@Param("customerId") String customerId,
+                                           @Param("now") Instant now,
+                                           @Param("until") Instant until);
+
+    /** 고객의 모든 Credit, 최근 발급 우선. status 무관. */
+    List<CreditJpaEntity> findByCustomerIdOrderByCreatedAtDesc(
+            String customerId,
+            org.springframework.data.domain.Pageable pageable);
 }

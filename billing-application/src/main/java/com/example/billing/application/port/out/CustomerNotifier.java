@@ -25,5 +25,7 @@ public interface CustomerNotifier {
         PAYMENT_FAILED,
         INVOICE_OVERDUE,
         REFUND_PROCESSED,
+        /** 예산 임계 초과 알림 — context: ruleId, threshold, projectedCost, overshootRatio */
+        BUDGET_ALERT,
     }
 }

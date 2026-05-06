@@ -45,17 +45,20 @@ public class BillingJobScheduler {
     private final Job monthlySettlementJob;
     private final Job dailyReconciliationJob;
     private final Job expireCreditsJob;
+    private final Job evaluateBudgetAlertsJob;
     private final Clock clock;
 
     public BillingJobScheduler(JobLauncher jobLauncher,
                                @Qualifier("monthlySettlementJob") Job monthlySettlementJob,
                                @Qualifier("dailyReconciliationJob") Job dailyReconciliationJob,
                                @Qualifier("expireCreditsJob") Job expireCreditsJob,
+                               @Qualifier("evaluateBudgetAlertsJob") Job evaluateBudgetAlertsJob,
                                Clock clock) {
         this.jobLauncher = jobLauncher;
         this.monthlySettlementJob = monthlySettlementJob;
         this.dailyReconciliationJob = dailyReconciliationJob;
         this.expireCreditsJob = expireCreditsJob;
+        this.evaluateBudgetAlertsJob = evaluateBudgetAlertsJob;
         this.clock = clock;
     }
 
@@ -113,6 +116,24 @@ public class BillingJobScheduler {
             jobLauncher.run(expireCreditsJob, params);
         } catch (Exception e) {
             log.error("expireCreditsJob failed", e);
+        }
+    }
+
+    /**
+     * 매 시간 정각. ACTIVE BudgetAlertRule 평가 → 임계 초과 시 알림.
+     * 한 시간 빈도면 cooldown (24h) 안에서 같은 사용자에게 두 번 알림 가지 않음.
+     */
+    @Scheduled(cron = "0 0 * * * *")
+    @SchedulerLock(name = "evaluateBudgetAlerts", lockAtMostFor = "PT15M", lockAtLeastFor = "PT30S")
+    public void runEvaluateBudgetAlerts() {
+        try {
+            JobParameters params = new JobParametersBuilder()
+                    .addLong("triggeredAt", clock.millis())
+                    .toJobParameters();
+            log.info("triggering evaluateBudgetAlertsJob");
+            jobLauncher.run(evaluateBudgetAlertsJob, params);
+        } catch (Exception e) {
+            log.error("evaluateBudgetAlertsJob failed", e);
         }
     }
 }

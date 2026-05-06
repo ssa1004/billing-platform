@@ -44,15 +44,18 @@ public class BillingJobScheduler {
     private final JobLauncher jobLauncher;
     private final Job monthlySettlementJob;
     private final Job dailyReconciliationJob;
+    private final Job expireCreditsJob;
     private final Clock clock;
 
     public BillingJobScheduler(JobLauncher jobLauncher,
                                @Qualifier("monthlySettlementJob") Job monthlySettlementJob,
                                @Qualifier("dailyReconciliationJob") Job dailyReconciliationJob,
+                               @Qualifier("expireCreditsJob") Job expireCreditsJob,
                                Clock clock) {
         this.jobLauncher = jobLauncher;
         this.monthlySettlementJob = monthlySettlementJob;
         this.dailyReconciliationJob = dailyReconciliationJob;
+        this.expireCreditsJob = expireCreditsJob;
         this.clock = clock;
     }
 
@@ -91,6 +94,25 @@ public class BillingJobScheduler {
             jobLauncher.run(dailyReconciliationJob, params);
         } catch (Exception e) {
             log.error("dailyReconciliationJob failed", e);
+        }
+    }
+
+    /**
+     * 매일 03:30 KST. 만료 시점 도달한 ACTIVE Credit 들을 EXPIRED 처리.
+     * Settlement (03:00) 직후라 만료 결과가 그날 정산 보고서에 반영 가능.
+     * 운영자 수동 트리거가 필요하면 별도 endpoint 추가.
+     */
+    @Scheduled(cron = "0 30 3 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "expireCredits", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
+    public void runExpireCredits() {
+        try {
+            JobParameters params = new JobParametersBuilder()
+                    .addLong("triggeredAt", clock.millis())
+                    .toJobParameters();
+            log.info("triggering expireCreditsJob");
+            jobLauncher.run(expireCreditsJob, params);
+        } catch (Exception e) {
+            log.error("expireCreditsJob failed", e);
         }
     }
 }

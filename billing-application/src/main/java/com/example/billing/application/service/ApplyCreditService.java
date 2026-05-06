@@ -1,10 +1,13 @@
 package com.example.billing.application.service;
 
 import com.example.billing.application.command.ApplyCreditCommand;
+import com.example.billing.application.exception.InvoiceNotFoundException;
 import com.example.billing.application.port.in.ApplyCreditUseCase;
 import com.example.billing.application.port.out.CreditRepository;
 import com.example.billing.application.port.out.EventPublisher;
+import com.example.billing.application.port.out.InvoiceRepository;
 import com.example.billing.domain.credit.Credit;
+import com.example.billing.domain.invoice.Invoice;
 import com.example.billing.domain.shared.CustomerId;
 import com.example.billing.domain.shared.Money;
 import com.example.billing.domain.shared.Reference;
@@ -18,19 +21,17 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * 사용 가능한 ACTIVE Credit 들을 합산해 차감. {@code applyAtMost} 한도까지만.
- *
- * <p>차감 우선순위 ({@code CreditRepository.findUsable} 가 정렬):
+ * Invoice 에 사용 가능한 ACTIVE Credit 들을 합산해 적용. 한 트랜잭션에서:
  * <ol>
- *   <li>만료 임박한 것 (만료 손실 최소화)</li>
- *   <li>같은 만료라면 발급 시점 빠른 것 (FIFO)</li>
+ *   <li>Invoice 로드 (DRAFT 면 거부, 종착 상태면 거부)</li>
+ *   <li>차감 한도 = min({@code cmd.applyAtMost}, {@code invoice.amountDue()})</li>
+ *   <li>{@link CreditRepository#findUsable} 순서대로 차감 — 만료 임박 → FIFO</li>
+ *   <li>{@link Invoice#applyCredit(Money)} 로 invoice 의 누적 적용액 증가 → save</li>
+ *   <li>Credit 별 {@code CreditConsumed} 이벤트를 Outbox 에 INSERT</li>
  * </ol>
  *
- * <p>Invoice 와의 연동은 호출 측이 책임 — 이 service 는 차감만 한다. invoice 의 결제 대상
- * 금액 갱신, ledger 기록 등은 별도. 트랜잭션은 호출-당-1 (same-thread) 라 OK.</p>
- *
- * <p>한 트랜잭션 안에서 여러 Credit 을 차감하다 OptimisticLock 발생 시 전체 롤백 →
- * 호출자가 retry. (만료 batch 와 동시 충돌 가능)</p>
+ * <p>한 트랜잭션이라 Credit 차감과 Invoice 갱신이 원자적. OptimisticLock 발생 시
+ * 전체 롤백 → 호출자가 retry (만료 batch / 동시 결제 등과 충돌 가능).</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -38,6 +39,7 @@ import java.util.List;
 public class ApplyCreditService implements ApplyCreditUseCase {
 
     private final CreditRepository credits;
+    private final InvoiceRepository invoices;
     private final EventPublisher events;
     private final Clock clock;
 
@@ -48,6 +50,14 @@ public class ApplyCreditService implements ApplyCreditUseCase {
         if (!cap.isPositive()) {
             return Money.zero(cap.currency());
         }
+        Invoice invoice = invoices.findById(cmd.invoiceId())
+                .orElseThrow(() -> new InvoiceNotFoundException(cmd.invoiceId()));
+        Money due = invoice.amountDue();
+        Money realCap = due.compareTo(cap) <= 0 ? due : cap;
+        if (!realCap.isPositive()) {
+            return Money.zero(cap.currency());
+        }
+
         Instant now = clock.instant();
         CustomerId customerId = CustomerId.of(cmd.customerId());
         List<Credit> usable = credits.findUsable(customerId, now);
@@ -56,11 +66,11 @@ public class ApplyCreditService implements ApplyCreditUseCase {
         Reference invoiceRef = Reference.adjustment("invoice:" + cmd.invoiceId());
 
         for (Credit credit : usable) {
-            if (applied.compareTo(cap) >= 0) break;
+            if (applied.compareTo(realCap) >= 0) break;
             // 통화가 다르면 skip — Invoice 통화와 다른 Credit 은 적용 X
-            if (!credit.currency().equals(cap.currency())) continue;
+            if (!credit.currency().equals(realCap.currency())) continue;
 
-            Money remainingCap = cap.subtract(applied);
+            Money remainingCap = realCap.subtract(applied);
             Money take = credit.balance().compareTo(remainingCap) <= 0
                     ? credit.balance()
                     : remainingCap;
@@ -71,8 +81,13 @@ public class ApplyCreditService implements ApplyCreditUseCase {
             applied = applied.add(take);
         }
 
-        log.info("credit applied invoice={} customer={} cap={} applied={}",
-                cmd.invoiceId(), customerId, cap, applied);
+        if (applied.isPositive()) {
+            invoice.applyCredit(applied);
+            invoices.save(invoice);
+        }
+
+        log.info("credit applied invoice={} customer={} cap={} applied={} amountDueAfter={}",
+                cmd.invoiceId(), customerId, realCap, applied, invoice.amountDue());
         return applied;
     }
 }

@@ -3,10 +3,12 @@ package com.example.billing.application.service;
 import com.example.billing.application.exception.PricingPlanNotFoundException;
 import com.example.billing.application.port.in.EvaluateBudgetAlertsUseCase;
 import com.example.billing.application.port.in.UsageForecastUseCase;
+import com.example.billing.application.port.out.BudgetAlertHistoryRepository;
 import com.example.billing.application.port.out.BudgetAlertRuleRepository;
 import com.example.billing.application.port.out.CustomerNotifier;
 import com.example.billing.application.port.out.EventPublisher;
 import com.example.billing.domain.budget.BudgetAlertEvents;
+import com.example.billing.domain.budget.BudgetAlertHistoryEntry;
 import com.example.billing.domain.budget.BudgetAlertRule;
 import com.example.billing.domain.metering.UsageForecast;
 import com.example.billing.domain.shared.CustomerId;
@@ -45,6 +47,7 @@ import java.util.Map;
 public class EvaluateBudgetAlertsService implements EvaluateBudgetAlertsUseCase {
 
     private final BudgetAlertRuleRepository rules;
+    private final BudgetAlertHistoryRepository history;
     private final UsageForecastUseCase forecast;
     private final CustomerNotifier notifier;
     private final EventPublisher events;
@@ -78,6 +81,7 @@ public class EvaluateBudgetAlertsService implements EvaluateBudgetAlertsUseCase 
 
             rule.evaluate(projected, clock).ifPresent(triggered -> {
                 events.publish(triggered);
+                history.save(BudgetAlertHistoryEntry.from(triggered, f.period(), f.periodProgressRatio()));
                 notifier.notify(customerId, CustomerNotifier.NotificationType.BUDGET_ALERT,
                         notificationContext(triggered, f));
                 log.info("budget alert TRIGGERED rule={} customer={} threshold={} projected={} ratio={}",

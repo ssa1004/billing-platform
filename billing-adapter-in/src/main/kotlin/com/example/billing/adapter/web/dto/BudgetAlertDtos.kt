@@ -25,3 +25,18 @@ data class BudgetAlertRuleView(
 )
 
 data class BudgetAlertRuleListResponse(val items: List<BudgetAlertRuleView>)
+
+data class BudgetAlertHistoryView(
+    val id: String,
+    val ruleId: String,
+    val customerId: String,
+    val thresholdAtTrigger: BigDecimal,
+    val projectedCostAtTrigger: BigDecimal,
+    val currency: String,
+    val overshootRatio: Double,
+    val period: String,
+    val periodProgressRatioAtTrigger: Double,
+    val occurredAt: String,
+)
+
+data class BudgetAlertHistoryResponse(val items: List<BudgetAlertHistoryView>)

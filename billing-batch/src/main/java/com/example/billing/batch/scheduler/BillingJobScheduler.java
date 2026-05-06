@@ -46,6 +46,7 @@ public class BillingJobScheduler {
     private final Job dailyReconciliationJob;
     private final Job expireCreditsJob;
     private final Job evaluateBudgetAlertsJob;
+    private final Job deliverWebhooksJob;
     private final Clock clock;
 
     public BillingJobScheduler(JobLauncher jobLauncher,
@@ -53,12 +54,14 @@ public class BillingJobScheduler {
                                @Qualifier("dailyReconciliationJob") Job dailyReconciliationJob,
                                @Qualifier("expireCreditsJob") Job expireCreditsJob,
                                @Qualifier("evaluateBudgetAlertsJob") Job evaluateBudgetAlertsJob,
+                               @Qualifier("deliverWebhooksJob") Job deliverWebhooksJob,
                                Clock clock) {
         this.jobLauncher = jobLauncher;
         this.monthlySettlementJob = monthlySettlementJob;
         this.dailyReconciliationJob = dailyReconciliationJob;
         this.expireCreditsJob = expireCreditsJob;
         this.evaluateBudgetAlertsJob = evaluateBudgetAlertsJob;
+        this.deliverWebhooksJob = deliverWebhooksJob;
         this.clock = clock;
     }
 
@@ -134,6 +137,24 @@ public class BillingJobScheduler {
             jobLauncher.run(evaluateBudgetAlertsJob, params);
         } catch (Exception e) {
             log.error("evaluateBudgetAlertsJob failed", e);
+        }
+    }
+
+    /**
+     * 매 분. PENDING webhook delivery 들을 잡아 customer 서버로 HTTP POST.
+     * 1분 안에 처리 못 한 건은 다음 분으로 자연 이월. lockAtMostFor 짧게 (PT5M) — 한 인스턴스가
+     * 멈춰도 빠르게 다른 인스턴스가 인계.
+     */
+    @Scheduled(cron = "0 * * * * *")
+    @SchedulerLock(name = "deliverWebhooks", lockAtMostFor = "PT5M", lockAtLeastFor = "PT30S")
+    public void runDeliverWebhooks() {
+        try {
+            JobParameters params = new JobParametersBuilder()
+                    .addLong("triggeredAt", clock.millis())
+                    .toJobParameters();
+            jobLauncher.run(deliverWebhooksJob, params);
+        } catch (Exception e) {
+            log.error("deliverWebhooksJob failed", e);
         }
     }
 }

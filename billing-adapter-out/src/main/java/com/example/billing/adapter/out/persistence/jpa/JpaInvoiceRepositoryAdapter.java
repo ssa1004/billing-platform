@@ -52,6 +52,7 @@ public class JpaInvoiceRepositoryAdapter implements InvoiceRepository {
         entity.setCustomerId(invoice.customerId().value());
         entity.setPeriodYearMonth(invoice.period().toKey());
         entity.setTotalAmount(invoice.total().amount());
+        entity.setAppliedCredit(invoice.appliedCredit().amount());
         entity.setCurrencyCode(invoice.total().currency().getCurrencyCode());
         entity.setStatus(invoice.status());
         entity.setLinesJson(serializeLines(invoice.lines()));
@@ -96,14 +97,19 @@ public class JpaInvoiceRepositoryAdapter implements InvoiceRepository {
     }
 
     private Invoice toDomain(InvoiceJpaEntity e) {
-        Money total = Money.of(e.getTotalAmount(), Currency.getInstance(e.getCurrencyCode()));
+        Currency currency = Currency.getInstance(e.getCurrencyCode());
+        Money total = Money.of(e.getTotalAmount(), currency);
+        Money appliedCredit = e.getAppliedCredit() == null
+                ? Money.zero(currency)
+                : Money.of(e.getAppliedCredit(), currency);
         List<InvoiceLine> lines = deserializeLines(e.getLinesJson());
         PricingSnapshot snapshot = deserializeSnapshot(e.getPricingSnapshotJson());
         return Invoice.restore(
                 e.getId(), CustomerId.of(e.getCustomerId()),
                 BillingPeriod.of(YearMonth.parse(e.getPeriodYearMonth())),
                 lines, total, snapshot, e.getCreatedAt(),
-                e.getStatus(), e.getIssuedAt(), e.getDueAt(), e.getPaidAt(),
+                e.getStatus(), appliedCredit,
+                e.getIssuedAt(), e.getDueAt(), e.getPaidAt(),
                 e.getVersion());
     }
 

@@ -33,6 +33,7 @@ public final class Invoice {
     private final PricingSnapshot pricingSnapshot;
     private final Instant createdAt;
     private InvoiceStatus status;
+    private Money appliedCredit;        // 0 ≤ appliedCredit ≤ total
     private Instant issuedAt;
     private Instant dueAt;
     private Instant paidAt;
@@ -40,7 +41,8 @@ public final class Invoice {
 
     private Invoice(UUID id, CustomerId customerId, BillingPeriod period, List<InvoiceLine> lines,
                     Money total, PricingSnapshot pricingSnapshot, Instant createdAt,
-                    InvoiceStatus status, Instant issuedAt, Instant dueAt, Instant paidAt,
+                    InvoiceStatus status, Money appliedCredit,
+                    Instant issuedAt, Instant dueAt, Instant paidAt,
                     long version) {
         this.id = Objects.requireNonNull(id);
         this.customerId = Objects.requireNonNull(customerId);
@@ -50,6 +52,7 @@ public final class Invoice {
         this.pricingSnapshot = Objects.requireNonNull(pricingSnapshot);
         this.createdAt = Objects.requireNonNull(createdAt);
         this.status = Objects.requireNonNull(status);
+        this.appliedCredit = Objects.requireNonNull(appliedCredit);
         this.issuedAt = issuedAt;
         this.dueAt = dueAt;
         this.paidAt = paidAt;
@@ -68,16 +71,18 @@ public final class Invoice {
                 .orElseThrow();
         return new Invoice(UUID.randomUUID(), customerId, period, lines, total,
                 pricingSnapshot, clock.instant(), InvoiceStatus.DRAFT,
+                Money.zero(total.currency()),
                 null, null, null, 0L);
     }
 
     public static Invoice restore(UUID id, CustomerId customerId, BillingPeriod period,
                                   List<InvoiceLine> lines, Money total,
                                   PricingSnapshot pricingSnapshot, Instant createdAt,
-                                  InvoiceStatus status, Instant issuedAt, Instant dueAt,
+                                  InvoiceStatus status, Money appliedCredit,
+                                  Instant issuedAt, Instant dueAt,
                                   Instant paidAt, long version) {
         return new Invoice(id, customerId, period, lines, total, pricingSnapshot, createdAt,
-                status, issuedAt, dueAt, paidAt, version);
+                status, appliedCredit, issuedAt, dueAt, paidAt, version);
     }
 
     public void issue(Clock clock) {
@@ -115,11 +120,49 @@ public final class Invoice {
         this.status = InvoiceStatus.CANCELLED;
     }
 
+    /**
+     * Credit 적용. 결제 대상 금액({@link #amountDue}) 을 줄인다. 음수 / amountDue 초과 / 종착
+     * 상태는 거부.
+     *
+     * <p>amountDue 가 0 이 되면 자동 PAID 전환은 하지 않는다 — 결제 service 가 ledger 와 함께
+     * 처리. 여기서는 잔액만 줄임.</p>
+     *
+     * @return 새 amountDue
+     */
+    public Money applyCredit(Money amount) {
+        if (status.isFinal()) {
+            throw new IllegalStateException("cannot apply credit to invoice in final state: " + status);
+        }
+        if (status == InvoiceStatus.DRAFT) {
+            throw new IllegalStateException("cannot apply credit to DRAFT invoice — issue first");
+        }
+        if (!amount.currency().equals(total.currency())) {
+            throw new IllegalArgumentException(
+                    "currency mismatch: invoice=" + total.currency() + " credit=" + amount.currency());
+        }
+        if (!amount.isPositive()) {
+            throw new IllegalArgumentException("amount must be positive: " + amount);
+        }
+        Money due = amountDue();
+        if (amount.compareTo(due) > 0) {
+            throw new IllegalArgumentException(
+                    "applied credit exceeds amountDue: amount=" + amount + " amountDue=" + due);
+        }
+        this.appliedCredit = appliedCredit.add(amount);
+        return amountDue();
+    }
+
+    /** 남은 결제 대상 금액 = total - appliedCredit. */
+    public Money amountDue() {
+        return total.subtract(appliedCredit);
+    }
+
     public UUID id() { return id; }
     public CustomerId customerId() { return customerId; }
     public BillingPeriod period() { return period; }
     public List<InvoiceLine> lines() { return lines; }
     public Money total() { return total; }
+    public Money appliedCredit() { return appliedCredit; }
     public PricingSnapshot pricingSnapshot() { return pricingSnapshot; }
     public Instant createdAt() { return createdAt; }
     public InvoiceStatus status() { return status; }

@@ -35,6 +35,10 @@ public class InvoiceJpaEntity {
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalAmount;
 
+    /** Credit 으로 차감된 금액 누적. {@code amountDue = totalAmount - appliedCredit}. */
+    @Column(name = "applied_credit", nullable = false, precision = 19, scale = 2)
+    private BigDecimal appliedCredit;
+
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 

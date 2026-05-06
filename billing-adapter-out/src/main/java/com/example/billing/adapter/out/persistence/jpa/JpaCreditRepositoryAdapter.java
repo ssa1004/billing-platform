@@ -37,8 +37,9 @@ public class JpaCreditRepositoryAdapter implements CreditRepository {
     }
 
     @Override
-    public List<Credit> findExpiredCandidates(Instant now) {
-        return jpa.findExpiredCandidates(now).stream()
+    public List<Credit> findExpiredCandidates(Instant now, int limit) {
+        return jpa.findExpiredCandidates(now, org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream()
                 .map(CreditJpaMapper::toDomain)
                 .toList();
     }

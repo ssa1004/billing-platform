@@ -34,6 +34,8 @@ public interface SpringDataCreditRepository extends JpaRepository<CreditJpaEntit
              WHERE c.status = com.example.billing.domain.credit.CreditStatus.ACTIVE
                AND c.validUntil IS NOT NULL
                AND c.validUntil <= :now
+             ORDER BY c.validUntil ASC
             """)
-    List<CreditJpaEntity> findExpiredCandidates(@Param("now") Instant now);
+    List<CreditJpaEntity> findExpiredCandidates(@Param("now") Instant now,
+                                                org.springframework.data.domain.Pageable pageable);
 }

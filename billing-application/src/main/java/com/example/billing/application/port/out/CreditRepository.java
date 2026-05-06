@@ -20,6 +20,9 @@ public interface CreditRepository {
      */
     List<Credit> findUsable(CustomerId customerId, Instant now);
 
-    /** 만료 batch 가 호출. {@code valid_until <= now} 인 ACTIVE 들. */
-    List<Credit> findExpiredCandidates(Instant now);
+    /**
+     * 만료 batch 가 호출. {@code valid_until <= now} 인 ACTIVE 들. {@code limit} 까지만.
+     * batch 가 결과 0 이 될 때까지 반복 호출.
+     */
+    List<Credit> findExpiredCandidates(Instant now, int limit);
 }

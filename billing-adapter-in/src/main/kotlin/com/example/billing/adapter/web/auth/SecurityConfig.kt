@@ -3,6 +3,7 @@ package com.example.billing.adapter.web.auth
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
@@ -10,10 +11,11 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain
 
 /**
- * 운영 보안: OAuth2 Resource Server (JWT). wallet.security.jwt.enabled=true 일 때 활성.
+ * 운영 보안: OAuth2 Resource Server (JWT). billing.security.jwt.enabled=true 일 때 활성.
  */
 @Configuration
-@ConditionalOnProperty(name = ["wallet.security.jwt.enabled"], havingValue = "true")
+@EnableMethodSecurity
+@ConditionalOnProperty(name = ["billing.security.jwt.enabled"], havingValue = "true")
 class SecurityConfig {
 
     @Bean

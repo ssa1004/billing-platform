@@ -18,8 +18,8 @@ import java.util.UUID;
  * <p>상태 전이는 {@link #issue}, {@link #markPaid}, {@link #markOverdue}, {@link #cancel}
  * 메서드로만 가능. setter 없음.</p>
  *
- * <p>총액은 {@link InvoiceLine#lineTotal} 합. 가격 정책은 {@link PricingSnapshot} 으로 freeze
- * 되므로 plan 변경에도 과거 청구서 영향 없음.</p>
+ * <p>총액은 {@link InvoiceLine#lineTotal} 합. 가격 정책은 {@link PricingSnapshot} 으로 저장하므로
+ * 요금제가 변경되어도 과거 청구서 금액은 변하지 않는다.</p>
  */
 public final class Invoice {
 

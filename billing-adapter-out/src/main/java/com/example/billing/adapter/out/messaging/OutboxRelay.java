@@ -21,13 +21,13 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Outbox → Kafka relay. 동기 send + tx 안에서 markPublished (트랜잭션 안전).
- * wallet.outbox.relay.enabled=true 일 때만 활성. 단일 인스턴스 전제 — 멀티 시 ShedLock.
+ * billing.outbox.relay.enabled=true 일 때만 활성. 단일 인스턴스 전제 — 멀티 시 ShedLock.
  *
  * <p>실패 시 markPublished 안 함 → 다음 polling 에서 재시도 (at-least-once).
  * Poison pill (영구 실패) 은 별도 백로그.</p>
  */
 @Component
-@ConditionalOnProperty(name = "wallet.outbox.relay.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "billing.outbox.relay.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class OutboxRelay {
@@ -36,16 +36,16 @@ public class OutboxRelay {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final Clock clock;
 
-    @Value("${wallet.outbox.relay.batch-size:100}")
+    @Value("${billing.outbox.relay.batch-size:100}")
     private int batchSize;
 
-    @Value("${wallet.outbox.relay.send-timeout-ms:5000}")
+    @Value("${billing.outbox.relay.send-timeout-ms:5000}")
     private long sendTimeoutMs;
 
-    @Value("${wallet.outbox.relay.topic-prefix:wallet.}")
+    @Value("${billing.outbox.relay.topic-prefix:billing.}")
     private String topicPrefix;
 
-    @Scheduled(fixedDelayString = "${wallet.outbox.relay.poll-interval-ms:1000}")
+    @Scheduled(fixedDelayString = "${billing.outbox.relay.poll-interval-ms:1000}")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishPending() {
         List<OutboxJpaEntity> batch = outboxRepository.findUnpublished(PageRequest.of(0, batchSize));

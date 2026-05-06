@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
  * <p>plan 정의가 변경되면 새 PricingPlan 행이 INSERT 되고 effectiveFrom 으로 적용 시점이
  * 결정된다. 과거 정의는 update 가 아니라 별도 행으로 유지 (audit trail).</p>
  *
- * <p>실제 청구서 생성 시에는 {@link PricingSnapshot} 으로 박제되어 plan 변경에도 과거 청구서는
+ * <p>실제 청구서 생성 시에는 {@link PricingSnapshot} 으로 저장되어 요금제 변경에도 과거 청구서는
  * 변하지 않는다.</p>
  */
 public final class PricingPlan {
@@ -73,7 +73,7 @@ public final class PricingPlan {
     public List<Tier> tiers() { return tiers; }
     public Instant effectiveFrom() { return effectiveFrom; }
 
-    /** {@link PricingSnapshot} 으로 박제. 청구서 생성 시 호출. */
+    /** {@link PricingSnapshot} 으로 저장. 청구서 생성 시 호출. */
     public PricingSnapshot snapshot(Instant capturedAt) {
         return PricingSnapshot.of(id, name, tiers, capturedAt);
     }

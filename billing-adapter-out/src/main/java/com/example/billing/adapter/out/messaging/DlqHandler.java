@@ -21,7 +21,7 @@ import java.util.function.BiFunction;
  * <p>운영자는 DLQ consumer 또는 재처리 endpoint 로 메시지를 원본 topic 에 다시 publish 하여 복구.</p>
  */
 @Component
-@ConditionalOnProperty(name = "wallet.outbox.relay.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "billing.outbox.relay.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class DlqHandler {

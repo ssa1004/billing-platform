@@ -15,7 +15,7 @@ import java.util.UUID;
  * 이력 ("최근 30일 내 임계 초과 횟수", "처음 임계 초과 시점") 같은 분석은 별도 테이블이 자연스러움.</p>
  *
  * <p>아래 필드는 알림 시점의 *snapshot* — rule 이 나중에 변경돼도 (예: threshold 상향) 과거
- * 트리거의 의미가 변하지 않도록 모두 박제.</p>
+ * 트리거의 의미가 변하지 않도록 모두 저장한다.</p>
  */
 public record BudgetAlertHistoryEntry(
         UUID id,

@@ -15,22 +15,22 @@ import java.util.Optional;
  *
  * <p>키 구조:</p>
  * <ul>
- *   <li>{@code wallet:idempotency:lock:<key>} = "1" (TTL 24h) — 점유 lock</li>
- *   <li>{@code wallet:idempotency:resp:<key>} = "<status>|<body>" (TTL 24h) — 응답 캐시</li>
+ *   <li>{@code billing:idempotency:lock:<key>} = "1" (TTL 24h) — 점유 lock</li>
+ *   <li>{@code billing:idempotency:resp:<key>} = "<status>|<body>" (TTL 24h) — 응답 캐시</li>
  * </ul>
  */
 @Component
-@ConditionalOnProperty(name = "wallet.cache.redis-enabled", havingValue = "true")
+@ConditionalOnProperty(name = "billing.cache.redis-enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class RedisIdempotencyKeyStore implements IdempotencyKeyStore {
 
     private final StringRedisTemplate redis;
 
-    @Value("${wallet.idempotency.ttl-hours:24}")
+    @Value("${billing.idempotency.ttl-hours:24}")
     private long ttlHours;
 
-    private static final String LOCK_PREFIX = "wallet:idempotency:lock:";
-    private static final String RESP_PREFIX = "wallet:idempotency:resp:";
+    private static final String LOCK_PREFIX = "billing:idempotency:lock:";
+    private static final String RESP_PREFIX = "billing:idempotency:resp:";
 
     @Override
     public void acquireOrThrow(String key) {

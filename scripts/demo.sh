@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Prepaid Wallet 데모 — 주문 → 결제 → 환불 한 사이클.
-# 먼저 다른 터미널에서: ./gradlew :wallet-bootstrap:bootRun
+# Billing Platform 데모 — 주문 → 결제 → 환불 한 사이클.
+# 먼저 다른 터미널에서: ./gradlew :billing-bootstrap:bootRun
 set -euo pipefail
 
 BASE="${BASE:-http://localhost:8080}"

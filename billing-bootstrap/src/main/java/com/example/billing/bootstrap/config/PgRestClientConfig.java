@@ -9,7 +9,7 @@ import org.springframework.web.client.RestClient;
 import java.time.Duration;
 
 @Configuration
-@ConditionalOnProperty(name = "wallet.pg.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "billing.pg.enabled", havingValue = "true")
 public class PgRestClientConfig {
 
     @Bean

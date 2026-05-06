@@ -7,7 +7,7 @@
 도메인 로직이 Spring/JPA/Kafka 같은 인프라 의존성에 묶이면 — (a) 단위 테스트가 무거워지고 (b) 인프라 교체 시 도메인까지 손대야 하고 (c) DDD invariant 가 어디서 깨지는지 추적 어려움.
 
 ## 결정
-**헥사고날** + multi-module Gradle. `wallet-domain` 은 Spring 의존성 0 (jakarta.validation 만). `wallet-application` 이 outbound port 인터페이스 정의, `wallet-adapter-out` 이 JPA/Kafka/Redis 등 실제 구현. 컨트롤러는 `wallet-adapter-in`.
+**헥사고날** + multi-module Gradle. `billing-domain` 은 Spring 의존성 0으로 유지한다. `billing-application` 이 outbound port 인터페이스를 정의하고, `billing-adapter-out` 이 JPA/Kafka/Redis 등 실제 구현을 맡는다. 컨트롤러는 `billing-adapter-in` 에 둔다.
 
 의존 방향: `adapter-in → application → domain ← adapter-out`. application 은 도메인을 알지만 어댑터는 모름. 어댑터는 application 의 port 만 구현. 도메인은 누구도 모름.
 

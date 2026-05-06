@@ -16,7 +16,7 @@ class PgClientWiremockIT {
     void authorize_handlesPgResponseFormat(WireMockRuntimeInfo info) {
         stubFor(post("/v1/payments/authorize")
             .willReturn(jsonResponse("...recorded.json...")));
-        // FeignPgClient 호출 → 우리 코드가 PG 응답 정확히 파싱하는지
+        // RestClientPgClient 호출 → 우리 코드가 PG 응답을 정확히 파싱하는지
     }
 }
 ```

@@ -8,11 +8,11 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 /**
- * 로컬 dev 용 Mock PG. wallet.pg.enabled=false 일 때 활성. 항상 승인.
+ * 로컬 dev 용 Mock PG. billing.pg.enabled=false 일 때 활성. 항상 승인.
  * 실패 시나리오 테스트는 idempotencyKey 가 "FAIL_" 로 시작하면 reject.
  */
 @Component
-@ConditionalOnProperty(name = "wallet.pg.enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(name = "billing.pg.enabled", havingValue = "false", matchIfMissing = true)
 @Slf4j
 public class MockPgClient implements PgClient {
 

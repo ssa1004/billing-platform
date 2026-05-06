@@ -30,9 +30,6 @@ dependencies {
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     runtimeOnly("org.springframework.modulith:spring-modulith-actuator")
 
-    // Spring Cloud (OpenFeign 의존성을 transitively 끌어옴)
-    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2024.0.0"))
-
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
@@ -45,7 +42,7 @@ tasks.named("bootJar") {
     enabled = true
 }
 
-// e2e-tests 가 WalletApplication 클래스를 import 할 수 있도록 plain jar 도 활성화.
+// e2e-tests 가 BillingApplication 클래스를 import 할 수 있도록 plain jar 도 활성화.
 // (Spring Boot 3 의 jar/bootJar 공존 — bootJar 가 실행파일, jar 가 라이브러리)
 tasks.named<Jar>("jar") {
     enabled = true

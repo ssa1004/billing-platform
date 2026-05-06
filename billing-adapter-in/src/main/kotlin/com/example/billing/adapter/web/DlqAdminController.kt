@@ -25,7 +25,7 @@ import java.util.UUID
 @RestController
 @RequestMapping("/admin/dlq")
 @Tag(name = "admin-dlq", description = "DLQ 메시지 재처리 (관리자 전용)")
-@ConditionalOnProperty(name = ["wallet.outbox.relay.enabled"], havingValue = "true")
+@ConditionalOnProperty(name = ["billing.outbox.relay.enabled"], havingValue = "true")
 class DlqAdminController(
     private val kafkaTemplate: KafkaTemplate<String, String>,
     @Value("\${spring.kafka.bootstrap-servers}") private val bootstrap: String,
@@ -33,7 +33,7 @@ class DlqAdminController(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @PostMapping("/replay")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "DLT topic 의 모든 메시지를 원본 topic 으로 재발행")
     fun replay(
         @RequestParam dltTopic: String,

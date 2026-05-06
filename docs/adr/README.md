@@ -14,7 +14,7 @@
 | [0008](0008-resilience4j.md) | Resilience4j Circuit Breaker for PG | 적용 |
 | [0009](0009-virtual-threads.md) | Java 21 Virtual Threads | 적용 |
 | [0010](0010-spring-batch-reconciliation.md) | Spring Batch chunk + skip + retry 정산 | 적용 |
-| [0011](0011-two-layer-cache.md) | Caffeine L1 + Redis L2 두 단계 캐시 | 적용 |
+| [0011](0011-two-layer-cache.md) | 조회 캐시 전략 | 부분 적용 |
 | [0012](0012-wiremock-pg-contract.md) | Wiremock으로 PG contract 테스트 | 적용 |
 | [0013](0013-settlement-advisory-lock.md) | 월별 정산 동시성 — Postgres advisory lock | 적용 |
 | [0014](0014-skip-locked-worker-pool.md) | Worker pool 병렬 처리 — `FOR UPDATE SKIP LOCKED` | 적용 |

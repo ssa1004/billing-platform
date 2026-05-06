@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /**
- * JPA 스캔 경로 — wallet-adapter-out 모듈의 entity / repository 를 모두 발견.
+ * JPA 스캔 경로 — billing-adapter-out 모듈의 entity / repository 를 모두 발견.
  */
 @Configuration
 @EntityScan(basePackages = "com.example.billing.adapter.out")

@@ -44,8 +44,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   <li>OPEN 상태에서 다음 호출은 PG 에 도달하지 않고 fallback (CB_OPEN) 반환</li>
  * </ol>
  */
-@SpringBootTest(classes = FeignPgClientCircuitBreakerIT.TestApp.class)
-class FeignPgClientCircuitBreakerIT {
+@SpringBootTest(classes = RestClientPgClientCircuitBreakerIT.TestApp.class)
+class RestClientPgClientCircuitBreakerIT {
 
     private static final Currency KRW = Currency.getInstance("KRW");
     private static WireMockServer wiremock;
@@ -63,8 +63,8 @@ class FeignPgClientCircuitBreakerIT {
 
     @DynamicPropertySource
     static void registerProps(DynamicPropertyRegistry r) {
-        r.add("wallet.pg.enabled", () -> "true");
-        r.add("wallet.pg.base-url", () -> wiremock.baseUrl());
+        r.add("billing.pg.enabled", () -> "true");
+        r.add("billing.pg.base-url", () -> wiremock.baseUrl());
         // 테스트 전용 — 작은 임계치로 빨리 OPEN
         r.add("resilience4j.circuitbreaker.instances.pg.slidingWindowSize", () -> "4");
         r.add("resilience4j.circuitbreaker.instances.pg.minimumNumberOfCalls", () -> "4");
@@ -73,7 +73,7 @@ class FeignPgClientCircuitBreakerIT {
         r.add("resilience4j.retry.instances.pg.maxAttempts", () -> "1");
     }
 
-    @Autowired FeignPgClient client;
+    @Autowired RestClientPgClient client;
     @Autowired CircuitBreakerRegistry cbRegistry;
 
     @BeforeEach
@@ -133,11 +133,11 @@ class FeignPgClientCircuitBreakerIT {
 
     /**
      * 최소한의 Spring Boot 컨텍스트 — Resilience4j auto-config + AOP 만 활성화.
-     * MockPgClient 는 wallet.pg.enabled=true 라 자동 비활성, FeignPgClient 만 활성.
+     * MockPgClient 는 billing.pg.enabled=true 라 자동 비활성, RestClientPgClient 만 활성.
      */
     @SpringBootConfiguration
     @EnableAutoConfiguration
-    @ComponentScan(basePackageClasses = FeignPgClient.class)
+    @ComponentScan(basePackageClasses = RestClientPgClient.class)
     static class TestApp {
 
         @Bean

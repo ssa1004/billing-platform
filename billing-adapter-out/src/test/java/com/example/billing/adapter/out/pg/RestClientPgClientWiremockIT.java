@@ -24,7 +24,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * PG contract test — FeignPgClient (RestClient 기반) 가 Wiremock 실제 HTTP 응답을 정확히 매핑하는지.
+ * PG contract test — RestClientPgClient (RestClient 기반) 가 Wiremock 실제 HTTP 응답을 정확히 매핑하는지.
  *
  * <p>검증 포인트:</p>
  * <ul>
@@ -36,13 +36,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Resilience4j @CircuitBreaker / @Retry 는 Spring 컨텍스트가 있을 때만 적용되므로 이 테스트는
  * 순수 RestClient 호출만 검증. CB 시나리오는 별도 통합 테스트에서 확인.</p>
  */
-class FeignPgClientWiremockIT {
+class RestClientPgClientWiremockIT {
 
     private static final Currency KRW = Currency.getInstance("KRW");
     private static final ObjectMapper json = new ObjectMapper();
 
     private static WireMockServer wiremock;
-    private FeignPgClient client;
+    private RestClientPgClient client;
 
     @BeforeAll
     static void startServer() {
@@ -63,7 +63,7 @@ class FeignPgClientWiremockIT {
                 .baseUrl(wiremock.baseUrl())
                 .requestFactory(new SimpleClientHttpRequestFactory())
                 .build();
-        client = new FeignPgClient(rest);
+        client = new RestClientPgClient(rest);
     }
 
     @Test

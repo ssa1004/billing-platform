@@ -1,4 +1,4 @@
-// Outbound adapter — Persistence(JPA + JOOQ), PG client, Cache(Redis+Caffeine), Messaging(Kafka producer + Outbox)
+// Outbound adapter — Persistence(JPA + JOOQ), PG client, Cache/Redis, Messaging(Kafka producer + Outbox)
 plugins {
     `java-library`
 }
@@ -16,11 +16,11 @@ dependencies {
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
     // PG client
-    implementation("org.springframework.cloud:spring-cloud-starter-openfeign:4.2.0")
+    implementation("org.springframework:spring-web")
+    implementation("org.springframework.boot:spring-boot-starter-aop")
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
-    implementation("io.github.resilience4j:resilience4j-feign:2.2.0")
 
-    // Cache (L1 Caffeine + L2 Redis)
+    // Cache / KV
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("com.github.ben-manes.caffeine:caffeine")

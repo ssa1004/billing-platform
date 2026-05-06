@@ -63,10 +63,10 @@ adapter/out/persistence/... 와 같은 도메인 패키지가 IDE 빌드 산출�
 PR 전 `./gradlew test` 통과가 필수입니다. 빠른 단위 테스트만 별도로 실행하려면 다음 명령을
 사용합니다.
 
-- 도메인: `:wallet-domain:test`
-- 정산 배치: `:wallet-batch:test`
+- 도메인: `:billing-domain:test`
+- 정산 배치: `:billing-batch:test`
 - 통합 시나리오 (Postgres Testcontainer 필요): `:e2e-tests:test`
-- Spring Modulith 모듈 경계 검증: `:wallet-bootstrap:test`
+- Spring Modulith 모듈 경계 검증: `:billing-bootstrap:test`
 
 ## 코드 스타일
 

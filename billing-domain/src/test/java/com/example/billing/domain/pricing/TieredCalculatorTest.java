@@ -65,7 +65,7 @@ class TieredCalculatorTest {
     }
 
     @Test
-    void snapshot_으로_freeze_된_가격_은_그대로() {
+    void snapshot_으로_저장된_가격은_그대로() {
         PricingPlan plan = PricingPlan.create("Original", List.of(
                 new Tier(ResourceType.API_CALL, null, Money.of(BigDecimal.valueOf(1L), KRW))
         ), Instant.parse("2026-01-01T00:00:00Z"));

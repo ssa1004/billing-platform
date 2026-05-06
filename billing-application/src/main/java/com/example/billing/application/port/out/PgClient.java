@@ -8,8 +8,8 @@ import com.example.billing.domain.shared.Money;
  *
  * <p>구현체:</p>
  * <ul>
- *   <li>{@code FeignPgClient} — 운영 (OpenFeign + CB + Retry)</li>
- *   <li>{@code MockPgClient} — 로컬 dev (랜덤 성공/실패 시뮬)</li>
+ *   <li>{@code RestClientPgClient} — 운영 (Spring RestClient + CB + Retry)</li>
+ *   <li>{@code MockPgClient} — 로컬 dev (항상 승인, FAIL_ 키로 실패 시뮬레이션)</li>
  * </ul>
  */
 public interface PgClient {

@@ -9,11 +9,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * In-memory 멱등성 키 저장소 — 로컬 dev 전용. {@code wallet.cache.redis-enabled=false} 일 때 활성.
+ * In-memory 멱등성 키 저장소 — 로컬 dev 전용. {@code billing.cache.redis-enabled=false} 일 때 활성.
  * 운영은 {@link RedisIdempotencyKeyStore} (Redis NX SETNX).
  */
 @Component
-@ConditionalOnProperty(name = "wallet.cache.redis-enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(name = "billing.cache.redis-enabled", havingValue = "false", matchIfMissing = true)
 public class InMemoryIdempotencyKeyStore implements IdempotencyKeyStore {
 
     private final ConcurrentMap<String, CachedResponse> store = new ConcurrentHashMap<>();

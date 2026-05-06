@@ -5,13 +5,13 @@
 
 ## 배경
 
-PricingPlan 은 변경될 수 있다 (기업 고객 협상으로 plan 갱신, 정책 인상 등). 그러나 과거에
+PricingPlan 은 변경될 수 있다 (기업 고객 협상으로 요금제 갱신, 정책 인상 등). 그러나 과거에
 이미 발행된 invoice 의 정산 금액은 절대 변하면 안 된다 — 회계 / 감사 요구사항.
 
 대안:
 - **변경 시 새 PricingPlan row 추가 (effective_from)**: 이미 적용 중. 하지만 invoice 가
   plan id 만 참조하면, plan 행이 수정되었을 때 (실수로 update 등) 과거 invoice 영향
-- **Invoice 안에 사용된 가격 정보를 박제 (snapshot)**: invoice 가 PricingSnapshot 을 자체
+- **Invoice 안에 사용된 가격 정보를 저장 (snapshot)**: invoice 가 PricingSnapshot 을 자체
   보유. plan 행이 어떻게 바뀌어도 무관
 
 ## 결정
@@ -20,7 +20,7 @@ PricingPlan 은 변경될 수 있다 (기업 고객 협상으로 plan 갱신, �
 
 ```java
 public final class Invoice {
-    private final PricingSnapshot pricingSnapshot;  // freeze!
+    private final PricingSnapshot pricingSnapshot;
     // ...
 }
 

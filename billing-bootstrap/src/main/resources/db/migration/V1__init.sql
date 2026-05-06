@@ -1,4 +1,4 @@
--- V1: Wallet Platform 초기 스키마.
+-- V1: Billing Platform 초기 스키마.
 -- 도메인: Wallet (잔액) / Order (주문) / Payment (결제) / Refund (환불) / Ledger (원장) / Outbox / Idempotency
 
 -- ────────────────────────────────────────────────────────

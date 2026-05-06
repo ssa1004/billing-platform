@@ -1,6 +1,6 @@
 package com.example.billing.e2e;
 
-import com.example.billing.WalletApplication;
+import com.example.billing.BillingApplication;
 import com.example.billing.adapter.out.persistence.outbox.OutboxRepository;
 import com.example.billing.application.command.PlaceOrderCommand;
 import com.example.billing.application.command.ProcessPaymentCommand;
@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * </ul>
  */
 @Testcontainers(disabledWithoutDocker = true)
-@SpringBootTest(classes = WalletApplication.class)
+@SpringBootTest(classes = BillingApplication.class)
 @ActiveProfiles("it")
 class OrderPaymentFlowIT extends E2ECleanupSupport {
 

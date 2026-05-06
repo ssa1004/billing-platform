@@ -10,9 +10,9 @@ import org.springframework.modulith.docs.Documenter;
  * <p>{@link ApplicationModules#verify()} 가 모듈 의존 그래프 위반을 catch — 빌드 실패.
  * {@link Documenter} 가 PUML 다이어그램 + 모듈 canvas 를 docs/modulith/ 로 출력.</p>
  */
-class WalletApplicationModulithTest {
+class BillingApplicationModulithTest {
 
-    private final ApplicationModules modules = ApplicationModules.of(WalletApplication.class);
+    private final ApplicationModules modules = ApplicationModules.of(BillingApplication.class);
 
     @Test
     void verifiesModulesAreCompliant() {

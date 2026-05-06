@@ -14,12 +14,12 @@ import java.util.concurrent.TimeUnit;
 /**
  * 캐시 설정 — Caffeine 인프로세스 캐시.
  *
- * <p>운영의 2단계 캐시(Caffeine L1 + Redis L2) 는 ADR-0011 에 정리된 대로 별도 RedisCacheConfig 에서
- * 활성화한다 ({@code wallet.cache.redis-enabled=true} 일 때).</p>
+ * <p>로컬/dev 프로필에서는 Caffeine 을 사용하고, {@code billing.cache.redis-enabled=true} 인 운영
+ * 프로필에서는 Spring Boot 의 Redis CacheManager 자동 설정에 맡긴다.</p>
  */
 @Configuration
 @EnableCaching
-@ConditionalOnProperty(name = "wallet.cache.redis-enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(name = "billing.cache.redis-enabled", havingValue = "false", matchIfMissing = true)
 public class CacheConfig {
 
     @Bean

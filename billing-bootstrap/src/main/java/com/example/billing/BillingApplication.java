@@ -6,17 +6,17 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.modulith.Modulith;
 
 /**
- * Wallet Platform 진입점.
+ * Billing Platform 진입점.
  *
- * <p>Spring Modulith 가 모듈 경계를 verify — {@link com.example.billing.WalletApplicationModulithTest} 가
+ * <p>Spring Modulith 가 모듈 경계를 verify — {@link com.example.billing.BillingApplicationModulithTest} 가
  * 빌드 시 모듈 의존 방향을 검증한다.</p>
  */
 @SpringBootApplication(scanBasePackages = "com.example.billing")
 @ConfigurationPropertiesScan(basePackages = "com.example.billing.bootstrap.config")
-@Modulith(systemName = "prepaid-wallet")
-public class WalletApplication {
+@Modulith(systemName = "billing-platform")
+public class BillingApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(WalletApplication.class, args);
+        SpringApplication.run(BillingApplication.class, args);
     }
 }

@@ -19,3 +19,22 @@ data class IngestUsageRequest(
 )
 
 data class IngestUsageResponse(val eventId: String, val accepted: Boolean)
+
+/** 월말 예상 응답. */
+data class UsageForecastResponse(
+    val customerId: String,
+    val period: String,                  // "2026-05"
+    val asOf: String,                    // ISO-8601
+    val periodProgressRatio: Double,     // 0.0 ~ 1.0
+    val resources: List<ForecastResourceView>,
+    val projectedTotalCost: java.math.BigDecimal,
+    val currency: String,
+)
+
+data class ForecastResourceView(
+    val resourceType: String,
+    val mtdQuantity: Long,
+    val projectedQuantity: Long,
+    val mtdCost: java.math.BigDecimal,
+    val projectedCost: java.math.BigDecimal,
+)

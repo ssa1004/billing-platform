@@ -23,3 +23,4 @@
 | [0017](0017-multi-tenancy-row-level.md) | 멀티테넌시 — Row-Level Isolation (`customer_id`) | 적용 |
 | [0018](0018-credit-separate-from-wallet.md) | Credit (선불/프로모 잔액) 을 Wallet 과 분리 | 적용 |
 | [0019](0019-credit-invoice-application-flow.md) | Credit ↔ Invoice 적용 흐름 + 만료 batch | 적용 |
+| [0020](0020-usage-forecast.md) | 월말 사용량/비용 예상 (UsageForecast) | 적용 |

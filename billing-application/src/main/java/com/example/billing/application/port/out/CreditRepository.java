@@ -25,4 +25,13 @@ public interface CreditRepository {
      * batch 가 결과 0 이 될 때까지 반복 호출.
      */
     List<Credit> findExpiredCandidates(Instant now, int limit);
+
+    /**
+     * 운영 화면 / 알림 — {@code [now, now + within] } 안에 만료될 ACTIVE 들. 만료 임박 순.
+     * 만료 없는 (validUntil = null) 건은 제외.
+     */
+    List<Credit> findExpiringSoon(CustomerId customerId, Instant now, Instant until);
+
+    /** 고객의 모든 Credit (status 무관). 화면 grid 용. */
+    List<Credit> findAllByCustomer(CustomerId customerId, int limit);
 }

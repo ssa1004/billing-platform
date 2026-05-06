@@ -12,6 +12,7 @@ import java.util.UUID;
  * service. 이 command 는 차감만 책임.)</p>
  */
 public record ApplyCreditCommand(
+        String idempotencyKey,
         String customerId,
         UUID invoiceId,
         Money applyAtMost

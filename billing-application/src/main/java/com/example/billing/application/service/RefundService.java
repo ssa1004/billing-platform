@@ -3,6 +3,7 @@ package com.example.billing.application.service;
 import com.example.billing.application.command.RefundCommand;
 import com.example.billing.application.exception.OrderNotFoundException;
 import com.example.billing.application.exception.PaymentNotFoundException;
+import com.example.billing.application.port.in.AuditLogger;
 import com.example.billing.application.port.in.RefundUseCase;
 import com.example.billing.application.port.out.EventPublisher;
 import com.example.billing.application.port.out.IdempotencyKeyStore;
@@ -10,6 +11,8 @@ import com.example.billing.application.port.out.OrderRepository;
 import com.example.billing.application.port.out.PaymentRepository;
 import com.example.billing.application.port.out.PgClient;
 import com.example.billing.application.port.out.RefundRepository;
+import com.example.billing.domain.audit.AuditAction;
+import com.example.billing.domain.audit.AuditActor;
 import com.example.billing.domain.order.OrderId;
 import com.example.billing.domain.payment.Payment;
 import com.example.billing.domain.refund.Refund;
@@ -35,6 +38,7 @@ public class RefundService implements RefundUseCase {
     private final PgClient pgClient;
     private final EventPublisher events;
     private final IdempotencyKeyStore idempotencyKeys;
+    private final AuditLogger audit;
     private final Clock clock;
 
     @Override
@@ -65,12 +69,38 @@ public class RefundService implements RefundUseCase {
             events.publish(approved);
             events.publish(completed);
             events.publish(orderRefunded);
+
+            // Audit — 환불 승인은 *돈이 customer 로 빠져나가는* 가장 중요한 audit 대상.
+            // 회계 감사 시 "이 환불이 왜 승인됐는지" 영구 답변.
+            audit.log(
+                    AuditActor.system("refund-service"),
+                    AuditAction.REFUND_APPROVED,
+                    "Refund",
+                    refund.id().toString(),
+                    null,
+                    "{\"paymentId\":\"%s\",\"amount\":\"%s\",\"pgRefundId\":\"%s\"}".formatted(
+                            payment.id(), refund.amount(), pgResult.pgRefundId()),
+                    cmd.reason()
+            );
+
             log.info("refund completed id={} payment={} amount={}",
                     refund.id(), payment.id(), refund.amount());
         } else {
             var failed = refund.fail(pgResult.errorMessage(), clock);
             refunds.save(refund);
             events.publish(failed);
+
+            audit.log(
+                    AuditActor.system("refund-service"),
+                    AuditAction.REFUND_FAILED,
+                    "Refund",
+                    refund.id().toString(),
+                    null,
+                    "{\"paymentId\":\"%s\",\"errorMessage\":\"%s\"}".formatted(
+                            payment.id(), pgResult.errorMessage()),
+                    cmd.reason()
+            );
+
             log.warn("refund failed id={} reason={}", refund.id(), pgResult.errorMessage());
         }
         return refund;

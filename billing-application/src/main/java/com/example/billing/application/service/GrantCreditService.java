@@ -1,10 +1,13 @@
 package com.example.billing.application.service;
 
 import com.example.billing.application.command.GrantCreditCommand;
+import com.example.billing.application.port.in.AuditLogger;
 import com.example.billing.application.port.in.GrantCreditUseCase;
 import com.example.billing.application.port.out.CreditRepository;
 import com.example.billing.application.port.out.EventPublisher;
 import com.example.billing.application.port.out.IdempotencyKeyStore;
+import com.example.billing.domain.audit.AuditAction;
+import com.example.billing.domain.audit.AuditActor;
 import com.example.billing.domain.credit.Credit;
 import com.example.billing.domain.credit.CreditEvents;
 import com.example.billing.domain.shared.CustomerId;
@@ -33,6 +36,7 @@ public class GrantCreditService implements GrantCreditUseCase {
     private final CreditRepository credits;
     private final EventPublisher events;
     private final IdempotencyKeyStore idempotencyKeys;
+    private final AuditLogger audit;
     private final Clock clock;
 
     @Override
@@ -55,6 +59,21 @@ public class GrantCreditService implements GrantCreditUseCase {
                 credit.grantedAmount(), credit.validFrom(), credit.validUntil(),
                 clock.instant()
         ));
+
+        // Audit — "누가 / 누구에게 / 얼마를 / 왜" 영구 기록 (회계 감사 / 컴플레인 응대 1차 근거).
+        // actor 는 호출 진입점 (REST controller) 이 JWT 에서 채워줘야 정확. 본 service 는
+        // 내부 시스템 호출 (CS 도구 / 마케팅 캠페인) 도 받으므로 default 는 SYSTEM.
+        audit.log(
+                AuditActor.system("credit-service"),
+                AuditAction.CREDIT_GRANTED,
+                "Credit",
+                credit.id().toString(),
+                null,                                              // before — 신규 발급이라 없음
+                "{\"amount\":\"%s\",\"type\":\"%s\",\"validUntil\":\"%s\"}".formatted(
+                        credit.grantedAmount(), credit.type(),
+                        credit.validUntil() != null ? credit.validUntil() : "null"),
+                cmd.reason()
+        );
 
         log.info("credit granted id={} customer={} type={} amount={} validUntil={}",
                 credit.id(), credit.customerId(), credit.type(),

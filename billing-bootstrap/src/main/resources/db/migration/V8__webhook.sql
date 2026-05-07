@@ -1,16 +1,17 @@
 -- Webhook 전송 시스템.
--- customer 가 자기 서버 URL 을 endpoint 로 등록 → 도메인 이벤트가 그 URL 로 HTTP POST.
--- (Stripe / Toss 같은 PG 가 가맹점에게 결제 결과 알리는 방식의 우리 버전.)
+-- customer 가 자기 서버 URL 을 endpoint 로 등록 → 우리 도메인 이벤트가 그 URL 로 HTTP POST.
+-- (외부 PG 가 가맹점에게 결제 결과 알리는 방식의 우리 버전.)
 
--- ── Endpoint: customer 등록 정보 ──
+-- ── Endpoint: customer 가 등록한 정보 ──
 CREATE TABLE webhook_endpoints (
     id                          UUID            PRIMARY KEY,
     customer_id                 VARCHAR(64)     NOT NULL,
     url                         VARCHAR(2048)   NOT NULL,
-    -- HMAC-SHA256 키 (256-bit = 64 hex chars). 응답에는 등록 시 한 번만 평문 노출.
+    -- HMAC-SHA256 (비밀 키와 메시지로 만든 위조 방지 서명) 키. 256비트 (= 64자 hex).
+    -- 응답에는 endpoint 등록 시점에 한 번만 평문으로 노출, 이후는 hash 만 보관.
     secret                      VARCHAR(128)    NOT NULL,
-    -- 구독 이벤트 타입 목록을 JSON 배열로. 빈 배열 = 모든 이벤트 (default).
-    -- TEXT 로 저장 — 운영에서는 jsonb (PG) 로 넘어가도 됨.
+    -- 구독 이벤트 타입 목록을 JSON 배열로. 빈 배열이면 모든 이벤트 구독 (default).
+    -- 여기서는 TEXT 로 저장 — 운영 PG 에서는 jsonb 로 바꿔도 됨.
     subscribed_event_types_json TEXT            NOT NULL,
     status                      VARCHAR(16)     NOT NULL,    -- ACTIVE / PAUSED
     created_at                  TIMESTAMP       NOT NULL,
@@ -47,10 +48,11 @@ CREATE TABLE webhook_deliveries (
         FOREIGN KEY (endpoint_id) REFERENCES webhook_endpoints (id) ON DELETE CASCADE
 );
 
--- *핵심 인덱스* — 워커가 매 분마다:
+-- *핵심 인덱스* — 워커가 매 분마다 다음 쿼리를 날립니다:
 --   SELECT ... WHERE status='PENDING' AND next_attempt_at <= now()
 --           ORDER BY next_attempt_at LIMIT N FOR UPDATE SKIP LOCKED
--- 이 query 가 여러 워커가 동시에 돌아도 같은 row 를 두 번 잡지 않게 SKIP LOCKED 활용.
+-- SKIP LOCKED (이미 잠긴 row 는 건너뛰는 옵션) 덕분에 여러 워커가 동시에 같은 쿼리를
+-- 날려도 같은 row 를 두 번 잡지 않습니다.
 CREATE INDEX idx_webhook_delivery_dispatch
     ON webhook_deliveries (status, next_attempt_at);
 

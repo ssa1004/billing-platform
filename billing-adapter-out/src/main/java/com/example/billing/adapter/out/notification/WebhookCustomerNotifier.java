@@ -18,12 +18,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Webhook 기반 알림 — customer 가 등록한 callback URL 로 POST.
+ * Webhook 기반 알림 — customer 가 등록한 callback URL 로 HTTP POST 발송.
  *
- * <p>Resilience4j 로 retry + circuit breaker. 실패는 DLQ 같은 별도 store 에 기록 (생략).</p>
+ * <p>Resilience4j 로 재시도 (retry) + 서킷 브레이커 (circuit breaker, 실패 누적 시 호출 자체를
+ * 잠시 차단). 실패한 알림은 DLQ (Dead Letter Queue) 같은 별도 저장소에 기록 (현재 구현은
+ * 생략).</p>
  *
- * <p>운영에서는 customer 별 webhook URL 매핑이 별도 store 필요 (CustomerProfile). 본 구현은
- * 단순화를 위해 모두 같은 URL 로 보내는 stub.</p>
+ * <p>운영에서는 customer 별 webhook URL 매핑이 별도 store 에 있어야 합니다 (CustomerProfile).
+ * 본 구현은 단순화를 위해 모두 같은 URL 로 보내는 stub.</p>
  */
 @Component
 @Profile("prod")

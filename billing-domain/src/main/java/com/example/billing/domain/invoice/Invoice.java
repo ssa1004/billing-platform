@@ -13,13 +13,15 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * 청구서 애그리거트. 한 customer × 한 BillingPeriod 당 하나만 존재 (uniqueness 는 DB constraint).
+ * 청구서 애그리거트. 한 customer × 한 BillingPeriod (청구 기간) 당 하나만 존재
+ * (유일성은 DB UNIQUE 제약으로 보장).
  *
  * <p>상태 전이는 {@link #issue}, {@link #markPaid}, {@link #markOverdue}, {@link #cancel}
- * 메서드로만 가능. setter 없음.</p>
+ * 메서드로만 가능합니다. setter 가 없습니다.</p>
  *
- * <p>총액은 {@link InvoiceLine#lineTotal} 합. 가격 정책은 {@link PricingSnapshot} 으로 저장하므로
- * 요금제가 변경되어도 과거 청구서 금액은 변하지 않는다.</p>
+ * <p>총액은 {@link InvoiceLine#lineTotal} 의 합. 가격 정책은 {@link PricingSnapshot} (그
+ * 시점 요금표를 통째로 박제한 값) 으로 invoice 자체에 저장하므로, 요금제가 변경되어도 과거
+ * 청구서 금액은 변하지 않습니다.</p>
  */
 public final class Invoice {
 

@@ -13,25 +13,27 @@ import java.util.Set;
 /**
  * Customer 가 등록한 webhook 수신 endpoint.
  *
- * <p><b>실제 모습</b>: PG (Toss / Stripe / PayPal) 가 가맹점에게 결제 이벤트를 보내는 그
- * 매커니즘과 똑같다. 우리는 *발신자 (PG 입장)*. customer 가 자기 서버 URL 을 등록해두면
- * invoice / payment / refund 같은 도메인 이벤트가 발생할 때 그 URL 로 HTTP POST 가 간다.
+ * <p><b>실제 모습</b>: PG 사 (외부 결제 게이트웨이) 가 가맹점에게 결제 이벤트를 보내는 매커니즘
+ * 과 똑같습니다. 여기서 우리가 *발신자 (PG 입장)* 입니다. customer 가 자기 서버 URL 을
+ * 등록해두면 invoice / payment / refund 같은 도메인 이벤트가 발생할 때 그 URL 로 HTTP POST
+ * 가 갑니다.
  *
- * <p><b>왜 secret 이 endpoint 단위로 있나</b>: customer 서버가 "이 요청이 진짜 우리
- * billing 시스템이 보낸 게 맞는지" 검증하기 위해. 우리는 매 delivery 의 body + timestamp 를
- * 이 secret 으로 HMAC 서명해 헤더에 실어 보낸다. customer 는 같은 secret 으로 다시 계산해
- * 일치 여부 확인 → 일치하면 진짜, 아니면 가짜 (URL 만 알고 있는 공격자 / 중간자 변조 등).
- * 그래서 secret 은 *endpoint 등록 시점에 1번만 평문으로 응답에 포함*, 그 뒤로는 hash 만 보관.
- * 분실 시 {@link #rotateSecret} 으로 갱신.
+ * <p><b>왜 secret 이 endpoint 단위로 있나</b>: customer 서버가 "이 요청이 진짜 우리 billing
+ * 시스템이 보낸 게 맞는지" 검증하기 위해 필요합니다. 우리는 매 delivery 의 body + timestamp
+ * 를 이 secret 으로 HMAC (Hash-based Message Authentication Code, 비밀 키와 메시지로 만든
+ * 위조 방지 서명) 서명해 헤더에 실어 보냅니다. customer 는 같은 secret 으로 다시 계산해 값이
+ * 일치하는지 확인합니다 → 일치하면 진짜, 아니면 가짜 (URL 만 알고 있는 공격자 / 중간자
+ * 변조 등). 그래서 secret 은 *endpoint 등록 시점에 한 번만 평문으로 응답에 포함* 되고, 그
+ * 뒤로는 hash 만 보관합니다. 분실 시 {@link #rotateSecret} 으로 갱신.
  *
  * <p><b>subscribedEventTypes</b>: customer 가 모든 이벤트가 아니라 특정 타입만 받고 싶을 수
- * 있음 (예: refund 만 알림 받기). 비어 있으면 *모든 이벤트* 로 간주 — "관심 없으면 명시 안 함"
- * 이 default 라 onboarding 마찰 줄임.
+ * 있음 (예: refund 만 알림 받기). 비어 있으면 *모든 이벤트 구독* 으로 간주 — "관심 없으면
+ * 명시 안 함" 이 default 여서 온보딩 마찰을 줄여줍니다.
  *
  * <p><b>도메인 invariant</b>:
  * <ul>
  *   <li>URL 은 https 만 허용 (production). 평문 http 로 secret 토큰을 헤더에 실어 보내면
- *       중간자 공격에 노출.</li>
+ *       중간에 가로채는 공격 (man-in-the-middle) 에 노출됨.</li>
  *   <li>secret 은 32바이트 (256bit) 이상 — HMAC-SHA256 의 권장 키 길이.</li>
  * </ul>
  */
@@ -118,8 +120,8 @@ public final class WebhookEndpoint {
 
     /**
      * Secret 을 새로 발급. 이전 secret 은 즉시 무효 — customer 는 응답으로 받은 새 secret 을
-     * 자기 검증 로직에 즉시 반영해야 한다. 잠시 양쪽을 모두 받는 grace period 가 필요하면
-     * 별도 메서드 ({@code rotateSecretWithGrace}) 도입 검토.
+     * 자기 검증 로직에 즉시 반영해야 합니다. 잠시 양쪽을 모두 받는 유예 기간 (grace period)
+     * 이 필요하면 별도 메서드 ({@code rotateSecretWithGrace}) 도입을 검토.
      */
     public void rotateSecret(Clock clock) {
         this.secret = generateSecret();

@@ -10,13 +10,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * 운영용 PG client. billing.pg.enabled=true 일 때 활성.
+ * 운영용 PG (외부 결제 게이트웨이) 클라이언트. billing.pg.enabled=true 일 때 활성.
  *
- * <p>Resilience4j {@code @CircuitBreaker} + {@code @Retry} 적용 — application.yml 의
- * {@code resilience4j.circuitbreaker.instances.pg} 설정을 사용. CB open 시 fallback 으로 즉시 reject.</p>
+ * <p>Resilience4j 의 {@code @CircuitBreaker} (실패가 누적되면 호출 자체를 잠시 차단) +
+ * {@code @Retry} (일시 장애 흡수용 재시도) 를 적용합니다 — application.yml 의
+ * {@code resilience4j.circuitbreaker.instances.pg} 설정을 사용. 서킷 브레이커가 OPEN 되면
+ * fallback 메서드로 즉시 reject 응답을 돌려줍니다.</p>
  *
- * <p>Spring RestClient 를 사용해 HTTP 호출을 명시적으로 구성한다. 가상스레드 환경에서도 블로킹
- * 호출 모델을 단순하게 유지할 수 있다.</p>
+ * <p>Spring RestClient 로 HTTP 호출을 명시적으로 구성합니다. 가상 스레드 (Java 21 Virtual
+ * Threads) 환경에서도 블로킹 호출 모델을 단순하게 유지할 수 있습니다.</p>
  */
 @Component
 @ConditionalOnProperty(name = "billing.pg.enabled", havingValue = "true")

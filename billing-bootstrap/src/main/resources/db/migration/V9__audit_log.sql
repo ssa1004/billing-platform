@@ -1,5 +1,7 @@
--- 감사 로그 (append-only) — SOX / PCI-DSS / 운영 분쟁 대응의 1차 근거.
--- 한 번 INSERT 된 row 는 *절대* UPDATE / DELETE 안 함. 정정도 새 row 로.
+-- 감사 로그 (append-only, 한 번 적으면 수정/삭제 안 함, 추가만)
+-- — 회계 감사 (SOX, 미국 상장 기업 회계 책임법) / 카드 정보 보안 표준 (PCI-DSS) /
+--   운영 분쟁 대응의 1차 근거 자료.
+-- 한 번 INSERT 된 row 는 *절대* UPDATE / DELETE 하지 않습니다. 정정도 새 row 로.
 
 CREATE TABLE audit_entries (
     id              UUID            PRIMARY KEY,
@@ -27,7 +29,7 @@ CREATE TABLE audit_entries (
     occurred_at     TIMESTAMP       NOT NULL
 );
 
--- 가장 흔한 query — 특정 객체의 변경 timeline ("이 invoice 에 무슨 일이 있었나")
+-- 가장 흔한 쿼리 — 특정 객체의 변경 timeline ("이 invoice 에 무슨 일이 있었나")
 CREATE INDEX idx_audit_target_time
     ON audit_entries (target_type, target_id, occurred_at DESC);
 
@@ -35,10 +37,10 @@ CREATE INDEX idx_audit_target_time
 CREATE INDEX idx_audit_actor_time
     ON audit_entries (actor_type, actor_id, occurred_at DESC);
 
--- 분산 추적 join — 한 traceId 의 audit 모두 한 번에
+-- 분산 추적 join — 같은 traceId (한 요청의 모든 단계가 공유) 에 묶인 audit 한 번에 조회
 CREATE INDEX idx_audit_trace
     ON audit_entries (trace_id);
 
--- 시간 구간 전체 스캔 (정기 정합성 / SIEM 연동)
+-- 시간 구간 전체 스캔 (정기 정합성 검증 / SIEM 연동, SIEM = 보안 이벤트 모아서 분석/알림)
 CREATE INDEX idx_audit_action_time
     ON audit_entries (action, occurred_at DESC);

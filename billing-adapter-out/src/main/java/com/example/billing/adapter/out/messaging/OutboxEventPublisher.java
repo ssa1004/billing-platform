@@ -13,8 +13,9 @@ import java.time.Clock;
 import java.util.UUID;
 
 /**
- * EventPublisher 의 outbox 구현. 도메인 트랜잭션 안에서 outbox 테이블에 INSERT 만 한다 —
- * Kafka publish 는 {@link OutboxRelay} 가 별도로. (트랜잭션 안전성 — ADR-0005)
+ * EventPublisher 의 outbox 구현. 도메인 트랜잭션 안에서 outbox 테이블에 INSERT 만 합니다 —
+ * Kafka publish 는 별도로 {@link OutboxRelay} 가 처리합니다. 이렇게 분리해야 DB commit 과
+ * 이벤트 발행이 한 트랜잭션에서 묶여 안전합니다 (ADR-0005 참조).
  */
 @Component
 @RequiredArgsConstructor

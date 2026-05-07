@@ -6,33 +6,36 @@
 ## 배경
 
 billing-batch 모듈의 Spring Batch Job 들 (MonthlySettlementJob, ReconciliationJob) 을
-**누가 / 언제 launch 할지** 가 명시되어 있지 않았음. Job 정의만 있고 trigger 없는 상태는
-미완성.
+**누가 / 언제 launch (실행) 할지** 가 명시되어 있지 않았습니다. Job 정의만 있고 trigger
+가 없는 상태는 미완성입니다.
 
-운영 환경에서 batch job launch 의 일반적 옵션:
+운영 환경에서 batch job 을 실행하는 일반적인 옵션:
 
 | 방법 | 장점 | 단점 |
 |---|---|---|
-| **K8s CronJob** | 별도 Pod, API 와 격리, K8s 가 retry/backoff 관리 | 매니페스트 추가, 별도 이미지 빌드 가능 |
-| **Spring `@Scheduled`** | 코드만으로, 별도 Pod 불필요 | multi-instance 시 중복 실행 위험, API Pod 부하 |
+| **K8s CronJob** (Kubernetes 의 cron 잡) | 별도 Pod, API 와 격리, K8s 가 retry/backoff 관리 | 매니페스트 추가, 별도 이미지 빌드 가능성 |
+| **Spring `@Scheduled`** | 코드만으로 가능, 별도 Pod 불필요 | 인스턴스가 여러 개일 때 같은 잡이 중복 실행될 위험, API Pod 부하 |
 | **외부 워크플로** (Argo Workflows / Airflow) | 복잡한 DAG 표현 가능 | 운영 복잡도 큼, 본 시스템엔 과함 |
 
 ## 결정
 
-**`@Scheduled` + ShedLock** 채택.
+**`@Scheduled` + ShedLock** (스케줄 잡이 한 번에 한 인스턴스에서만 실행되게 DB 기반으로
+잠금을 잡아주는 라이브러리) 채택.
 
 ### 이유
 
-1. 현재 batch job 들이 단순 (단일 step, 짧은 처리 시간) 해서 K8s CronJob 분리 이득이 작음
-2. ShedLock 으로 multi-instance 중복 실행 문제 해결 가능
-3. application 코드와 같은 deploy artifact 라 배포 일관성 높음
+1. 현재 batch job 들이 단순 (단일 step, 짧은 처리 시간) 해서 K8s CronJob 으로 분리할 이득이
+   작음
+2. ShedLock 으로 인스턴스가 여러 개일 때의 중복 실행 문제를 해결 가능
+3. application 코드와 같은 deploy artifact (배포 산출물) 라 배포 일관성이 높음
 4. 향후 batch 가 복잡해지면 K8s CronJob 으로 전환 가능 (Job 정의는 그대로 재사용)
 
 ### 구현
 
 - `BillingJobScheduler` 가 cron 기반 trigger
 - `@SchedulerLock(name="...", lockAtMostFor="PT1H")` 으로 분산 lock
-- `JdbcTemplateLockProvider` + `usingDbTime()` (Pod 시계 drift 회피)
+- `JdbcTemplateLockProvider` + `usingDbTime()` 으로 DB 시계를 기준으로 잠금 (Pod 들 사이의
+  시계 drift, 즉 시계가 미세하게 어긋나는 현상을 회피)
 - `shedlock` 테이블은 V3 Flyway migration 으로 추가
 
 ```java
@@ -50,14 +53,14 @@ public void runMonthlySettlement() {
 }
 ```
 
-`lockAtLeastFor` 는 lock 이 너무 빨리 풀려서 다른 인스턴스가 같은 trigger 를 또 잡는 race
-를 방지 (시계 drift 보호).
+`lockAtLeastFor` 는 lock 이 너무 빨리 풀려서 다른 인스턴스가 같은 trigger 를 다시 잡는 race
+(경쟁 조건) 를 방지합니다 (시계 drift 보호).
 
 ### `lockAtMostFor` 산정
 
-가장 긴 batch 의 예상 실행 시간 + 안전 여유. 이 시간 안에 작업이 끝나지 않으면 lock 이
-자동 해제되고 다음 인스턴스가 잡을 수 있음. 너무 짧으면 작업 중 다른 Pod 가 끼어들어
-결과 오염 위험, 너무 길면 죽은 Pod 의 lock 이 오래 남음.
+가장 긴 batch 의 예상 실행 시간 + 안전 여유. 이 시간 안에 작업이 끝나지 않으면 lock 이 자동
+해제되고 다음 인스턴스가 잡을 수 있습니다. 너무 짧으면 작업 중 다른 Pod 가 끼어들어 결과가
+오염될 위험이 있고, 너무 길면 죽은 Pod 의 lock 이 오래 남습니다.
 
 본 시스템 batch 별 산정:
 
@@ -69,9 +72,9 @@ public void runMonthlySettlement() {
 ## 결과
 
 - batch job 이 자동으로 정기 실행됨
-- multi-instance (replica > 1) 환경에서 정확히 1 인스턴스만 실행
+- 인스턴스가 여러 개여도 (replica > 1) 정확히 한 인스턴스만 실행
 - 별도 Pod / 별도 매니페스트 불필요
-- (한계) API Pod 와 같은 process 라 batch 가 무거우면 API 응답에 영향. 현재 batch 는 가벼워
-  무관. 무거워지면 별도 Profile (`batch-only`) 로 분리한 Pod 운영 가능
-- (한계) Spring Boot 시작 시 `spring.batch.job.enabled=false` 라야 시작 시 자동 실행 안 됨.
-  application.yml 에서 명시적으로 끔
+- (한계) API Pod 와 같은 process 라 batch 가 무거워지면 API 응답에 영향. 현재 batch 는
+  가벼워 무관. 무거워지면 별도 Profile (`batch-only`) 로 분리한 Pod 로 운영 가능
+- (한계) Spring Boot 시작 시 `spring.batch.job.enabled=false` 로 두지 않으면 부팅하자마자
+  Job 이 한 번 자동 실행됨. application.yml 에서 명시적으로 끔

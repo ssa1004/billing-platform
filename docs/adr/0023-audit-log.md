@@ -6,20 +6,24 @@
 ## 배경
 
 결제 / 청구 / 환불 / 크레딧 발급 같은 *돈이 움직이는* 도메인에서 "누가 / 언제 / 무엇을 / 왜"
-의 영구 기록은 *법적 의무에 가까운* 요구사항.
+의 영구 기록은 *법적 의무에 가까운* 요구사항입니다.
 
 ### 유스케이스 (실제 시나리오)
 
-1. **회계 감사 / 국세청 검증**: "이 invoice 가 왜 cancel 됐냐" 라는 질문에 *몇 년 뒤* 답할 수 있어야.
-   트랜잭션 로그 / DB 변경 이력 만으론 부족 — *누가 / 왜* 가 도메인에 안 박혀 있어 audit 가 그 빈 곳을 채운다.
+1. **회계 감사 / 국세청 검증**: "이 invoice 가 왜 cancel 됐냐" 라는 질문에 *몇 년 뒤* 답할
+   수 있어야 함. 트랜잭션 로그 / DB 변경 이력만으론 부족 — *누가 / 왜* 가 도메인에 안 박혀
+   있어 audit 가 그 빈 곳을 채워줌.
 
-2. **PCI-DSS / 정보보호**: 결제 / 카드 정보 접근의 모든 기록.
-   data breach 사고 시 forensic 의 1순위 자료.
+2. **PCI-DSS** (Payment Card Industry Data Security Standard, 카드 정보를 다루는 시스템에
+   요구되는 보안 표준) **/ 정보보호**: 결제 / 카드 정보 접근의 모든 기록. 정보 유출 사고 시
+   forensic (사고 후 원인 추적) 의 1순위 자료.
 
-3. **운영 분쟁 (customer 컴플레인)**: "내가 환불 요청 안 했는데 왜 처리됐냐"
-   actor + ipAddress + traceId 가 답.
+3. **운영 분쟁 (customer 컴플레인)**: "내가 환불 요청 안 했는데 왜 처리됐냐" — actor +
+   ipAddress + traceId 가 답.
 
-4. **운영자 오용 추적**: 같은 운영자가 짧은 시간에 비정상적으로 많은 환불 처리 — SIEM 알림.
+4. **운영자 오용 추적**: 같은 운영자가 짧은 시간에 비정상적으로 많은 환불 처리 — SIEM
+   (Security Information and Event Management, 보안 이벤트를 모아서 분석/알림하는 시스템)
+   알림.
 
 ## 결정
 
@@ -54,14 +58,15 @@ AuditEntry (append-only — 절대 UPDATE/DELETE 안 함)
 | 분산 추적 join | `(trace_id)` | "이 요청 traceId 로 일어난 모든 audit" |
 | 행위별 시간구간 | `(action, occurred_at DESC)` | "어제 모든 REFUND_APPROVED" (SIEM) |
 
-### Append-only 의 의미
+### Append-only (한 번 적으면 수정/삭제 안 함, 추가만) 의 의미
 
-한 번 INSERT 된 row 는 *절대* UPDATE / DELETE 안 함. 도메인 메서드도 setter 없음.
-잘못 기록된 항목은 *새 row* (정정 entry) 로 표현 — timeline 에 두 row 다 남는 게 *진실의
-전체 모습*. "누군가 audit 를 지웠다" 자체가 forensic 신호.
+한 번 INSERT 된 row 는 *절대* UPDATE / DELETE 하지 않습니다. 도메인 메서드에도 setter 가
+없습니다. 잘못 기록된 항목은 *새 row* (정정 entry) 로 표현 — timeline 에 두 row 가 다 남는
+것이 *진실의 전체 모습*. "누군가 audit 를 지웠다" 자체가 사고 추적 (forensic) 의 신호입니다.
 
-데이터 보관 정책 (예: 7년) 은 별도 archival 정책으로 — 법정 보관 기간 지난 row 만 cold storage.
-*수정/삭제* 는 절대 없음.
+데이터 보관 정책 (예: 7년) 은 별도 archival (장기 보관 이전) 정책으로 따로 둡니다 — 법정
+보관 기간이 지난 row 만 cold storage (저렴한 장기 보관용 저장소) 로 이동. *수정/삭제* 는
+절대 하지 않습니다.
 
 ### Application 통합 — *명시적 호출*
 
@@ -83,39 +88,42 @@ class GrantCreditService {
 
 ### 왜 AOP / Spring Event listener 가 아닌가
 
-가능한 대안: `@After("...credit.grant(..)")` aspect 로 자동 audit. 거부.
+가능한 대안: `@After("...credit.grant(..)")` aspect (AOP, 메서드 호출을 가로채 부가 동작을
+자동 삽입) 로 자동 audit 기록. 거부.
 
-- *왜* (사유) 를 잃는다 — aspect 는 메서드 시그니처에서 reason 못 읽어옴
-- 어떤 메서드가 audit 대상인지 하나하나 어노테이션 붙여야 — 결국 명시적 호출과 같은 양
-- 디버깅 어려움 — "왜 audit 안 찍혔지" 가 AOP 매칭 룰 추적
+- *왜* (사유) 를 잃음 — aspect 는 메서드 시그니처에서 reason 을 읽을 수 없음
+- 어떤 메서드가 audit 대상인지 하나하나 어노테이션을 붙여야 함 — 결국 명시적 호출과 같은 양
+- 디버깅 어려움 — "왜 audit 가 안 찍혔지" 가 AOP 매칭 룰 추적으로 변함
 - 트랜잭션 경계 / propagation 제어가 명시적이지 않음
 
-명시적 호출이 코드량은 약간 늘지만 *이해 / 수정 / 디버깅* 모두 명확.
+명시적 호출은 코드량은 약간 늘지만 *이해 / 수정 / 디버깅* 모두 명확합니다.
 
 ### traceId 자동 추출
 
-SLF4J MDC 의 `traceId` 키에서 가져옴 — Spring Boot micrometer-tracing 이 자동으로 채워주는
-표준 키. application service 가 따로 챙기지 않아도 분산 추적이 audit 에 자연스럽게 들어옴.
-MDC 비활성 환경 (테스트 등) 에선 null — audit 자체는 계속 동작.
+SLF4J MDC (로그 컨텍스트 저장용 ThreadLocal) 의 `traceId` 키에서 가져옵니다 — Spring Boot
+micrometer-tracing 이 자동으로 채워주는 표준 키입니다. application service 가 따로 챙기지
+않아도 분산 추적 (한 요청이 여러 서비스를 거친 흐름 추적) ID 가 audit 에 자연스럽게 들어옵니다.
+MDC 가 비활성인 환경 (테스트 등) 에서는 null — audit 자체는 계속 동작합니다.
 
 ### 실패 모드
 
-audit 저장 실패 → 호출자 트랜잭션 *전체 rollback*. audit 없이는 "감사 가능성" 이 사라지므로
-데이터 정합 깨진 거나 마찬가지. 도메인 작업이 진행됐는데 audit 누락된 row 가 영구히 남는
-상황 절대 회피.
+audit 저장이 실패하면 호출자 트랜잭션 *전체를 rollback* 합니다. audit 가 없으면 "감사
+가능성" 이 사라지므로 데이터 정합이 깨진 거나 마찬가지입니다. 도메인 작업은 진행됐는데
+audit 가 누락된 row 가 영구히 남는 상황은 반드시 회피.
 
 ## 대안 검토
 
-- **DB CDC (Debezium) 로 row 변경 캡처** — DB 변경을 외부 audit log 시스템으로 stream.
-  잘 되는 부분 (DB-level 정합, 무누락) 이 있지만 *왜 / 누가* 가 빠짐. 사용자/운영자 actor
-  같은 도메인 의도를 DB row 만 보고 추론 불가. → audit log 와 *별개 채널* 로 둘 다 유효.
-- **CloudWatch / Splunk / Datadog 에 push** — audit 를 *외부 SaaS* 로. cost 와 vendor lock-in.
-  자체 보유가 회계 감사 (자료 제출) 시 더 단순.
+- **DB CDC (Debezium) 로 row 변경 캡처** — DB 변경 로그를 외부 audit log 시스템으로 stream.
+  DB 레벨 정합과 무누락은 좋지만 *왜 / 누가* 가 빠짐. 사용자/운영자 같은 도메인 의도를 DB
+  row 만 보고 추론할 수 없음. → audit log 와는 *별개 채널* 로 두는 것이 맞고, 둘 다 유효.
+- **CloudWatch / Splunk / Datadog 에 push** — audit 를 *외부 SaaS* 로. 비용과 vendor
+  lock-in (특정 벤더에 묶이는 위험). 자체 보유가 회계 감사 시 자료 제출에 더 단순.
 - **Outbox 채널 통합** — outbox 가 이미 이벤트 발행 중이니 거기에 audit 도 같이 흘려보내기.
-  거부. outbox 는 *비동기 publish* 가 본질이라 *동기 영속* 인 audit 와 시점 다름.
-  outbox 컨슈머가 늦으면 audit 도 늦어지는 게 사고 시 치명적.
-- **Hibernate Envers** — JPA entity 변경을 자동 영속. action / reason / actor 같은
-  비즈니스 의도가 없어 부족. 별도 audit log 를 envers 위에 또 깔면 의미 중복.
+  거부. outbox 는 *비동기 publish* 가 본질이라 *동기 영속* 이 필요한 audit 와는 시점이
+  다름. outbox 컨슈머가 늦으면 audit 도 늦어지는 게 사고 시 치명적.
+- **Hibernate Envers** (JPA entity 의 변경 이력을 자동 보존하는 라이브러리) — entity 변경은
+  자동 영속되지만 action / reason / actor 같은 비즈니스 의도가 없어 부족. 별도 audit log 를
+  envers 위에 또 깔면 의미가 중복.
 
 ## 결과
 

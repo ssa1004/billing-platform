@@ -10,28 +10,31 @@ import java.util.Currency;
 import java.util.Objects;
 
 /**
- * Credit 애그리거트 — 청구서 차감 전 적용되는 선불/프로모성 잔액.
+ * Credit 애그리거트 — 청구서 결제 직전에 적용되는 선불/프로모성 잔액.
  *
  * <p><b>Wallet 과의 차이</b>:
  * <ul>
  *   <li>{@code Wallet} 은 거래 잔액 (입금/출금/블록). 사용자가 충전한 돈이며 환불 가능.</li>
- *   <li>{@code Credit} 은 *발급된* 잔액 (PROMO / COMPENSATION 등). 환불 대상 아님,
- *       만료 가능, 청구서에 자동 적용.</li>
+ *   <li>{@code Credit} 은 *발급된* 잔액 (PROMO / COMPENSATION 등). 환불 대상이 아니고,
+ *       만료될 수 있으며, 청구서에 자동 적용됨.</li>
  * </ul>
- * 회계상 분리 보관해야 하는 사유 (수익 인식 시점 다름) 도 있어 같은 테이블로 합치지 않는다.
+ * 회계상 분리 보관해야 하는 사유 (수익 인식 시점이 다름) 도 있어 같은 테이블로 합치지
+ * 않습니다.
  *
- * <p><b>Invariant</b>:
+ * <p><b>Invariant (불변 조건)</b>:
  * <ul>
  *   <li>{@code 0 <= balance <= grantedAmount}</li>
  *   <li>{@code balance > 0 && status == ACTIVE} 일 때만 차감 가능</li>
- *   <li>{@code validUntil != null && now > validUntil} → 차감 불가 (status 자동 EXPIRED 가 아니면 호출자 책임)</li>
+ *   <li>{@code validUntil != null && now > validUntil} → 차감 불가 (status 가 자동 EXPIRED
+ *       로 바뀌지 않은 경우는 호출자 책임)</li>
  *   <li>모든 amount 는 {@code currency} 와 동일</li>
  * </ul>
  *
- * <p><b>동시성</b>: {@code version} 으로 낙관적 락. 동일 Credit 동시 차감 시 한쪽 OptimisticLock
- * → application service 가 retry. 만료 처리 batch 와 충돌도 같은 매커니즘으로 보호.</p>
+ * <p><b>동시성</b>: {@code version} 으로 낙관적 락 (충돌 시 예외 후 재시도). 같은 Credit 을
+ * 동시에 차감할 때 한쪽은 OptimisticLockException → application service 가 retry. 만료 처리
+ * batch 와의 충돌도 같은 매커니즘으로 보호합니다.</p>
  *
- * <p><b>이벤트</b>: 모든 상태 변경 메서드는 {@link CreditEvents} 의 record 를 반환.
+ * <p><b>이벤트</b>: 모든 상태 변경 메서드는 {@link CreditEvents} 의 record 를 반환합니다.
  * application service 가 Outbox 에 기록.</p>
  */
 public final class Credit {
@@ -43,7 +46,7 @@ public final class Credit {
     private final Money grantedAmount;
     private Money balance;
     private final Instant validFrom;
-    private final Instant validUntil;   // nullable = 만료 없음 (PREPAID 일부 케이스)
+    private final Instant validUntil;   // null 이면 만료 없음 (PREPAID 일부 케이스)
     private CreditStatus status;
     private final String reason;
     private final Instant createdAt;
@@ -102,7 +105,7 @@ public final class Credit {
         return c;
     }
 
-    /** 영속 계층에서만 호출 — 외부에서 생성자 우회용. */
+    /** 영속 계층 (DB) 에서 읽어와 도메인 객체로 복원할 때만 호출 — 일반 코드는 grant() 사용. */
     public static Credit restore(CreditId id, CustomerId customerId, CreditType type, Currency currency,
                                  Money grantedAmount, Money balance,
                                  Instant validFrom, Instant validUntil,
@@ -115,11 +118,11 @@ public final class Credit {
     }
 
     /**
-     * 차감. 잔액 부족 / 만료 / 비활성 상태면 throw.
-     * 차감 후 잔액이 0 이 되면 EXHAUSTED 로 자동 전이.
+     * 잔액 차감. 잔액 부족 / 만료 / 비활성 상태면 예외 발생.
+     * 차감 후 잔액이 0 이 되면 status 가 EXHAUSTED 로 자동 전이됩니다.
      *
-     * @return 항상 {@link CreditEvents.CreditConsumed}. 추가로 EXHAUSTED 로 전이됐다면
-     *         {@link #lastExhaustedEvent} 로 확인 가능 (단순화 위해 별도 메서드).
+     * @return 항상 {@link CreditEvents.CreditConsumed}. EXHAUSTED 로 전이됐는지 여부는
+     *         status 를 직접 확인하면 됨.
      */
     public CreditEvents.CreditConsumed consume(Money amount, Reference reference, Clock clock) {
         ensureSameCurrency(amount);
@@ -147,7 +150,7 @@ public final class Credit {
     }
 
     /**
-     * 만료 처리 (batch). 이미 종착 상태면 no-op (null 반환).
+     * 만료 처리 (batch 가 호출). 이미 종착 상태면 아무것도 하지 않고 null 반환.
      */
     public CreditEvents.CreditExpired expire(Clock clock) {
         if (status != CreditStatus.ACTIVE) return null;

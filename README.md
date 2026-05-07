@@ -2,12 +2,14 @@
 
 B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 한 시스템에서 처리합니다.
 
-- **실시간 결제** — 사용자 지갑(Wallet) 잔액 차감, PG 결제, append-only 원장 기록
-- **사용량 기반 청구** — UsageEvent 수집 → 월 단위 집계 → 가격 정책 적용 → Invoice 발행 →
-  결제 시도 → 정산 보고
+- **실시간 결제** — 사용자 지갑(Wallet) 잔액 차감, 외부 PG(결제대행사) 호출, 한 번 기록되면
+  수정/삭제하지 않고 추가만 가능한 원장(append-only ledger) 에 기록
+- **사용량 기반 청구** — 사용량 이벤트(UsageEvent) 수집 → 월 단위 집계 → 가격 정책 적용 →
+  청구서(Invoice) 발행 → 결제 시도 → 정산 보고
 
-선불(prepaid) 잔액 차감과 후불(postpaid) 사용량 기반 청구 두 모델을 같은 도메인 인프라
-(Outbox, Idempotency, Resilience4j, Spring Batch) 위에 올렸습니다.
+선불(prepaid, 미리 충전 후 차감) 잔액 차감과 후불(postpaid, 한 달 쓴 만큼 청구) 사용량 기반
+청구 두 모델을 같은 도메인 인프라 (Outbox, Idempotency, Resilience4j, Spring Batch) 위에
+올렸습니다.
 
 ## 기술 스택
 
@@ -25,26 +27,35 @@ B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 �
 ### 실시간 결제 측
 
 - **결제 중복 방지** — 사용자가 결제 버튼을 두 번 누르거나 모바일 네트워크 단절로 재시도가
-  발생해도 결제는 한 번만 처리되어야 합니다 (Idempotency-Key + Redis SETNX).
-- **외부 PG 장애 격리** — PG 응답이 지연되어도 우리 측 트랜잭션이 함께 멈추지 않아야 합니다
-  (Resilience4j 서킷 브레이커).
-- **이벤트와 DB의 원자성** — "결제 완료" 이벤트 발행과 DB 커밋이 따로 처리되면 안 됩니다
-  (Outbox 패턴).
-- **잔액 음수 방지** — 동시 차감 요청에서 lost update 차단 (`@Version` 낙관적 락).
+  발생해도 결제는 한 번만 처리되어야 합니다. Idempotency-Key (같은 요청이 두 번 와도 한
+  번만 처리되게 막는 헤더) + Redis SETNX (키가 없을 때만 set, 있으면 실패) 로 차단합니다.
+- **외부 PG 장애 격리** — PG 응답이 지연되어도 우리 측 트랜잭션이 함께 멈추지 않아야 합니다.
+  Resilience4j 서킷 브레이커 (실패가 누적되면 호출 자체를 잠시 차단해서 자원을 보호하는
+  장치) 로 막습니다.
+- **이벤트와 DB의 원자성** — "결제 완료" 이벤트 발행과 DB 커밋이 따로 처리되면 안 됩니다.
+  Outbox 패턴 (이벤트를 일단 같은 트랜잭션 안에서 DB에 적어두고 나중에 별도 워커가 메시지
+  브로커로 전달) 으로 해결합니다.
+- **잔액 음수 방지** — 동시 차감 요청에서 한쪽 쓰기가 다른 쪽 쓰기를 덮어쓰는 lost update
+  를 `@Version` 낙관적 락 (충돌 시 예외 던지고 재시도하게 만드는 버전 컬럼) 으로 차단.
 
 ### 사용량 기반 청구 측
 
-- **사용량 이벤트 중복 수신 방지** — 클라이언트 SDK가 재시도할 때 같은 eventId가 두 번
-  도착해도 한 번만 기록 (eventId가 PK + UNIQUE).
+- **사용량 이벤트 중복 수신 방지** — 클라이언트 SDK가 재시도할 때 같은 eventId 가 두 번
+  도착해도 한 번만 기록. eventId 를 PK 겸 UNIQUE 제약으로 두면 두 번째 INSERT 는 DB 가
+  거절합니다.
 - **월별 정산 동시 실행 방지** — 여러 인스턴스에서 같은 customer × month 정산이 동시에
-  시작되지 않도록 직렬화 (`pg_advisory_xact_lock`).
-- **정산 worker 병렬 처리** — 정산 대상 row를 worker pool이 나눠 처리하되 같은 row를
-  두 번 잡지 않도록 (`FOR UPDATE SKIP LOCKED`).
-- **가격 정책 변경 시 과거 청구서 보호** — Invoice 생성 시점의 PricingSnapshot을 invoice
-  자체에 저장합니다. 요금제가 바뀌어도 과거 청구서 금액은 변하지 않습니다.
-- **결제 실패 격리** — invoice는 ISSUED로 남기고 별도 재시도 job이 처리합니다. 영구 실패는 DLQ.
-- **정산 부분 실패 허용** — Spring Batch chunk + skip + retry. 100만 건 중 10건 실패해도
-  나머지 진행.
+  시작되지 않도록 직렬화. Postgres 의 advisory lock (이름 붙인 임의의 잠금, 트랜잭션 끝나면
+  자동 해제) 인 `pg_advisory_xact_lock` 을 씁니다.
+- **정산 worker 병렬 처리** — 정산 대상 row 를 워커 풀이 나눠 처리하되 같은 row 를 두 번
+  잡지 않도록 `FOR UPDATE SKIP LOCKED` (이미 잠긴 row 는 건너뛰고 다음 걸 가져오는 SQL
+  옵션) 사용.
+- **가격 정책 변경 시 과거 청구서 보호** — Invoice 생성 시점의 가격 정책을 PricingSnapshot
+  (그 시점 요금표를 통째로 박제한 값) 으로 invoice 자체에 저장합니다. 요금제가 바뀌어도
+  과거 청구서 금액은 변하지 않습니다.
+- **결제 실패 격리** — invoice 는 발행됨(ISSUED) 상태로 남기고 별도 재시도 job 이 처리합니다.
+  계속 실패하면 DLQ (Dead Letter Queue, 처리 실패한 메시지를 모아두는 별도 큐) 로 이동.
+- **정산 부분 실패 허용** — Spring Batch 의 chunk + skip + retry (정해진 묶음 단위로 처리,
+  실패 row 는 건너뛰고 일정 횟수까지 재시도) 로 100만 건 중 10건 실패해도 나머지는 진행.
 
 ## 핵심 설계 결정
 
@@ -198,11 +209,12 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
 `SPRING_PROFILES_ACTIVE=prod` 일 때 활성화되는 항목입니다.
 
 - PostgreSQL, Redis, Kafka 실제 사용
-- 외부 PG 호출이 RestClientPgClient (Resilience4j 적용) 로 동작 (local/dev는 Mock)
-- 멱등성 키를 Redis SETNX로 처리 (local/dev는 in-memory)
-- `pg_advisory_xact_lock` 활성화 (H2 미지원이라 local/dev는 NoOp)
-- OAuth2 Resource Server (JWT) 인증 (local/dev는 모두 통과)
-- Outbox Relay 활성화 → Kafka publish
+- 외부 PG 호출이 RestClientPgClient (Resilience4j 서킷 브레이커 적용) 로 동작 (local/dev 는 Mock)
+- 멱등성 키 (같은 요청 두 번 처리 방지용 키) 를 Redis SETNX 로 처리 (local/dev 는 in-memory)
+- `pg_advisory_xact_lock` (Postgres 의 이름 기반 트랜잭션 잠금) 활성화 (H2 미지원이라
+  local/dev 는 NoOp 으로 대체)
+- OAuth2 Resource Server (JWT 토큰 검증) 인증 (local/dev 는 모두 통과)
+- Outbox Relay (DB 의 outbox 테이블에서 메시지를 읽어 Kafka 로 보내는 워커) 활성화
 
 ## 향후 개선 사항
 

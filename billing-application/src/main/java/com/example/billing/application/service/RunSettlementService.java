@@ -23,18 +23,20 @@ import java.time.Clock;
 import java.util.List;
 
 /**
- * 한 customer × 한 BillingPeriod 의 정산.
+ * 한 customer × 한 BillingPeriod (청구 기간) 의 정산.
  *
  * <p>핵심 설계:
  * <ul>
- *   <li><b>advisory lock</b> — {@code settlement:<customerId>:<period>} 키로 같은 정산이 두
- *       worker 에서 동시에 시작되지 않도록 직렬화. 트랜잭션 종료 시 자동 해제.</li>
- *   <li><b>idempotency</b> — 같은 customer × period 에 이미 invoice 가 있으면 skip (재실행
- *       안전).</li>
- *   <li><b>frozen pricing</b> — 청구서 생성 시점의 PricingSnapshot 을 invoice 에 저장. plan
- *       변경에도 과거 청구서 금액 변하지 않음.</li>
- *   <li><b>partial failure</b> — invoice 발행은 성공했지만 결제 실패한 경우, invoice 는
- *       ISSUED 로 남아 있고 별도 retry job 이 처리.</li>
+ *   <li><b>advisory lock</b> (Postgres 의 이름 기반 잠금, 트랜잭션 끝나면 자동 해제) —
+ *       {@code settlement:<customerId>:<period>} 키로 같은 정산이 두 worker 에서 동시에
+ *       시작되지 않도록 직렬화. 트랜잭션 종료 시 자동 해제.</li>
+ *   <li><b>멱등성 (idempotency)</b> — 같은 customer × period 에 이미 invoice 가 있으면 skip.
+ *       재실행해도 안전.</li>
+ *   <li><b>frozen pricing (요금표 박제)</b> — 청구서 생성 시점의 PricingSnapshot (그 시점
+ *       요금표를 통째로 박제한 값) 을 invoice 에 저장. 요금제가 바뀌어도 과거 청구서 금액은
+ *       변하지 않음.</li>
+ *   <li><b>partial failure (부분 실패 허용)</b> — invoice 발행은 성공했지만 결제가 실패한
+ *       경우, invoice 는 ISSUED 상태로 남아 있고 별도 retry job 이 잡아서 처리.</li>
  * </ul>
  */
 @Service
@@ -66,11 +68,11 @@ public class RunSettlementService implements RunSettlementUseCase {
     @Override
     @Transactional
     public SettlementResult run(RunSettlementCommand cmd) {
-        // 1. 동시 실행 차단 — 같은 customer × period 정산은 직렬화
+        // 1. 동시 실행 차단 — 같은 customer × period 정산은 한 번에 하나씩만 진행
         String lockKey = "settlement:" + cmd.customerId().value() + ":" + cmd.period().toKey();
         advisoryLock.lock(lockKey);
 
-        // 2. 이미 발행된 invoice 가 있으면 skip (idempotency)
+        // 2. 이미 발행된 invoice 가 있으면 skip (멱등성: 재실행해도 안전)
         var existing = invoiceRepository.findBy(cmd.customerId(), cmd.period());
         if (existing.isPresent()) {
             log.info("invoice already exists for customer={} period={}, skipping",
@@ -107,7 +109,7 @@ public class RunSettlementService implements RunSettlementUseCase {
         invoice.issue(clock);
         invoiceRepository.save(invoice);
 
-        // 6. 결제 시도 (실패해도 invoice 는 ISSUED 로 남음 → retry job 이 잡음)
+        // 6. 결제 시도 (실패해도 invoice 는 ISSUED 로 남고, 별도 retry job 이 다음에 잡아감)
         boolean paid;
         try {
             paid = paymentClient.charge(invoice);

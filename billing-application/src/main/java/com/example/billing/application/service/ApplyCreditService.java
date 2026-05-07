@@ -22,17 +22,18 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Invoice 에 사용 가능한 ACTIVE Credit 들을 합산해 적용. 한 트랜잭션에서:
+ * Invoice 에 사용 가능한 ACTIVE Credit 들을 합산해서 적용. 한 트랜잭션 안에서:
  * <ol>
- *   <li>Invoice 로드 (DRAFT 면 거부, 종착 상태면 거부)</li>
+ *   <li>Invoice 로드 (DRAFT 거나 종착 상태면 거부)</li>
  *   <li>차감 한도 = min({@code cmd.applyAtMost}, {@code invoice.amountDue()})</li>
- *   <li>{@link CreditRepository#findUsable} 순서대로 차감 — 만료 임박 → FIFO</li>
- *   <li>{@link Invoice#applyCredit(Money)} 로 invoice 의 누적 적용액 증가 → save</li>
- *   <li>Credit 별 {@code CreditConsumed} 이벤트를 Outbox 에 INSERT</li>
+ *   <li>{@link CreditRepository#findUsable} 가 정렬해 준 순서대로 차감 — 만료 임박 →
+ *       FIFO (먼저 들어온 순)</li>
+ *   <li>{@link Invoice#applyCredit(Money)} 로 invoice 의 누적 적용액을 올리고 save</li>
+ *   <li>Credit 별로 {@code CreditConsumed} 이벤트를 Outbox 에 INSERT</li>
  * </ol>
  *
- * <p>한 트랜잭션이라 Credit 차감과 Invoice 갱신이 원자적. OptimisticLock 발생 시
- * 전체 롤백 → 호출자가 retry (만료 batch / 동시 결제 등과 충돌 가능).</p>
+ * <p>한 트랜잭션 안이라 Credit 차감과 Invoice 갱신이 원자적입니다. OptimisticLockException
+ * 이 발생하면 전체 롤백 → 호출자가 retry (만료 batch / 동시 결제 등과 충돌이 있을 수 있음).</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -70,7 +71,7 @@ public class ApplyCreditService implements ApplyCreditUseCase {
 
         for (Credit credit : usable) {
             if (applied.compareTo(realCap) >= 0) break;
-            // 통화가 다르면 skip — Invoice 통화와 다른 Credit 은 적용 X
+            // 통화가 맞지 않으면 skip — Invoice 통화와 다른 Credit 은 환율 변환 없이 적용 안 함
             if (!credit.currency().equals(realCap.currency())) continue;
 
             Money remainingCap = realCap.subtract(applied);

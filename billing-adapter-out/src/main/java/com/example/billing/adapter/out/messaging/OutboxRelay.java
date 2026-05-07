@@ -20,11 +20,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Outbox → Kafka relay. 동기 send + tx 안에서 markPublished (트랜잭션 안전).
- * billing.outbox.relay.enabled=true 일 때만 활성. 단일 인스턴스 전제 — 멀티 시 ShedLock.
+ * Outbox 테이블 → Kafka 로 메시지를 옮기는 relay. 동기로 send 하고 같은 트랜잭션 안에서만
+ * markPublished 처리해서 안전성 확보. billing.outbox.relay.enabled=true 일 때만 활성.
+ * 단일 인스턴스 전제 — 인스턴스가 여러 개라면 ShedLock 으로 한 번에 하나만 돌게 막아야 함.
  *
- * <p>실패 시 markPublished 안 함 → 다음 polling 에서 재시도 (at-least-once).
- * Poison pill (영구 실패) 은 별도 백로그.</p>
+ * <p>실패 시 markPublished 를 안 하므로 다음 polling 에서 재시도 (at-least-once, 최소 한 번
+ * 전달이지만 중복 가능). 계속 실패하는 메시지 (poison pill) 는 별도 백로그로 처리.</p>
  */
 @Component
 @ConditionalOnProperty(name = "billing.outbox.relay.enabled", havingValue = "true")

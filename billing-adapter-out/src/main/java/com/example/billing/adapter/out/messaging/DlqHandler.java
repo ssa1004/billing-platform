@@ -13,12 +13,15 @@ import org.springframework.util.backoff.ExponentialBackOff;
 import java.util.function.BiFunction;
 
 /**
- * Kafka 컨슈머 실패 시 DLQ 로 전송하는 ErrorHandler factory.
+ * Kafka 컨슈머 실패 시 DLQ (Dead Letter Queue, 처리 실패한 메시지를 모아두는 별도 큐) 로
+ * 전송하는 ErrorHandler 팩토리.
  *
- * <p>흐름: 컨슈머 N회 실패 (exponential backoff) → DLQ topic 으로 전송. DLQ topic 이름은
- * 원본 topic 에 {@code .DLT} suffix 가 붙음 (Spring Kafka 컨벤션).</p>
+ * <p>흐름: 컨슈머가 N 회 실패 (간격을 두 배씩 늘리는 exponential backoff) → DLQ topic 으로
+ * 전송. DLQ topic 이름은 원본 topic 에 {@code .DLT} (Dead Letter Topic) 접미사가 붙는 것이
+ * Spring Kafka 컨벤션입니다.</p>
  *
- * <p>운영자는 DLQ consumer 또는 재처리 endpoint 로 메시지를 원본 topic 에 다시 publish 하여 복구.</p>
+ * <p>운영자는 DLQ 컨슈머 또는 별도 재처리 endpoint 로 DLQ 의 메시지를 원본 topic 에 다시
+ * publish 해서 복구합니다.</p>
  */
 @Component
 @ConditionalOnProperty(name = "billing.outbox.relay.enabled", havingValue = "true")

@@ -1,7 +1,7 @@
 -- ShedLock — @Scheduled 메서드의 분산 lock 보관 테이블.
 --
--- multi-instance 환경에서 같은 schedule 이 여러 Pod 에서 동시 실행되지 않도록 한다.
--- 각 schedule (= name) 은 한 시점에 하나의 인스턴스만 락을 잡고 실행한다.
+-- 인스턴스가 여러 개일 때 같은 schedule 이 여러 Pod 에서 동시에 실행되지 않게 막아줍니다.
+-- 각 schedule (= name) 은 한 시점에 한 인스턴스만 lock 을 잡고 실행합니다.
 CREATE TABLE shedlock (
     name        VARCHAR(64)  NOT NULL,
     lock_until  TIMESTAMP WITH TIME ZONE NOT NULL,

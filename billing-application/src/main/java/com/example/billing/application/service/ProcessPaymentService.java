@@ -18,11 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 
 /**
- * 결제 처리 use case — 외부 PG 호출 + Order 상태 천이.
+ * 결제 처리 use case — 외부 PG (결제 게이트웨이) 호출 + Order 상태 천이.
  *
- * <p>외부 호출(PG)이 트랜잭션 안에 있음 — Wiremock + Resilience4j CB 로 보호. PG 응답에 따라:</p>
+ * <p>외부 호출(PG)이 트랜잭션 안에 있습니다 — Wiremock 으로 contract 테스트 + Resilience4j
+ * 서킷 브레이커 (실패 누적 시 호출 자체를 잠시 차단) 로 보호. PG 응답에 따라:</p>
  * <ul>
- *   <li>승인 → {@link Payment#approve} + {@link Order#markPaid} + 이벤트 2건 (Outbox)</li>
+ *   <li>승인 → {@link Payment#approve} + {@link Order#markPaid} + 이벤트 2건 (Outbox 경유)</li>
  *   <li>거절 → {@link Payment#reject} + {@link Order#markFailed} + 이벤트 2건</li>
  * </ul>
  */

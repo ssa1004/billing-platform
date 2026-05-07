@@ -33,12 +33,12 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * Webhook 운영 API.
+ * Webhook 운영 API. (Webhook = 우리가 customer 서버 URL 로 HTTP POST 를 쏴서 알리는 push 통신)
  *
  * <p>두 갈래:
  * <ul>
- *   <li>Endpoint CRUD — customer 가 자기 수신 URL 등록/관리</li>
- *   <li>Delivery 조회/replay — 발송 이력 + dead letter 수동 재시도</li>
+ *   <li>Endpoint CRUD — customer 가 자기 수신 URL 을 등록/관리</li>
+ *   <li>Delivery 조회 / replay — 발송 이력 조회 + dead letter (영구 실패) 수동 재시도</li>
  * </ul>
  */
 @RestController
@@ -119,7 +119,7 @@ class WebhookController(
         val items = when {
             endpointId != null -> deliveries.findByEndpoint(WebhookEndpointId.of(endpointId), limit)
             status != null -> deliveries.findByStatus(WebhookDeliveryStatus.valueOf(status), limit)
-            else -> emptyList()  // 둘 다 없으면 빈 응답 — 위험한 전체 스캔 회피
+            else -> emptyList()  // 필터가 둘 다 없으면 빈 응답 — 모든 row 를 가져오는 위험한 전체 스캔 방지
         }.map(::toDeliveryView)
         return ResponseEntity.ok(WebhookDeliveryListResponse(items = items))
     }

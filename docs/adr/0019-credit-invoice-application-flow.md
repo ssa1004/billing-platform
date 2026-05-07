@@ -77,8 +77,8 @@ KST, ShedLock 으로 인스턴스 중 하나만 실행).
 
 ## 결과
 
-- Invoice 의 `amountDue()` 가 결제 service / 미수금 (aged receivables) 가 참조하는 진짜
-  결제 대상 금액
+- Invoice 의 `amountDue()` 가 결제 service / 미수금 (aged receivables) 의 결제 대상 금액
+  컬럼
 - Credit 발급 → 적용 → 만료 라이프사이클 전체가 닫힌 회로로 마무리됨
 - 운영 화면에서 "이 invoice 에 적용된 credit 합계" 를 한 컬럼으로 즉시 조회 가능
 - (단점) Credit 을 여러 개 보유한 customer 의 적용은 update 가 N 번 발생 — 동시성 경합 가능.

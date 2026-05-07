@@ -48,7 +48,7 @@ CREATE TABLE webhook_deliveries (
         FOREIGN KEY (endpoint_id) REFERENCES webhook_endpoints (id) ON DELETE CASCADE
 );
 
--- *핵심 인덱스* — 워커가 매 분마다 다음 쿼리를 날립니다:
+-- Worker dispatch 인덱스. 워커가 매 분마다 다음 쿼리를 날립니다:
 --   SELECT ... WHERE status='PENDING' AND next_attempt_at <= now()
 --           ORDER BY next_attempt_at LIMIT N FOR UPDATE SKIP LOCKED
 -- SKIP LOCKED (이미 잠긴 row 는 건너뛰는 옵션) 덕분에 여러 워커가 동시에 같은 쿼리를

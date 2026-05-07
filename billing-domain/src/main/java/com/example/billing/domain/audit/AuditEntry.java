@@ -5,26 +5,28 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * 한 행위의 영구 기록 (append-only).
+ * 한 행위의 영구 기록 (append-only, 한 번 적으면 수정/삭제 안 함, 추가만).
  *
  * <p><b>왜 audit log 가 필요한가</b>:
  * <ul>
- *   <li><b>회계 감사 (SOX / 한국 회계기준)</b> — "이 invoice 가 왜 cancel 됐나" 라는 질문에
- *       *몇 년 뒤* 답할 수 있어야 한다. 트랜잭션 로그 / DB 변경 이력 만으론 부족 — *누가*,
- *       *왜* (사유) 가 도메인 모델에 안 박혀 있을 때 audit 가 그 빈 곳을 채운다.</li>
- *   <li><b>PCI-DSS / 정보보호</b> — 결제 / 카드 정보 접근 모든 기록.
- *       사고 (data breach) 시 forensic 의 1순위 자료.</li>
+ *   <li><b>회계 감사 (SOX, 미국 상장 기업 회계 책임법 / 한국 회계기준)</b> — "이 invoice 가
+ *       왜 cancel 됐나" 같은 질문에 *몇 년 뒤* 답할 수 있어야 함. 트랜잭션 로그 / DB 변경
+ *       이력만으론 부족 — *누가*, *왜* (사유) 가 도메인 모델에 안 박혀 있을 때 audit 가 그
+ *       빈 곳을 채워줍니다.</li>
+ *   <li><b>PCI-DSS (카드 정보 보안 표준) / 정보보호</b> — 결제 / 카드 정보 접근 기록 전부.
+ *       정보 유출 사고 (data breach) 시 forensic (사고 후 원인 추적) 의 1순위 자료.</li>
  *   <li><b>운영 분쟁</b> — "내가 환불 요청 안 했는데 왜 처리됐냐" 같은 customer 컴플레인.
- *       actor + ipAddress + traceId 가 답.</li>
+ *       actor + ipAddress + traceId 가 답해줍니다.</li>
  * </ul>
  *
- * <p><b>append-only 의 의미</b>: 한 번 INSERT 된 row 는 *절대* UPDATE / DELETE 안 됨.
- * 도메인 메서드도 setter 없음. 잘못 기록된 항목은 *새 row* (correction entry) 로 정정.
- * 정정 history 도 다시 audit 됨 — 두 row 가 timeline 에 같이 남는 게 *진실의 전체 모습*.</p>
+ * <p><b>append-only 의 의미</b>: 한 번 INSERT 된 row 는 *절대* UPDATE / DELETE 하지 않습니다.
+ * 도메인 메서드에도 setter 가 없습니다. 잘못 기록된 항목은 *새 row* (정정 entry, correction
+ * entry) 로 정정합니다. 정정 history 도 다시 audit 되어 두 row 가 timeline 에 같이 남습니다
+ * — 그 timeline 전체가 *진실의 전체 모습*.</p>
  *
- * <p><b>왜 before/after 를 JSON 으로?</b> 도메인 객체가 다양해 generic 형태가 필요. JSON 이면
- * 어떤 도메인이든 직렬화 가능. 단점은 검색 (특정 필드의 변화 추적) 이 어렵다는 것 — 자주
- * 검색되는 필드는 별도 컬럼 (target_type, target_id) 으로 노출.</p>
+ * <p><b>왜 before/after 를 JSON 으로?</b> 도메인 객체가 다양해 일반 (generic) 형태가 필요.
+ * JSON 이면 어떤 도메인이든 직렬화 가능. 단점은 검색 (특정 필드의 변화 추적) 이 어렵다는 것
+ * — 자주 검색되는 필드는 별도 컬럼 (target_type, target_id) 으로 따로 빼서 노출.</p>
  */
 public record AuditEntry(
         UUID id,
@@ -32,10 +34,10 @@ public record AuditEntry(
         AuditAction action,
         String targetType,        // "Invoice", "Payment", "WebhookEndpoint" 등
         String targetId,          // UUID 또는 자연 키 — string 으로 통일해 join 단순화
-        String beforeJson,        // null = 생성 (before 없음)
-        String afterJson,         // null = 삭제 (after 없음)
-        String reason,            // 자유 텍스트 — "customer requested cancel" 등. nullable.
-        String traceId,           // 분산 추적 — 같은 요청의 모든 audit 가 같은 traceId 공유
+        String beforeJson,        // null 이면 생성 (before 없음)
+        String afterJson,         // null 이면 삭제 (after 없음)
+        String reason,            // 자유 텍스트 — "customer requested cancel" 등. null 가능.
+        String traceId,           // 분산 추적 ID — 한 요청을 거친 모든 단계가 같은 값 공유
         Instant occurredAt
 ) {
 

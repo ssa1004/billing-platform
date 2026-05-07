@@ -1,7 +1,8 @@
--- 사용량 기반 청구 (B2B SaaS billing) 테이블.
+-- 사용량 기반 청구 (B2B SaaS, 한 달 동안 쓴 만큼 청구) 테이블.
 -- V1 의 wallet/payment/order/refund/ledger/outbox 위에 추가되는 영역.
 
--- ── 사용량 이벤트 ──
+-- ── 사용량 이벤트 (UsageEvent) ──
+-- event_id 가 PK 이자 UNIQUE 라 같은 eventId 가 두 번 도착하면 두 번째 INSERT 는 DB 가 거절
 CREATE TABLE usage_events (
     event_id        UUID         PRIMARY KEY,
     customer_id     VARCHAR(64)  NOT NULL,
@@ -17,7 +18,7 @@ CREATE INDEX idx_usage_customer_resource_occurred
 CREATE INDEX idx_usage_received_at
     ON usage_events (received_at);
 
--- ── 집계 결과 (시간/일/월 단위. 현재는 월만 사용) ──
+-- ── 집계 결과 (시간/일/월 단위 rollup. 현재는 월 단위만 사용) ──
 CREATE TABLE aggregated_usage (
     id                  UUID         PRIMARY KEY,
     customer_id         VARCHAR(64)  NOT NULL,
@@ -33,12 +34,12 @@ CREATE TABLE aggregated_usage (
 CREATE INDEX idx_aggregated_period
     ON aggregated_usage (period_year_month);
 
--- ── 가격 정책 ──
+-- ── 가격 정책 (PricingPlan) ──
 CREATE TABLE pricing_plans (
     id                UUID         PRIMARY KEY,
-    customer_id       VARCHAR(64),  -- null = default plan
+    customer_id       VARCHAR(64),  -- null 이면 기본 plan (전 customer 공통)
     name              VARCHAR(64)  NOT NULL,
-    tiers_json        TEXT         NOT NULL,   -- 운영(PG)에선 jsonb
+    tiers_json        TEXT         NOT NULL,   -- 운영 PG 에서는 jsonb 타입
     effective_from    TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
@@ -66,11 +67,11 @@ CREATE TABLE invoices (
 CREATE INDEX idx_invoice_status_due ON invoices (status, due_at);
 CREATE INDEX idx_invoice_customer ON invoices (customer_id);
 
--- ── 정산 실행 (audit + worker pool 작업 큐) ──
+-- ── 정산 실행 (실행 이력 audit + worker 풀 작업 큐 역할) ──
 CREATE TABLE settlement_runs (
     id                    UUID         PRIMARY KEY,
     period_year_month     VARCHAR(7)   NOT NULL,
-    customer_id           VARCHAR(64),  -- null = aggregate row
+    customer_id           VARCHAR(64),  -- null 이면 전체 합계 row
     status                VARCHAR(20)  NOT NULL,
     started_at            TIMESTAMP WITH TIME ZONE,
     finished_at           TIMESTAMP WITH TIME ZONE,

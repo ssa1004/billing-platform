@@ -24,22 +24,23 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * BudgetAlertRule 일괄 평가. 스케줄러가 1시간마다 호출.
+ * BudgetAlertRule (예산 임계 알림 규칙) 일괄 평가. 스케줄러가 1시간마다 호출.
  *
  * <p>흐름:
  * <ol>
  *   <li>ACTIVE rule 이 있는 customer 목록 조회</li>
- *   <li>각 customer 에 대해: UsageForecast 계산 (현재 BillingPeriod)</li>
+ *   <li>각 customer 에 대해: UsageForecast (현재 BillingPeriod 의 사용량/비용 예측) 계산</li>
  *   <li>해당 customer 의 ACTIVE rule 들을 forecast.projectedTotalCost 와 비교</li>
- *   <li>임계 초과 + cooldown 지난 rule → Triggered 이벤트 발행 + CustomerNotifier 발송</li>
- *   <li>모든 evaluate 호출은 lastEvaluatedAt 갱신 → save</li>
+ *   <li>임계를 넘었고 cooldown (재트리거 사이의 휴지 간격) 도 지났다면 Triggered 이벤트 발행
+ *       + CustomerNotifier 로 발송</li>
+ *   <li>모든 evaluate 호출은 lastEvaluatedAt 을 갱신하므로 save</li>
  * </ol>
  *
- * <p>customer 단위 트랜잭션. 한 customer 의 forecast 가 PricingPlanNotFoundException 으로
- * 실패해도 다른 customer 평가는 계속 진행 (catch + log).</p>
+ * <p>customer 단위 트랜잭션입니다. 한 customer 의 forecast 가 PricingPlanNotFoundException
+ * 으로 실패해도 다른 customer 평가는 계속 진행합니다 (catch + log).</p>
  *
  * <p>다중 통화: forecast.projectedTotalCost 의 통화와 rule.threshold 통화가 다르면 skip
- * (현재는 두 곳 모두 단일 통화 가정 — 멀티 currency 분기는 후속).</p>
+ * (현재는 두 곳 모두 단일 통화 가정 — 다중 통화 분기는 후속).</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -87,7 +88,7 @@ public class EvaluateBudgetAlertsService implements EvaluateBudgetAlertsUseCase 
                 log.info("budget alert TRIGGERED rule={} customer={} threshold={} projected={} ratio={}",
                         rule.id(), customerId, rule.threshold(), projected, triggered.overshootRatio());
             });
-            rules.save(rule);   // lastEvaluatedAt / lastTriggeredAt 갱신 보장
+            rules.save(rule);   // 트리거 여부와 무관하게 lastEvaluatedAt / lastTriggeredAt 가 갱신되도록 항상 save
         }
     }
 

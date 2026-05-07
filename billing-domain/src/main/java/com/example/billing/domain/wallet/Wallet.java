@@ -9,21 +9,22 @@ import java.util.Currency;
 import java.util.Objects;
 
 /**
- * Wallet 애그리거트 루트.
+ * Wallet 애그리거트 루트 (한 트랜잭션으로 같이 저장되는 도메인 객체 묶음의 진입점).
  *
- * <p><b>도메인 invariant</b> (도메인 메서드 외 변경 금지):</p>
+ * <p><b>도메인 invariant (항상 만족해야 하는 규칙, 도메인 메서드 외 변경 금지)</b>:</p>
  * <ul>
  *   <li>{@code balance >= 0} (음수 잔액 금지)</li>
  *   <li>{@code blocked >= 0}</li>
- *   <li>{@code blocked <= balance} (블록한 금액은 잔액 안에 있어야)</li>
+ *   <li>{@code blocked <= balance} (블록한 금액은 잔액 안에 있어야 함)</li>
  *   <li>모든 amount 는 wallet.currency 와 동일</li>
  * </ul>
  *
- * <p><b>동시성</b>: {@code version} 필드로 낙관적 락. 동시 차감 시 한쪽은 OptimisticLockException
- * → 클라이언트가 retry. 강한 직렬화가 필요하면 PG advisory lock 으로 보강 가능 (ADR-0007).</p>
+ * <p><b>동시성</b>: {@code version} 필드로 낙관적 락 (충돌이 드물다고 가정하고 일단 처리한
+ * 뒤, 충돌 시 예외 후 재시도). 동시 차감 시 한쪽은 OptimisticLockException → 클라이언트가
+ * retry. 강한 직렬화가 필요하면 Postgres advisory lock 으로 보강 가능 (ADR-0007).</p>
  *
- * <p><b>이벤트</b>: 모든 잔액 변경은 {@link WalletEvents} 를 반환 → 호출자(Application service)가
- * Outbox 에 기록 + Ledger 작성.</p>
+ * <p><b>이벤트</b>: 모든 잔액 변경은 {@link WalletEvents} 를 반환합니다 → 호출자
+ * (Application service) 가 Outbox 에 기록 + Ledger 작성.</p>
  */
 public class Wallet {
 
@@ -65,7 +66,7 @@ public class Wallet {
         );
     }
 
-    /** 영속 계층에서 복원 — 외부에서만 호출. */
+    /** 영속 계층 (DB 등) 에서 읽어와 도메인 객체로 복원 — 외부에서만 호출. */
     public static Wallet restore(WalletId id, String ownerId, Currency currency,
                                  Money balance, Money blocked, Instant createdAt, Instant updatedAt, long version) {
         Wallet w = new Wallet(id, ownerId, currency, balance, blocked, createdAt, updatedAt, version);

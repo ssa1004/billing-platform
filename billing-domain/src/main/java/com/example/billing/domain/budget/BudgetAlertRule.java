@@ -13,17 +13,19 @@ import java.util.Optional;
 /**
  * 예산 알림 규칙 — "월말 예상 청구액이 X 원 이상이면 알림" 같은 것.
  *
- * <p>스케줄러가 주기적으로 {@link #evaluate} 호출. 임계 초과 + cooldown 지나면 Triggered 이벤트 반환.
- * cooldown 으로 같은 사용자에게 동일 알림이 매 분 가는 것을 방지 (기본 24h).</p>
+ * <p>스케줄러가 주기적으로 {@link #evaluate} 를 호출합니다. 임계를 초과하고 cooldown
+ * (재트리거 사이의 휴지 간격) 도 지났으면 Triggered 이벤트를 반환합니다. cooldown 으로 같은
+ * 사용자에게 동일 알림이 매 분 가는 것을 방지 (기본 24시간).</p>
  *
  * <p><b>도메인 invariant</b>:
  * <ul>
  *   <li>{@code threshold > 0}</li>
- *   <li>모든 evaluate 의 projectedCost 는 {@code threshold.currency} 와 같아야 함</li>
+ *   <li>모든 evaluate 호출의 projectedCost 는 {@code threshold.currency} 와 같아야 함</li>
  * </ul>
  *
- * <p>한 customer 가 여러 rule 보유 가능 (e.g., $100 yellow / $500 red 처럼 단계적 알림).
- * 도메인은 그 정책을 모름 — application service 가 list 를 돌며 evaluate 호출.</p>
+ * <p>한 customer 가 여러 rule 을 보유할 수 있습니다 (예: $100 yellow / $500 red 처럼 단계
+ * 알림). 도메인은 그 정책을 모릅니다 — application service 가 rule 목록을 돌며 evaluate 를
+ * 호출합니다.</p>
  */
 public final class BudgetAlertRule {
 
@@ -87,10 +89,10 @@ public final class BudgetAlertRule {
     }
 
     /**
-     * 평가. 임계 초과 + cooldown 지났으면 Triggered 이벤트 반환, 아니면 empty.
-     * 둘 다 lastEvaluatedAt 은 갱신.
+     * 평가. 임계를 초과했고 cooldown 도 지났으면 Triggered 이벤트 반환, 아니면 empty.
+     * 트리거되든 안 되든 lastEvaluatedAt 은 항상 갱신합니다.
      *
-     * @param projectedCost 동일 통화여야 함 (UsageForecast 결과)
+     * @param projectedCost threshold 와 동일 통화여야 함 (UsageForecast 결과로 들어옴)
      */
     public Optional<BudgetAlertEvents.Triggered> evaluate(Money projectedCost, Clock clock) {
         Objects.requireNonNull(projectedCost);
@@ -106,7 +108,7 @@ public final class BudgetAlertRule {
         if (status != BudgetAlertStatus.ACTIVE) return Optional.empty();
         if (projectedCost.compareTo(threshold) < 0) return Optional.empty();
         if (lastTriggeredAt != null && Duration.between(lastTriggeredAt, now).compareTo(cooldown) < 0) {
-            return Optional.empty();   // cooldown 안 지남
+            return Optional.empty();   // cooldown 이 아직 안 지남 — 알림 스팸 방지
         }
 
         this.lastTriggeredAt = now;

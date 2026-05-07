@@ -26,3 +26,4 @@
 | [0020](0020-usage-forecast.md) | 월말 사용량/비용 예상 (UsageForecast) | 적용 |
 | [0021](0021-budget-alert-rule.md) | BudgetAlertRule — 임계 초과 시 알림 | 적용 |
 | [0022](0022-webhook-delivery.md) | Webhook 전송 시스템 (HMAC + retry + replay) | 적용 |
+| [0023](0023-audit-log.md) | Audit Log — append-only 감사 로그 | 적용 |

@@ -50,12 +50,14 @@ class RefundServiceTest {
     @Mock PgClient pgClient;
     @Mock EventPublisher events;
     @Mock IdempotencyKeyStore idempotencyKeys;
+    @Mock com.example.billing.application.port.in.AuditLogger audit;
 
     RefundService service;
 
     @BeforeEach
     void setUp() {
-        service = new RefundService(payments, refunds, orders, pgClient, events, idempotencyKeys, CLOCK);
+        service = new RefundService(payments, refunds, orders, pgClient, events, idempotencyKeys,
+                audit, CLOCK);
     }
 
     private Order paidOrder() {

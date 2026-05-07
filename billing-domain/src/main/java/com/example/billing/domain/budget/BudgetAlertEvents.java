@@ -9,7 +9,8 @@ import java.time.Instant;
 /**
  * BudgetAlertRule 도메인 이벤트.
  *
- * <p>{@link Triggered} 가 가장 중요 — 컨슈머가 customer 알림 채널 (email / Slack / webhook) 로 push.</p>
+ * <p>{@link Triggered} 는 다운스트림 컨슈머가 customer 알림 채널 (email / Slack / webhook)
+ * 로 push 하는 진입점입니다.</p>
  */
 public final class BudgetAlertEvents {
 

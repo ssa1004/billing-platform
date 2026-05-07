@@ -70,8 +70,8 @@ public class RefundService implements RefundUseCase {
             events.publish(completed);
             events.publish(orderRefunded);
 
-            // Audit — 환불 승인은 *돈이 customer 로 빠져나가는* 가장 중요한 audit 대상.
-            // 회계 감사 시 "이 환불이 왜 승인됐는지" 영구 답변.
+            // Audit — 환불 승인은 돈이 customer 로 빠져나가는 동작이라 audit 대상.
+            // 회계 감사 시 "이 환불이 왜 승인됐는지" 답할 수 있어야 함.
             audit.log(
                     AuditActor.system("refund-service"),
                     AuditAction.REFUND_APPROVED,

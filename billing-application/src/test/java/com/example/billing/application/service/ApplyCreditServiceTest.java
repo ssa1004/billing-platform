@@ -22,6 +22,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionException;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -33,9 +38,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.dao.OptimisticLockingFailureException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -50,6 +58,21 @@ class ApplyCreditServiceTest {
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
     private static final CustomerId ALICE = CustomerId.of("alice");
 
+    private static final PlatformTransactionManager NO_OP_TX_MANAGER = new PlatformTransactionManager() {
+        @Override
+        public TransactionStatus getTransaction(TransactionDefinition definition) throws TransactionException {
+            return new SimpleTransactionStatus();
+        }
+
+        @Override
+        public void commit(TransactionStatus status) throws TransactionException {
+        }
+
+        @Override
+        public void rollback(TransactionStatus status) throws TransactionException {
+        }
+    };
+
     @Mock CreditRepository credits;
     @Mock InvoiceRepository invoices;
     @Mock EventPublisher events;
@@ -60,7 +83,8 @@ class ApplyCreditServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ApplyCreditService(credits, invoices, events, idempotency, audit, CLOCK);
+        service = new ApplyCreditService(credits, invoices, events, idempotency, audit, CLOCK,
+                NO_OP_TX_MANAGER);
     }
 
     private static Money won(long n) {
@@ -192,5 +216,41 @@ class ApplyCreditServiceTest {
         Money applied = service.apply(new ApplyCreditCommand("k", "alice", UUID.randomUUID(), won(0)));
         assertThat(applied).isEqualTo(won(0));
         verify(invoices, never()).findById(any());
+    }
+
+    @Test
+    void optimisticLockConflict_isRetriedAndSucceeds() {
+        // findById / findUsable 가 매 시도마다 새로운 도메인 객체를 반환하도록 설정
+        // (실제 환경에서도 트랜잭션이 롤백되면 entity 상태가 재로드됨).
+        var sampleInvoice = issuedInvoice(100_000);
+        var invoiceId = sampleInvoice.id();
+        when(invoices.findById(invoiceId)).thenAnswer(i -> Optional.of(issuedInvoice(100_000)));
+        when(credits.findUsable(ALICE, NOW))
+                .thenAnswer(i -> List.of(promo(50_000, NOW.plusSeconds(86400))));
+        // 첫 시도에 invoice save 충돌 → 두 번째 시도에 성공
+        org.mockito.stubbing.Stubber stub = org.mockito.Mockito
+                .doThrow(new OptimisticLockingFailureException("conflict"))
+                .doNothing();
+        stub.when(invoices).save(any());
+
+        Money applied = service.apply(new ApplyCreditCommand("k", "alice", invoiceId, won(30_000)));
+
+        assertThat(applied).isEqualTo(won(30_000));
+        verify(invoices, atLeast(2)).save(any());
+    }
+
+    @Test
+    void optimisticLockConflict_exhaustsBudget_propagates() {
+        var sampleInvoice = issuedInvoice(100_000);
+        var invoiceId = sampleInvoice.id();
+        when(invoices.findById(invoiceId)).thenAnswer(i -> Optional.of(issuedInvoice(100_000)));
+        when(credits.findUsable(ALICE, NOW))
+                .thenAnswer(i -> List.of(promo(50_000, NOW.plusSeconds(86400))));
+        org.mockito.Mockito.doThrow(new OptimisticLockingFailureException("conflict"))
+                .when(invoices).save(any());
+
+        assertThatThrownBy(() ->
+                service.apply(new ApplyCreditCommand("k", "alice", invoiceId, won(30_000))))
+                .isInstanceOf(OptimisticLockingFailureException.class);
     }
 }

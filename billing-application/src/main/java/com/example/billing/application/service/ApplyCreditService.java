@@ -14,10 +14,10 @@ import com.example.billing.domain.invoice.Invoice;
 import com.example.billing.domain.shared.CustomerId;
 import com.example.billing.domain.shared.Money;
 import com.example.billing.domain.shared.Reference;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -34,13 +34,18 @@ import java.util.List;
  *   <li>Credit 별로 {@code CreditConsumed} 이벤트를 Outbox 에 INSERT</li>
  * </ol>
  *
- * <p>한 트랜잭션 안이라 Credit 차감과 Invoice 갱신이 원자적입니다. OptimisticLockException
- * 이 발생하면 전체 롤백 → 호출자가 retry (만료 batch / 동시 결제 등과 충돌이 있을 수 있음).</p>
+ * <p><b>낙관적 락 자동 재시도</b>: Credit/Invoice 의 {@code @Version} 충돌 (만료 batch / 동시
+ * 결제 등) 은 {@link OptimisticLockRetry} 로 *짧은 budget* 안에서 자동 재시도. 충돌이 budget
+ * 을 넘기면 {@link org.springframework.dao.OptimisticLockingFailureException} 그대로 throw —
+ * 호출자가 후속 처리. Idempotency-Key 는 rollback 훅이 매 시도마다 release 해 주므로
+ * 재시도 가능.</p>
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ApplyCreditService implements ApplyCreditUseCase {
+
+    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final long RETRY_BACKOFF_MILLIS = 50L;
 
     private final CreditRepository credits;
     private final InvoiceRepository invoices;
@@ -48,10 +53,31 @@ public class ApplyCreditService implements ApplyCreditUseCase {
     private final IdempotentExecution idempotency;
     private final AuditLogger audit;
     private final Clock clock;
+    private final TransactionTemplate tx;
+
+    public ApplyCreditService(CreditRepository credits,
+                              InvoiceRepository invoices,
+                              EventPublisher events,
+                              IdempotentExecution idempotency,
+                              AuditLogger audit,
+                              Clock clock,
+                              PlatformTransactionManager txManager) {
+        this.credits = credits;
+        this.invoices = invoices;
+        this.events = events;
+        this.idempotency = idempotency;
+        this.audit = audit;
+        this.clock = clock;
+        this.tx = new TransactionTemplate(txManager);
+    }
 
     @Override
-    @Transactional
     public Money apply(ApplyCreditCommand cmd) {
+        return OptimisticLockRetry.withRetry(MAX_RETRY_ATTEMPTS, RETRY_BACKOFF_MILLIS,
+                () -> tx.execute(status -> doApply(cmd)));
+    }
+
+    private Money doApply(ApplyCreditCommand cmd) {
         idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
         Money cap = cmd.applyAtMost();
         if (!cap.isPositive()) {

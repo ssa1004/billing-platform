@@ -15,6 +15,26 @@ spring:
     properties:
       hibernate:
         jdbc.time_zone: UTC
+        # ── ORM query 컴파일 캐시 (ADR-0032) ──
+        # JPQL / HQL 한 줄을 SQL 로 *번역* 하는 비용은 한 요청당 보통 수십 us ~ ms. 같은 JPQL 을
+        # 매번 다시 번역하지 않도록 plan + parameter metadata 를 메모리에 보관. default (2048) 는
+        # 큰 도메인에서 부족 — 한번 cache full 이 되면 LRU eviction 으로 hot path 가 plan miss 의
+        # 늪에 빠짐.
+        query.plan_cache_max_size: 4096
+        query.plan_parameter_metadata_max_size: 256
+        # batch insert / update 의 표준 — 50 row 씩 묶어 JDBC 호출 수 감소. ID 가 IDENTITY 면
+        # batch 가 안 되니 UUID / sequence 인 도메인에서만 효과.
+        jdbc.batch_size: 50
+        order_inserts: true
+        order_updates: true
+        # 동적 IN clause 의 padding — list size 별로 plan 이 갈라지면 cache miss 폭발. Hibernate
+        # 가 자동으로 (1, 2, 4, 8, 16, 32, ...) 단위로 padding (마지막 값 반복) 해 plan 재사용.
+        # ADR-0032 의 "동적 IN 의 함정" 참조.
+        query.in_clause_parameter_padding: true
+        # Hibernate 통계 — JMX / Prometheus actuator 가 query plan cache hit/miss, query
+        # execution count 등을 노출. dev 환경에서도 켜는 비용은 적음 (counter 들의 atomic
+        # increment). prod 모니터링 1차 자료.
+        generate_statistics: true
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -185,6 +205,18 @@ billing:
       hikari:
         maximum-pool-size: 30
         pool-name: master-pool
+        # ── PG prepared statement / TCP 튜닝 (ADR-0032) ──
+        # PG 의 *server-side* prepared statement: client 가 같은 SQL 을 prepareThreshold 회 보내면
+        # PG 가 그 connection 에서 해당 SQL 의 plan 을 캐시. 이후 호출은 plan 재사용 → planning
+        # 시간 절약. JDBC default (5) 그대로 가되 명시. tcpKeepAlive 는 NAT / LB 환경에서 idle
+        # connection 이 silent drop 되는 사고 방지.
+        data-source-properties:
+          prepareThreshold: 5
+          tcpKeepAlive: true
+          # PG plan cache 자체 — connection 마다 보관할 prepared statement 최대 개수. JDBC default
+          # (256) 를 넘기면 LRU eviction 발생. 우리 도메인 query 갯수 (대략 100~150) 보다 충분.
+          preparedStatementCacheQueries: 512
+          preparedStatementCacheSizeMiB: 16
     # 읽기 전용 (replica) — @Transactional(readOnly=true) 흐름이 라우팅됨.
     # DB_REPLICA_HOST 미설정 시 master 와 같은 host (인프라 의존성 줄이기, ADR-0025).
     replica:
@@ -196,3 +228,8 @@ billing:
         maximum-pool-size: 50         # 조회 트래픽이 많으니 master 보다 큰 pool
         pool-name: replica-pool
         read-only: true               # JDBC level read-only hint — replica 에 대한 안전장치
+        data-source-properties:
+          prepareThreshold: 5
+          tcpKeepAlive: true
+          preparedStatementCacheQueries: 512
+          preparedStatementCacheSizeMiB: 16

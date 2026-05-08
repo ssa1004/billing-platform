@@ -4,12 +4,14 @@ import com.example.billing.application.command.ProcessPaymentCommand
 import com.example.billing.domain.order.OrderId
 import com.example.billing.domain.payment.Payment
 import com.example.billing.domain.payment.PaymentMethod
+import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 import java.time.Instant
 
 data class ProcessPaymentRequest(
-    @field:NotNull val orderId: String,
+    @field:NotBlank @field:Size(max = 64) val orderId: String,
     @field:NotNull val method: PaymentMethod,
 ) {
     fun toCommand(idempotencyKey: String): ProcessPaymentCommand =

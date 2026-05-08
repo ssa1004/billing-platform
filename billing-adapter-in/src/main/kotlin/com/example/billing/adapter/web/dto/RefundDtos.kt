@@ -3,13 +3,13 @@ package com.example.billing.adapter.web.dto
 import com.example.billing.application.command.RefundCommand
 import com.example.billing.domain.payment.PaymentId
 import com.example.billing.domain.refund.Refund
-import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 import java.time.Instant
 
 data class RefundRequest(
-    @field:NotNull val paymentId: String,
+    @field:NotBlank @field:Size(max = 64) val paymentId: String,
     @field:Size(max = 512) val reason: String?,
 ) {
     fun toCommand(idempotencyKey: String): RefundCommand =

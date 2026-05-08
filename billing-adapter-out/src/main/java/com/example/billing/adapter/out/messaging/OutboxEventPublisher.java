@@ -15,14 +15,20 @@ import java.time.Clock;
 import java.util.UUID;
 
 /**
- * EventPublisher 의 outbox 구현. 도메인 트랜잭션 안에서 outbox 테이블에 INSERT 만 합니다 —
- * Kafka publish 는 별도로 {@link OutboxRelay} 가 처리합니다. 이렇게 분리해야 DB commit 과
- * 이벤트 발행이 한 트랜잭션에서 묶여 안전합니다 (ADR-0005 참조).
+ * {@link EventPublisher} 의 outbox 구현 — 도메인 트랜잭션 안에서 outbox 테이블에 INSERT 만
+ * 합니다. 실제 Kafka publish 는 별도 polling 워커 ({@link OutboxRelay}) 가 처리합니다.
  *
- * <p><b>{@code Propagation.MANDATORY}</b>: outbox 패턴의 핵심은 *도메인 변경과 outbox INSERT
- * 가 같은 트랜잭션에서 commit/rollback 됨* 이므로, 호출자가 트랜잭션을 열지 않은 상태에서
- * publish 를 호출하면 즉시 예외. 호출자가 깜빡 트랜잭션을 안 잡고 publish 만 호출하는
- * 사고를 컴파일타임은 아니지만 런타임에 차단.</p>
+ * <p><b>왜 이렇게 분리하는가 (outbox 패턴)</b>: DB commit 과 Kafka publish 를 한 트랜잭션에
+ * 안전하게 묶기 위해서. 도메인 변경 commit 직후에 Kafka 로 직접 send 하면, send 는 성공했는데
+ * 직전 DB commit 이 실제로는 안 됐다거나 그 반대 — 두 시스템 사이가 어긋나는 dual-write 문제가
+ * 생깁니다. outbox 테이블에 INSERT 만 하고 같은 트랜잭션에서 commit/rollback 하면 도메인
+ * 변경과 "발행 의도" 가 원자적으로 묶입니다 (ADR-0005).</p>
+ *
+ * <p><b>{@code Propagation.MANDATORY} 가 강제하는 것</b>: 호출자가 트랜잭션을 열어둔 상태에서만
+ * publish 가 호출되도록 *런타임에 강제* 합니다. 만약 호출자가 깜빡하고 {@code @Transactional}
+ * 없이 publish 만 부르면 즉시 예외가 떨어져, "도메인 변경은 commit 됐는데 outbox INSERT 는
+ * 별도 트랜잭션이라 시점이 어긋남" 같은 정합 사고를 사전 차단합니다. 컴파일타임 검증은 아니지만
+ * 첫 호출에서 바로 fail-fast.</p>
  */
 @Component
 @RequiredArgsConstructor

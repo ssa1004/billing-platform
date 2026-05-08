@@ -24,9 +24,12 @@ import java.util.UUID;
  * entry) 로 정정합니다. 정정 history 도 다시 audit 되어 두 row 가 timeline 에 같이 남습니다
  * — 그 timeline 전체가 *진실의 전체 모습*.</p>
  *
- * <p><b>왜 before/after 를 JSON 으로?</b> 도메인 객체가 다양해 일반 (generic) 형태가 필요.
- * JSON 이면 어떤 도메인이든 직렬화 가능. 단점은 검색 (특정 필드의 변화 추적) 이 어렵다는 것
- * — 자주 검색되는 필드는 별도 컬럼 (target_type, target_id) 으로 따로 빼서 노출.</p>
+ * <p><b>왜 before/after 를 JSON 으로?</b> 한 audit 테이블이 Invoice / Refund / Credit / Wallet
+ * 등 여러 도메인의 변경을 다 담아야 하는데, 도메인마다 컬럼 구조가 달라 일반 (generic) 표현이
+ * 필요합니다. JSON 으로 dump 하면 어떤 도메인이든 같은 형식으로 적을 수 있음. 단점은 *특정
+ * 필드의 변화만 골라 검색* 하기 어렵다는 것 — JSON 안을 SQL 로 풀어보려면 운영 DB 의
+ * jsonb 연산자가 필요해 비용이 큼. 자주 검색되는 필드 (target_type, target_id, action) 는
+ * 별도 컬럼으로 빼서 인덱스를 직접 걸었습니다 (V9 migration 의 idx_audit_* 4종).</p>
  */
 public record AuditEntry(
         UUID id,

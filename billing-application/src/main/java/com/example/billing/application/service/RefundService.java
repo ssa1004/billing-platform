@@ -27,19 +27,27 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 
 /**
- * 환불 use case — PG 환불 호출 + Order/Refund 상태 갱신 + 이벤트 발행.
- * Wallet 환원은 RefundCompleted 이벤트의 컨슈머가 처리 (decoupled).
+ * 환불 use case — PG 환불 호출 + Order / Refund 상태 갱신 + 이벤트 발행.
+ * Wallet 환원은 RefundCompleted 이벤트의 컨슈머가 처리 (도메인 분리, decoupled).
  *
- * <p><b>트랜잭션 경계 — PG 호출은 트랜잭션 밖</b>: PG 가 슬로우다운되면 DB connection 이 같이
- * 풀리지 않아 pool 압박 → 다른 트랜잭션도 영향. 그래서 다음 3단계로 분리:</p>
+ * <p><b>왜 3단계로 쪼개나 (외부 호출을 트랜잭션 밖으로 빼는 이유)</b>:
+ * {@link ProcessPaymentService} 와 같은 이유 — 외부 PG 호출 동안 DB 트랜잭션을 열어두면
+ * connection 이 pool 에서 빠지지 않아, PG 가 슬로우다운되면 다른 도메인의 트랜잭션까지 같이
+ * 멈추는 cascade 가 발생합니다. 흐름을 셋으로 쪼개 외부 호출 동안 connection 을 잡지 않게
+ * 합니다:</p>
  * <ol>
- *   <li><b>Phase 1 (tx)</b>: Idempotency-Key 점유 + Payment 로드 + REQUESTED Refund 영속화</li>
- *   <li><b>PG 환불 호출</b>: 트랜잭션 *밖* — Resilience4j 서킷브레이커 / Retry 로 보호</li>
- *   <li><b>Phase 2 (tx)</b>: Refund 상태 천이 + Order REFUNDED 마킹 + 이벤트 + audit</li>
+ *   <li><b>Phase 1 (DB tx, 짧음)</b>: Idempotency-Key 점유 + Payment 로드 + REQUESTED 상태
+ *       Refund row INSERT → commit.</li>
+ *   <li><b>PG 환불 호출 (트랜잭션 밖)</b>: connection 미점유 상태로 응답 대기. Resilience4j
+ *       서킷브레이커 / Retry 로 보호.</li>
+ *   <li><b>Phase 2 (DB tx, 짧음)</b>: PG 결과를 반영해 Refund 상태 천이 + Order REFUNDED 마킹
+ *       + 이벤트 발행 + audit log → commit.</li>
  * </ol>
  *
- * <p>Phase 2 가 실패하면 Refund 가 REQUESTED 로 남고 PG 는 이미 환불을 처리한 상태가 될 수
- * 있습니다 — 별도 reconciler 가 PG 와 상태 동기화 (운영 시 보강). 본 코드 범위 외.</p>
+ * <p><b>Phase 2 실패 시</b>: Refund 가 REQUESTED 로 남고 PG 는 이미 환불 처리를 끝낸 상태가
+ * 될 수 있습니다. 별도 reconciler 가 stuck REQUESTED row 를 시간 오래된 순으로 스캔해 PG 에
+ * 같은 idempotencyKey 로 조회 → 실제 결과로 상태를 동기화 (운영 보강 영역, 본 코드 범위 외;
+ * V11 migration 의 인덱스 {@code idx_refund_status_requested_at} 가 그 reconciler 용).</p>
  */
 @Service
 @Slf4j
@@ -94,7 +102,8 @@ public class RefundService implements RefundUseCase {
         Payment payment = payments.findById(cmd.paymentId())
                 .orElseThrow(() -> new PaymentNotFoundException(cmd.paymentId()));
 
-        Refund refund = Refund.request(payment.id(), payment.amount(), cmd.reason(), clock);
+        Refund refund = Refund.request(payment.id(), payment.amount(), cmd.reason(),
+                cmd.idempotencyKey(), clock);
         refunds.save(refund);
         return new InitiatedContext(refund.id(), payment.id(),
                 payment.pgTransactionId(), payment.amount(), payment.orderId());

@@ -20,23 +20,35 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Outbox 테이블 → Kafka 로 메시지를 옮기는 relay. 동기로 send 하고 같은 트랜잭션 안에서만
- * markPublished 처리해서 안전성 확보. billing.outbox.relay.enabled=true 일 때만 활성.
+ * Outbox 테이블 → Kafka 로 메시지를 옮기는 relay (전달자).
  *
- * <p><b>수평 확장</b>: {@link OutboxRepository#findUnpublished} 가
- * {@code PESSIMISTIC_WRITE + lock.timeout=0} → Postgres {@code FOR UPDATE SKIP LOCKED} 로
- * 변환되므로 여러 인스턴스가 동시에 polling 해도 같은 row 를 두 번 잡지 않습니다 (ShedLock
- * 불필요). 단, 락은 트랜잭션이 닫혀야 풀리므로 *fetch + send + markPublished* 가 같은
- * 트랜잭션 안에서 완결되어야 합니다.</p>
+ * <p><b>전체 그림</b>: 도메인 트랜잭션은 outbox 테이블에 INSERT 만 하고 끝납니다 (DB commit 과
+ * 이벤트 발행을 한 트랜잭션에 묶기 위해 — ADR-0005). 이 relay 가 별도 polling 으로 unpublished
+ * row 를 꺼내 Kafka 로 send 한 뒤 markPublished 로 표시합니다. {@code billing.outbox.relay.enabled=true}
+ * 일 때만 활성.</p>
  *
- * <p><b>트랜잭션 경계 — 메시지 단위</b>: 한 트랜잭션이 한 메시지만 다룸. Kafka send 가
- * sendTimeoutMs 까지 블록되더라도 그 트랜잭션 한 개만 영향 — 다른 워커 / 다른 메시지의
- * 트랜잭션은 독립이라 connection pool 전체가 막히지 않습니다. batch_size 만큼 매 poll 마다
- * 메시지를 처리하지만 *각 메시지마다 별도 트랜잭션*.</p>
+ * <p><b>여러 인스턴스에서 동시에 돌려도 안전한 이유 (SKIP LOCKED)</b>:
+ * {@link OutboxRepository#findUnpublished} 가 {@code PESSIMISTIC_WRITE + lock.timeout=0} 으로
+ * 잡혀 있어 Postgres {@code FOR UPDATE SKIP LOCKED} 로 변환됩니다 — 다른 인스턴스가 이미
+ * lock 잡은 row 는 결과에서 제외되어 같은 row 를 두 워커가 동시에 잡는 일이 없습니다 (ShedLock
+ * 같은 추가 분산 lock 불필요). 단, 락은 트랜잭션이 닫혀야 풀리므로 *fetch + send +
+ * markPublished* 가 모두 같은 트랜잭션 안에서 끝나야 합니다.</p>
  *
- * <p>실패 시 markPublished 를 안 하고 트랜잭션을 commit 하므로 (예외가 잡혀서) lock 이
- * 해제되고, 다음 polling 에서 재시도 (at-least-once, 최소 한 번 전달이지만 중복 가능).
- * 계속 실패하는 메시지 (poison pill) 는 별도 백로그로 처리.</p>
+ * <p><b>왜 메시지 1건마다 별도 트랜잭션 (REQUIRES_NEW)</b>:
+ * <ul>
+ *   <li>한 메시지의 Kafka send 가 sendTimeoutMs 까지 블록되더라도 *그 트랜잭션 하나*만 멈춤.
+ *       다른 메시지의 트랜잭션은 독립이라 DB connection pool 전체가 묶이지 않습니다.</li>
+ *   <li>한 메시지가 실패해도 다른 메시지의 markPublished 는 그대로 commit — batch 안의
+ *       다른 메시지가 같이 rollback 되는 상황 방지.</li>
+ *   <li>SKIP LOCKED 가 동작하려면 lock 이 가능한 한 빨리 풀려야 → 트랜잭션을 짧게.</li>
+ * </ul>
+ * 한 polling cycle 에서 batch_size 만큼 메시지를 처리하지만 *각 메시지마다 새 트랜잭션*.</p>
+ *
+ * <p><b>실패 처리 — at-least-once (최소 한 번 전달, 중복 가능)</b>:
+ * Kafka send 가 실패하거나 timeout 이면 markPublished 를 호출하지 않고 트랜잭션을 그대로
+ * commit (예외는 catch 됨) → lock 이 해제되고, 다음 polling 에서 같은 row 를 다시 시도합니다.
+ * 컨슈머는 *같은 메시지가 여러 번 도착해도 결과가 같아야* 합니다 (멱등 처리). 계속 실패하는
+ * 메시지 (poison pill, 어떤 컨슈머도 처리할 수 없는 메시지) 는 별도 백로그 / DLQ 로 분리.</p>
  */
 @Component
 @ConditionalOnProperty(name = "billing.outbox.relay.enabled", havingValue = "true")
@@ -85,13 +97,16 @@ public class OutboxRelay {
     private enum ProcessResult { PUBLISHED, FAILED, NONE }
 
     /**
-     * 한 메시지 단위 트랜잭션 — fetch (SKIP LOCKED) + Kafka send + markPublished. send 가
-     * 실패하거나 timeout 이면 markPublished 안 됨 → 트랜잭션 commit 후 lock 해제, 다음
-     * polling 에서 재시도.
+     * 한 메시지 단위 트랜잭션 — fetch (SKIP LOCKED) + Kafka send + markPublished.
      *
-     * <p>SKIP LOCKED 가 동작하려면 fetch 시 잡힌 row lock 이 markPublished 까지 유지되어야
-     * 하므로 fetch + send + markPublished 가 *반드시 한 트랜잭션* 이어야 합니다. 트랜잭션이
-     * commit 되어야만 다른 워커가 그 row 를 볼 수 있게 됩니다.</p>
+     * <p>send 가 실패하거나 timeout 이면 markPublished 가 호출되지 않은 채 트랜잭션이 commit
+     * 됩니다 (예외는 {@link #publishPending} 가 잡음) → lock 해제, 다음 polling 에서 재시도.</p>
+     *
+     * <p><b>왜 fetch + send + markPublished 가 한 트랜잭션이어야 하는가</b>: SKIP LOCKED 가
+     * "이 row 는 다른 워커가 잡고 있다" 라고 판단하는 근거는 *살아 있는 트랜잭션의 row lock*
+     * 입니다. 트랜잭션이 commit/rollback 되면 lock 도 풀려 다른 워커가 같은 row 를 잡을 수
+     * 있게 됩니다. fetch 와 markPublished 를 다른 트랜잭션으로 쪼개면 send 동안 lock 이
+     * 풀려 두 워커가 같은 메시지를 발행할 수 있습니다.</p>
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ProcessResult publishNext() {

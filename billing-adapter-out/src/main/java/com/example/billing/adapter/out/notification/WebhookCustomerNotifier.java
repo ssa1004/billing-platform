@@ -20,12 +20,19 @@ import java.util.Map;
 /**
  * Webhook 기반 알림 — customer 가 등록한 callback URL 로 HTTP POST 발송.
  *
- * <p>Resilience4j 로 재시도 (retry) + 서킷 브레이커 (circuit breaker, 실패 누적 시 호출 자체를
- * 잠시 차단). 실패한 알림은 DLQ (Dead Letter Queue) 같은 별도 저장소에 기록 (현재 구현은
- * 생략).</p>
+ * <p>Resilience4j 로 두 단계 보호:
+ * <ul>
+ *   <li><b>Retry</b> — 일시적 실패 (5xx / timeout) 시 짧게 재시도.</li>
+ *   <li><b>Circuit Breaker</b> — 실패가 일정 비율 이상 누적되면 호출 자체를 잠시 차단해 다운된
+ *       customer 서버를 우리가 더 이상 두드리지 않게 (DDoS 회피) + 우리 thread / connection
+ *       자원을 보호.</li>
+ * </ul>
+ * 두 단계로도 실패한 알림은 DLQ (Dead Letter Queue, 처리 실패 메시지를 모아두는 큐) 같은 별도
+ * 저장소에 기록해야 하지만 본 구현에서는 생략 (영속 통로는 ADR-0022 의 WebhookDelivery 가
+ * 담당).</p>
  *
- * <p>운영에서는 customer 별 webhook URL 매핑이 별도 store 에 있어야 합니다 (CustomerProfile).
- * 본 구현은 단순화를 위해 모두 같은 URL 로 보내는 stub.</p>
+ * <p>운영에서는 customer 별 webhook URL 매핑이 별도 store (CustomerProfile 등) 에 있어야
+ * 합니다. 본 구현은 단순화를 위해 모든 customer 에게 같은 URL 로 보내는 stub.</p>
  */
 @Component
 @Profile("prod")

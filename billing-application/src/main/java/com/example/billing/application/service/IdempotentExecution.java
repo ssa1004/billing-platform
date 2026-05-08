@@ -9,17 +9,23 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /**
  * Idempotency-Key 점유 + 트랜잭션 rollback 시 자동 release 까지 묶어주는 helper.
  *
- * <p><b>왜 필요한가</b>: {@link IdempotencyKeyStore#acquireOrThrow} 만 단독으로 호출하면,
- * 점유는 즉시 Redis 에 박히는데 그 후 도메인 검증 / 외부 호출에서 트랜잭션이 rollback 되어도
- * Redis 의 점유는 그대로 남습니다. 같은 키로 재시도하면 {@code DuplicateRequestException}
- * 만 계속 떨어져 *legitimate retry 가 막히는 DoS* 가 됩니다 (TTL 24h 동안).
+ * <p><b>Idempotency-Key 가 뭐였는지</b>: 클라이언트가 같은 요청을 두 번 보냈을 때 두 번 처리되지
+ * 않게 막는 키. 보통 클라이언트가 UUID 같은 키를 헤더로 보내고, 서버는 처음 받은 키를 일정 시간
+ * (TTL, 여기선 24시간) 동안 점유 상태로 들고 있다가 같은 키로 또 들어오면 거절합니다.</p>
  *
- * <p><b>해결</b>: 점유 직후 {@link TransactionSynchronizationManager} 에 rollback 훅을
- * 등록 → 트랜잭션이 commit 되면 그대로 두고, rollback 되면 {@link IdempotencyKeyStore#release}
- * 호출.
+ * <p><b>이 helper 가 푸는 문제</b>: {@link IdempotencyKeyStore#acquireOrThrow} 만 단독으로
+ * 호출하면 점유는 Redis 에 즉시 박히는데, 그 직후 도메인 검증이 실패해 트랜잭션이 rollback
+ * 되어도 Redis 의 점유는 그대로 남습니다. 같은 키로 다시 시도하면 24h 동안
+ * {@code DuplicateRequestException} 만 떨어져 — 정상 재시도가 막히는 *self-DoS* 상황이
+ * 됩니다.</p>
  *
- * <p><b>호출 규약</b>: 반드시 {@code @Transactional} 메서드 안에서 호출. 트랜잭션이 active
- * 가 아니면 훅이 등록되지 않으니 단순 acquire 와 동일 (이 경우 release 책임은 호출자).
+ * <p><b>해결 방법</b>: 점유 직후 {@link TransactionSynchronizationManager} 에 후처리 훅을
+ * 등록 → 트랜잭션이 commit 되면 점유는 그대로 두고 (성공한 키는 재시도 금지), rollback 되면
+ * {@link IdempotencyKeyStore#release} 를 호출해 점유를 풀어줍니다.</p>
+ *
+ * <p><b>호출 규약</b>: 반드시 {@code @Transactional} 메서드 (또는 활성 트랜잭션) 안에서 호출.
+ * 트랜잭션이 active 가 아니면 훅이 등록되지 않아 단순 acquire 와 같아지므로, 이 경우 release
+ * 책임은 호출자에게 넘어갑니다.</p>
  */
 @Component
 @RequiredArgsConstructor

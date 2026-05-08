@@ -23,25 +23,33 @@ import java.time.Clock;
 /**
  * 결제 처리 use case — 외부 PG (결제 게이트웨이) 호출 + Order 상태 천이.
  *
- * <p><b>트랜잭션 경계 — PG 호출은 트랜잭션 밖</b>: 외부 호출이 슬로우다운되면 DB connection
- * 이 같이 풀리지 않아 pool 압박 → 다른 트랜잭션도 같이 영향. 그래서 다음 3단계로 쪼갭니다:</p>
+ * <p><b>왜 3단계로 쪼개나 (외부 호출을 트랜잭션 밖으로 빼는 이유)</b>: 외부 PG 호출은 응답까지
+ * 수초가 걸릴 수 있는데, 그 동안 DB 트랜잭션을 열어둔 채 기다리면 그 트랜잭션이 점유한
+ * connection 이 pool 에서 빠지지 않습니다. 트래픽이 몰리는 시점에 PG 가 슬로우다운되면 결제
+ * 트랜잭션들이 connection 을 다 차지해 *다른 도메인 (Wallet, Invoice 등) 의 트랜잭션까지 같이
+ * 멈추는 cascade* 가 됩니다. 이를 막기 위해 흐름을 셋으로 쪼갭니다:</p>
  * <ol>
- *   <li><b>Phase 1 (tx)</b>: Idempotency-Key 점유 + Order 로드 + PENDING Payment 영속화</li>
- *   <li><b>PG 호출</b>: 트랜잭션 *밖* — Resilience4j 서킷브레이커 / Retry / 단축 timeout 으로 보호</li>
- *   <li><b>Phase 2 (tx)</b>: Payment / Order 상태 천이 + 이벤트 발행</li>
+ *   <li><b>Phase 1 (DB tx, 짧음)</b>: Idempotency-Key 점유 + Order 로드 + PENDING 상태 Payment
+ *       row INSERT → commit. 외부 호출 없으니 connection 을 길게 잡지 않음.</li>
+ *   <li><b>PG 호출 (트랜잭션 밖)</b>: connection 을 잡지 않은 상태로 PG 응답 대기. Resilience4j
+ *       서킷브레이커 / Retry / 단축 timeout 으로 보호.</li>
+ *   <li><b>Phase 2 (DB tx, 짧음)</b>: PG 결과를 반영해 Payment / Order 상태 천이 + 이벤트 발행
+ *       → commit.</li>
  * </ol>
  *
- * <p><b>idempotency 의 의미</b>: Phase 1 에서 Idempotency-Key 점유 (TTL ~24h). Phase 1 commit
- * 이후로는 키가 풀리지 않습니다. 이는 *의도적* — 일단 PG 호출이 시작되면 (Phase 1 commit) 결과를
- * 모르기 전에는 같은 키로 재시도하면 안 됨. 호출자는 같은 idempotencyKey 로 GET 해서 결과를
- * 조회하는 패턴.</p>
+ * <p><b>왜 Idempotency-Key 가 Phase 1 commit 이후엔 안 풀리는가 (의도)</b>: Phase 1 이 commit
+ * 된 시점부터 PG 호출이 *이미 시작* 됐을 수 있습니다. 같은 키로 또 호출이 들어오면 PG 에 결제가
+ * 두 번 박힐 위험이 있어 키 점유를 그대로 유지 (TTL ~24h). 호출자는 *같은 idempotencyKey 로
+ * 결과를 GET* 해서 상태를 조회하는 패턴 (REST 표준 idempotency 패턴과 동일).</p>
  *
- * <p><b>Phase 1 실패</b>: 도메인 예외 ({@link OrderNotFoundException}) → tx rollback 으로
- * Idempotency-Key 자동 release → 다른 키로 재시도 가능.</p>
- *
- * <p><b>Phase 2 실패</b>: Payment 가 PENDING 상태로 남아 있고 PG 는 이미 처리됨 → 별도 reconciler
- * 또는 후속 polling 이 PG 에 같은 idempotencyKey 로 *조회* 해서 상태 동기화 (운영 시 별도
- * 보강 필요). 본 코드 범위 외.</p>
+ * <p><b>실패 시나리오</b>:
+ * <ul>
+ *   <li>Phase 1 실패 — 예: {@link OrderNotFoundException}. tx rollback 으로 Idempotency-Key
+ *       자동 release → 호출자가 *같은 키로* 재시도 가능 (PG 호출은 아직 안 일어남).</li>
+ *   <li>Phase 2 실패 — Payment 가 PENDING 으로 남고 PG 는 이미 처리한 상태가 될 수 있음.
+ *       이 case 는 별도 reconciler 가 PG 에 같은 idempotencyKey 로 *조회 (lookup)* 해서 상태를
+ *       동기화 (운영 보강 영역, 본 코드 범위 외).</li>
+ * </ul>
  */
 @Service
 @Slf4j

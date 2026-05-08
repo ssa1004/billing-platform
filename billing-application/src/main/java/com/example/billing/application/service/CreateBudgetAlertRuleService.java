@@ -4,7 +4,6 @@ import com.example.billing.application.command.CreateBudgetAlertRuleCommand;
 import com.example.billing.application.port.in.CreateBudgetAlertRuleUseCase;
 import com.example.billing.application.port.out.BudgetAlertRuleRepository;
 import com.example.billing.application.port.out.EventPublisher;
-import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.domain.budget.BudgetAlertEvents;
 import com.example.billing.domain.budget.BudgetAlertRule;
 import com.example.billing.domain.shared.CustomerId;
@@ -22,13 +21,13 @@ public class CreateBudgetAlertRuleService implements CreateBudgetAlertRuleUseCas
 
     private final BudgetAlertRuleRepository rules;
     private final EventPublisher events;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final Clock clock;
 
     @Override
     @Transactional
     public BudgetAlertRule create(CreateBudgetAlertRuleCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
 
         BudgetAlertRule rule = cmd.cooldown() == null
                 ? BudgetAlertRule.create(CustomerId.of(cmd.customerId()), cmd.threshold(), clock)

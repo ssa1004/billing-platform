@@ -4,7 +4,6 @@ import com.example.billing.application.command.RefundCommand;
 import com.example.billing.application.exception.OrderNotFoundException;
 import com.example.billing.application.exception.PaymentNotFoundException;
 import com.example.billing.application.port.out.EventPublisher;
-import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.application.port.out.OrderRepository;
 import com.example.billing.application.port.out.PaymentRepository;
 import com.example.billing.application.port.out.PgClient;
@@ -49,14 +48,14 @@ class RefundServiceTest {
     @Mock OrderRepository orders;
     @Mock PgClient pgClient;
     @Mock EventPublisher events;
-    @Mock IdempotencyKeyStore idempotencyKeys;
+    @Mock IdempotentExecution idempotency;
     @Mock com.example.billing.application.port.in.AuditLogger audit;
 
     RefundService service;
 
     @BeforeEach
     void setUp() {
-        service = new RefundService(payments, refunds, orders, pgClient, events, idempotencyKeys,
+        service = new RefundService(payments, refunds, orders, pgClient, events, idempotency,
                 audit, CLOCK);
     }
 

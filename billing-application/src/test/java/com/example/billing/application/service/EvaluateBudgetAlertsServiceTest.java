@@ -56,7 +56,19 @@ class EvaluateBudgetAlertsServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new EvaluateBudgetAlertsService(rules, history, forecast, notifier, events, CLOCK);
+        // 테스트에서는 self-invocation 시 진짜 트랜잭션이 필요 없으므로 ObjectProvider 가
+        // 자기 자신을 반환하도록 wire — proxy 가 아니라 실제 인스턴스라도 evaluateForCustomer 가
+        // 호출되면 충분.
+        service = new EvaluateBudgetAlertsService(rules, history, forecast, notifier, events, CLOCK,
+                new SelfProvider());
+    }
+
+    /** 테스트용 — service 가 자기 자신을 반환하는 ObjectProvider stub. */
+    private class SelfProvider implements org.springframework.beans.factory.ObjectProvider<EvaluateBudgetAlertsService> {
+        @Override public EvaluateBudgetAlertsService getObject() { return service; }
+        @Override public EvaluateBudgetAlertsService getObject(Object... args) { return service; }
+        @Override public EvaluateBudgetAlertsService getIfAvailable() { return service; }
+        @Override public EvaluateBudgetAlertsService getIfUnique() { return service; }
     }
 
     private static Money won(long n) {

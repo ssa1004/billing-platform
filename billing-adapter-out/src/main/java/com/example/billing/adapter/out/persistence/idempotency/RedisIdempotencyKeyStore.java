@@ -41,6 +41,12 @@ public class RedisIdempotencyKeyStore implements IdempotencyKeyStore {
     }
 
     @Override
+    public void release(String key) {
+        // 캐시된 응답은 그대로 두고 (재호출 시 같은 응답 반환), 점유 lock 만 제거.
+        redis.delete(LOCK_PREFIX + key);
+    }
+
+    @Override
     public void cacheResponse(String key, int httpStatus, String body) {
         String value = httpStatus + "|" + (body != null ? body : "");
         redis.opsForValue().set(RESP_PREFIX + key, value, Duration.ofHours(ttlHours));
@@ -50,8 +56,17 @@ public class RedisIdempotencyKeyStore implements IdempotencyKeyStore {
     public Optional<CachedResponse> findCachedResponse(String key) {
         String value = redis.opsForValue().get(RESP_PREFIX + key);
         if (value == null) return Optional.empty();
+        // 형식: "<status>|<body>". 깨진 형식 (구분자 없음 / 숫자 아닌 status) 은
+        // 캐시 미스로 처리 — 운영 중 형식이 바뀌었거나 외부 변조 시 NPE / parseException 으로
+        // 호출자가 죽지 않도록.
         int sep = value.indexOf('|');
-        int status = Integer.parseInt(value.substring(0, sep));
+        if (sep <= 0) return Optional.empty();
+        int status;
+        try {
+            status = Integer.parseInt(value.substring(0, sep));
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
         String body = value.substring(sep + 1);
         return Optional.of(new CachedResponse(status, body));
     }

@@ -3,7 +3,6 @@ package com.example.billing.application.service;
 import com.example.billing.application.command.ProcessPaymentCommand;
 import com.example.billing.application.exception.OrderNotFoundException;
 import com.example.billing.application.port.out.EventPublisher;
-import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.application.port.out.OrderRepository;
 import com.example.billing.application.port.out.PaymentRepository;
 import com.example.billing.application.port.out.PgClient;
@@ -44,13 +43,13 @@ class ProcessPaymentServiceTest {
     @Mock PaymentRepository payments;
     @Mock PgClient pgClient;
     @Mock EventPublisher events;
-    @Mock IdempotencyKeyStore idempotencyKeys;
+    @Mock IdempotentExecution idempotency;
 
     ProcessPaymentService service;
 
     @BeforeEach
     void setUp() {
-        service = new ProcessPaymentService(orders, payments, pgClient, events, idempotencyKeys, CLOCK);
+        service = new ProcessPaymentService(orders, payments, pgClient, events, idempotency, CLOCK);
     }
 
     private Order anOrder() {

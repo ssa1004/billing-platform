@@ -27,6 +27,12 @@ public class InMemoryIdempotencyKeyStore implements IdempotencyKeyStore {
     }
 
     @Override
+    public void release(String key) {
+        // 캐시된 응답이 이미 있다면 그대로 두고 (재호출 시 같은 응답 반환), placeholder 만 제거.
+        store.computeIfPresent(key, (k, v) -> v == PLACEHOLDER ? null : v);
+    }
+
+    @Override
     public void cacheResponse(String key, int httpStatus, String body) {
         store.put(key, new CachedResponse(httpStatus, body));
     }

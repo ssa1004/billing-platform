@@ -53,14 +53,21 @@ public class EvaluateBudgetAlertsService implements EvaluateBudgetAlertsUseCase 
     private final CustomerNotifier notifier;
     private final EventPublisher events;
     private final Clock clock;
+    /**
+     * 같은 빈을 self-injection — proxy 를 거쳐 호출해야 {@code @Transactional} 이 동작합니다.
+     * 직접 {@code this.evaluateForCustomer(...)} 를 호출하면 Spring AOP proxy 가 끼지 않아
+     * 트랜잭션이 시작되지 않습니다 (self-invocation 함정).
+     */
+    private final org.springframework.beans.factory.ObjectProvider<EvaluateBudgetAlertsService> selfProvider;
 
     @Override
     public int evaluateAll() {
         List<CustomerId> customers = rules.findCustomersWithActiveRules();
+        EvaluateBudgetAlertsService self = selfProvider.getObject();
         int evaluated = 0;
         for (CustomerId customerId : customers) {
             try {
-                evaluateForCustomer(customerId);
+                self.evaluateForCustomer(customerId);
                 evaluated++;
             } catch (PricingPlanNotFoundException ex) {
                 log.warn("skip budget evaluation: no plan customer={}", customerId);
@@ -72,8 +79,13 @@ public class EvaluateBudgetAlertsService implements EvaluateBudgetAlertsUseCase 
         return evaluated;
     }
 
+    /**
+     * <b>주의</b>: {@code public} 이어야 Spring CGLIB proxy 가 인터셉트해서
+     * {@code @Transactional} 을 적용합니다 (protected / package private 는 안 잡힘). 외부 빈이
+     * 직접 호출하는 의도는 없지만 가시성은 노출.
+     */
     @Transactional
-    protected void evaluateForCustomer(CustomerId customerId) {
+    public void evaluateForCustomer(CustomerId customerId) {
         UsageForecast f = forecast.forecastCurrentPeriod(customerId);
         Money projected = f.projectedTotalCost();
 

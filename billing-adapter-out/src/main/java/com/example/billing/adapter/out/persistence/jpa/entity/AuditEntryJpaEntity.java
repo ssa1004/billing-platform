@@ -15,9 +15,21 @@ import java.util.UUID;
  * Audit entry persistence.
  *
  * <p><b>{@code @Setter} 없음 — 의도</b>: append-only 라 영속 후 mutate 금지. 새 row 만 INSERT.</p>
+ *
+ * <p><b>2단 방어</b>:
+ * <ol>
+ *   <li>도메인/Lombok — setter 가 아예 없어 정상 코드 경로로는 수정 불가.</li>
+ *   <li>JPA listener ({@link AuditAppendOnlyGuard}) — 누군가 EntityManager 직접 접근으로
+ *       UPDATE / DELETE 를 시도해도 {@code @PreUpdate} / {@code @PreRemove} 에서 예외.</li>
+ * </ol>
+ *
+ * <p>DB 단 trigger 까지 가는 것이 가장 강력하지만 H2 (dev/test) 와 Postgres (prod) 의 trigger
+ * 문법이 달라 portability 가 떨어집니다. 이 프로젝트에서는 JPA 단에서 막고, 운영 DB 는
+ * 별도 vendor-specific migration 으로 trigger 를 추가할 수 있도록 구조만 열어둡니다.</p>
  */
 @Entity
 @Table(name = "audit_entries")
+@EntityListeners(AuditAppendOnlyGuard.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PUBLIC)
 @AllArgsConstructor

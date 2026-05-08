@@ -114,11 +114,11 @@ spring:
   config:
     activate:
       on-profile: prod
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:billing}
-    username: ${DB_USER:billing}
-    password: ${DB_PASSWORD:}
-    driver-class-name: org.postgresql.Driver
+  # Spring Boot 의 기본 DataSource 자동 구성을 끔 — RoutingDataSourceConfig 가 master/replica 두
+  # DataSource 를 직접 만들고 RoutingDataSource 로 묶어서 @Primary 빈으로 등록 (ADR-0025).
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
   flyway:
     locations: classpath:db/migration,classpath:db/migration-postgres
   cache:
@@ -152,3 +152,24 @@ billing:
   security:
     jwt:
       enabled: true
+  datasource:
+    # 쓰기 전용 (master) — write 트랜잭션 + write 직후 read.
+    master:
+      url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:billing}
+      username: ${DB_USER:billing}
+      password: ${DB_PASSWORD:}
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 30
+        pool-name: master-pool
+    # 읽기 전용 (replica) — @Transactional(readOnly=true) 흐름이 라우팅됨.
+    # DB_REPLICA_HOST 미설정 시 master 와 같은 host (인프라 의존성 줄이기, ADR-0025).
+    replica:
+      url: jdbc:postgresql://${DB_REPLICA_HOST:${DB_HOST:postgres}}:${DB_REPLICA_PORT:${DB_PORT:5432}}/${DB_NAME:billing}
+      username: ${DB_REPLICA_USER:${DB_USER:billing}}
+      password: ${DB_REPLICA_PASSWORD:${DB_PASSWORD:}}
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        maximum-pool-size: 50         # 조회 트래픽이 많으니 master 보다 큰 pool
+        pool-name: replica-pool
+        read-only: true               # JDBC level read-only hint — replica 에 대한 안전장치

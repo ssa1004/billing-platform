@@ -28,3 +28,4 @@
 | [0022](0022-webhook-delivery.md) | Webhook 전송 시스템 (HMAC + retry + replay) | 적용 |
 | [0023](0023-audit-log.md) | Audit Log — append-only 감사 로그 | 적용 |
 | [0024](0024-idempotency-response-cache.md) | Idempotency-Key 응답 캐싱 (Stripe 24h 패턴) | 적용 |
+| [0025](0025-read-replica-routing.md) | Read-Replica 라우팅 (AbstractRoutingDataSource) | 적용 |

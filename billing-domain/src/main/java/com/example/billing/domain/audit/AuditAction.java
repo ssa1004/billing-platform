@@ -57,4 +57,8 @@ public enum AuditAction {
     OPERATOR_LOGIN,
     OPERATOR_DATA_EXPORT,
     OPERATOR_PERMISSION_CHANGED,
+
+    // ── soft delete (회계/결제 row 의 논리 삭제, ADR-0030) ──
+    /** Invoice / Payment / Refund 의 논리 삭제. before=row JSON, after=null, reason=삭제 사유. */
+    SOFT_DELETED,
 }

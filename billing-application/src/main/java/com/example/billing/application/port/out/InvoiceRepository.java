@@ -33,4 +33,21 @@ public interface InvoiceRepository {
      * 61-90 / 90+ 일) 계산은 호출 측에서 처리.</p>
      */
     List<Invoice> findUnpaid(java.time.Instant asOf, int limit);
+
+    /**
+     * Soft delete (논리 삭제, ADR-0030). row 자체는 남고 {@code deleted_at} 만 채워짐. 같은
+     * 트랜잭션 안에서 호출하면 audit 와 함께 commit / rollback. 운영 표준은 application
+     * service 가 SoftDeleteService 를 통해 호출 — 여기 직접 호출 금지.
+     *
+     * @param id        삭제 대상 invoice id
+     * @param deletedBy 누가 삭제했나 (user / operator id) — null 금지
+     * @return 실제로 삭제된 row 가 있으면 true. 없거나 이미 삭제된 row 면 false.
+     */
+    boolean softDelete(UUID id, String deletedBy);
+
+    /**
+     * 운영자 화면 전용. {@code deleted_at} 이 set 된 row 까지 포함해 조회. 일반 도메인 흐름은
+     * 절대 사용 금지 — 활성 row 만 본다는 *기본 가정* 을 깸.
+     */
+    Optional<Invoice> findByIdIncludingDeleted(UUID id);
 }

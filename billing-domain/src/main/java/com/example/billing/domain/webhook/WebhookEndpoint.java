@@ -13,28 +13,33 @@ import java.util.Set;
 /**
  * Customer 가 등록한 webhook 수신 endpoint.
  *
- * <p><b>실제 모습</b>: PG 사 (외부 결제 게이트웨이) 가 가맹점에게 결제 이벤트를 보내는 매커니즘
- * 과 똑같습니다. 여기서 우리가 *발신자 (PG 입장)* 입니다. customer 가 자기 서버 URL 을
- * 등록해두면 invoice / payment / refund 같은 도메인 이벤트가 발생할 때 그 URL 로 HTTP POST
- * 가 갑니다.
+ * <p><b>전체 그림</b>: 외부 PG 사 (결제 게이트웨이) 가 가맹점에게 결제 결과를 push 통보하는
+ * 그 매커니즘의 우리 버전. 여기선 *우리가 발신자, customer 가 수신자* 입니다. customer 가
+ * 자기 서버 URL 을 등록해두면 invoice / payment / refund 같은 도메인 이벤트가 발생할 때 그
+ * URL 로 HTTP POST 가 갑니다.
  *
- * <p><b>왜 secret 이 endpoint 단위로 있나</b>: customer 서버가 "이 요청이 진짜 우리 billing
- * 시스템이 보낸 게 맞는지" 검증하기 위해 필요합니다. 우리는 매 delivery 의 body + timestamp
- * 를 이 secret 으로 HMAC (Hash-based Message Authentication Code, 비밀 키와 메시지로 만든
- * 위조 방지 서명) 서명해 헤더에 실어 보냅니다. customer 는 같은 secret 으로 다시 계산해 값이
- * 일치하는지 확인합니다 → 일치하면 진짜, 아니면 가짜 (URL 만 알고 있는 공격자 / 중간자
- * 변조 등). 그래서 secret 은 *endpoint 등록 시점에 한 번만 평문으로 응답에 포함* 되고, 그
- * 뒤로는 hash 만 보관합니다. 분실 시 {@link #rotateSecret} 으로 갱신.
+ * <p><b>secret 이 endpoint 단위로 있는 이유 (HMAC 서명 검증)</b>: customer 서버가 "이 요청이
+ * 진짜 우리 billing 시스템에서 온 게 맞나" 를 검증하기 위해 필요. 동작은:
+ * <ol>
+ *   <li>등록 시 우리가 256-bit 무작위 secret 을 생성 — 응답에 *한 번만 평문으로* 노출.
+ *       customer 는 자기 서버에 그 secret 을 보관.</li>
+ *   <li>매 webhook 발송 시 우리는 (body + timestamp) 를 secret 으로 HMAC (Hash-based Message
+ *       Authentication Code, 비밀 키와 메시지로 만든 위조 방지 서명) 서명해 헤더에 실음.</li>
+ *   <li>customer 는 같은 secret 으로 다시 계산해 헤더 값과 일치하면 진짜, 아니면 거절. URL 만
+ *       알고 있는 공격자 / 중간자가 보낸 가짜 webhook 은 secret 이 없어 같은 값을 만들지 못함.</li>
+ * </ol>
+ * 분실 / 노출 시 {@link #rotateSecret} 으로 새 값 발급 (이전 secret 즉시 무효).
  *
- * <p><b>subscribedEventTypes</b>: customer 가 모든 이벤트가 아니라 특정 타입만 받고 싶을 수
- * 있음 (예: refund 만 알림 받기). 비어 있으면 *모든 이벤트 구독* 으로 간주 — "관심 없으면
- * 명시 안 함" 이 default 여서 온보딩 마찰을 줄여줍니다.
+ * <p><b>subscribedEventTypes 의 default 가 "모든 이벤트"</b>: customer 가 특정 타입만 받고
+ * 싶을 때 (예: refund 알림만) 명시. 비어 있으면 *모든 이벤트 구독* 으로 간주 — "기본은 다
+ * 받음, 관심 없는 것만 명시적으로 제외" 가 default 여서 온보딩 마찰이 적음.
  *
  * <p><b>도메인 invariant</b>:
  * <ul>
  *   <li>URL 은 https 만 허용 (production). 평문 http 로 secret 토큰을 헤더에 실어 보내면
- *       중간에 가로채는 공격 (man-in-the-middle) 에 노출됨.</li>
- *   <li>secret 은 32바이트 (256bit) 이상 — HMAC-SHA256 의 권장 키 길이.</li>
+ *       중간자 공격 (man-in-the-middle) 에 secret 이 그대로 노출됨. localhost 만 dev 편의로
+ *       예외.</li>
+ *   <li>secret 은 32바이트 (256bit) 무작위 값 — HMAC-SHA256 의 권장 키 길이. SecureRandom 사용.</li>
  * </ul>
  */
 public final class WebhookEndpoint {

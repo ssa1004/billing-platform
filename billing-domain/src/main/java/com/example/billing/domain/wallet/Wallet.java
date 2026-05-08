@@ -9,22 +9,28 @@ import java.util.Currency;
 import java.util.Objects;
 
 /**
- * Wallet 애그리거트 루트 (한 트랜잭션으로 같이 저장되는 도메인 객체 묶음의 진입점).
+ * Wallet 애그리거트 루트 (한 트랜잭션으로 같이 저장되는 도메인 객체 묶음의 진입점, DDD 용어).
  *
- * <p><b>도메인 invariant (항상 만족해야 하는 규칙, 도메인 메서드 외 변경 금지)</b>:</p>
+ * <p><b>도메인 invariant (이 객체가 어떤 시점에도 항상 만족해야 하는 규칙)</b>:</p>
  * <ul>
  *   <li>{@code balance >= 0} (음수 잔액 금지)</li>
- *   <li>{@code blocked >= 0}</li>
- *   <li>{@code blocked <= balance} (블록한 금액은 잔액 안에 있어야 함)</li>
- *   <li>모든 amount 는 wallet.currency 와 동일</li>
+ *   <li>{@code blocked >= 0} (블록 금액 음수 금지)</li>
+ *   <li>{@code blocked <= balance} (보류된 금액은 잔액 안에 들어 있어야 함 — 잔액보다 더 많이
+ *       블록할 수는 없다는 뜻)</li>
+ *   <li>모든 amount 는 wallet.currency 와 동일 (KRW Wallet 에 USD 출금 불가)</li>
  * </ul>
+ * 이 규칙들은 도메인 메서드 (deposit / withdraw / block / unblock) 안에서 강제되고, 외부에서
+ * 직접 필드를 바꾸는 경로는 없습니다 (private setter 없음).
  *
- * <p><b>동시성</b>: {@code version} 필드로 낙관적 락 (충돌이 드물다고 가정하고 일단 처리한
- * 뒤, 충돌 시 예외 후 재시도). 동시 차감 시 한쪽은 OptimisticLockException → 클라이언트가
- * retry. 강한 직렬화가 필요하면 Postgres advisory lock 으로 보강 가능 (ADR-0007).</p>
+ * <p><b>동시성</b>: {@code version} 필드로 낙관적 락. 같은 wallet 을 동시에 두 트랜잭션이
+ * 수정하려고 하면 늦은 쪽은 OptimisticLockException → application service 가 짧은 budget
+ * 안에서 재시도 ({@code OptimisticLockRetry}). 충돌이 자주 일어나는 핫 wallet 은 Postgres
+ * advisory lock 으로 직렬화 보강 가능 (ADR-0007).</p>
  *
- * <p><b>이벤트</b>: 모든 잔액 변경은 {@link WalletEvents} 를 반환합니다 → 호출자
- * (Application service) 가 Outbox 에 기록 + Ledger 작성.</p>
+ * <p><b>이벤트 발행 패턴</b>: 모든 잔액 변경 메서드는 변경 결과를 표현하는
+ * {@link WalletEvents} 의 record 를 *반환* 만 합니다. 발행 자체는 도메인이 안 함 — 호출자
+ * (application service) 가 받은 이벤트를 Outbox 에 INSERT (Kafka 발행 + Ledger 기록은 그 뒤
+ * 단계). 도메인이 인프라 (DB / 메시지 브로커) 를 모르게 하기 위한 분리.</p>
  */
 public class Wallet {
 

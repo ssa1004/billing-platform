@@ -6,17 +6,23 @@ import java.util.Currency;
 import java.util.Objects;
 
 /**
- * 통화-감지 금액 Value Object (immutable).
+ * 통화 (Currency) 와 금액 (BigDecimal) 을 함께 들고 다니는 Value Object (immutable, 한 번
+ * 만들어지면 절대 안 바뀜).
  *
- * <p>도메인 invariant:</p>
+ * <p>도메인 invariant (이 클래스가 항상 보장하는 규칙):</p>
  * <ul>
- *   <li>다른 통화 간 산술 금지 (예: USD + KRW → throw)</li>
- *   <li>scale 일관성 — 통화별 minor unit 에 맞춰 자동 정규화 (KRW=0, USD=2 등)</li>
- *   <li>음수 허용 (Ledger 의 debit/credit 표현용)</li>
+ *   <li><b>다른 통화 간 산술 금지</b> — 예: USD + KRW → 즉시 예외. 환율 변환은 별도 도메인의
+ *       책임이라 Money 는 같은 통화끼리만 더하고 뺍니다.</li>
+ *   <li><b>scale (소수점 자릿수) 자동 정규화</b> — 통화별 minor unit 에 맞춰 BigDecimal 의
+ *       scale 을 강제. KRW 는 정수 (scale=0), USD 는 센트 단위 (scale=2), JPY 는 0 등. 같은
+ *       금액이 scale 만 다른 두 객체로 표현되어 비교가 어그러지는 일을 방지.</li>
+ *   <li><b>음수 허용</b> — 회계 원장 (ledger) 의 차변/대변 (debit/credit) 표기에 음수가
+ *       필요하기 때문. 입금은 +amount, 출금은 -amount 식으로 한 컬럼에 부호로 구분.</li>
  * </ul>
  *
- * <p>Ledger entry 는 signed Money (음수 = 출금) 를 사용. Wallet balance 는 항상 0 이상이어야 하지만
- * 그 invariant 는 {@link com.example.billing.domain.wallet.Wallet} 에서 강제 — Money 자체는 산술 단위.</p>
+ * <p><b>Wallet balance 의 "음수 금지" 는 어디서?</b> Money 자체가 음수를 허용해도 잔액
+ * 무결성은 {@link com.example.billing.domain.wallet.Wallet} 가 보장합니다 — Money 는 *산술
+ * 단위* 일 뿐, 도메인 invariant 는 그 단위를 사용하는 애그리거트의 책임입니다.</p>
  */
 public final class Money implements Comparable<Money> {
 

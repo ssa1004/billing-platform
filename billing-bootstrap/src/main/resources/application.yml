@@ -81,11 +81,31 @@ resilience4j:
         waitDuration: 200ms                         # 첫 retry 까지 200ms 대기
         enableExponentialBackoff: true              # 점점 간격을 늘려 재시도 (200ms → 400ms → 800ms)
         exponentialBackoffMultiplier: 2
+  # ThreadPool Bulkhead — 외부 호출 격리 (ADR-0026). PG 가 슬로우다운되어도 servlet thread pool
+  # 까지 cascade 되지 않도록 별도 worker pool 위에서 호출.
+  thread-pool-bulkhead:
+    instances:
+      pg:
+        maxThreadPoolSize: 20                       # 최대 동시 PG 호출 수 (Little's law: TPS 10 × latency 0.2s × buffer 10x)
+        coreThreadPoolSize: 10                      # 평상시 worker 수
+        queueCapacity: 50                           # peak burst 흡수 — 50건 까지 큐. 이 이상이면 BulkheadFullException
+        keepAliveDuration: 20ms
+      webhook:
+        maxThreadPoolSize: 30                       # webhook 발송은 fan-out 이라 PG 보다 큰 풀
+        coreThreadPoolSize: 15
+        queueCapacity: 100
+        keepAliveDuration: 20ms
+      audit-export:
+        maxThreadPoolSize: 5                        # SIEM export 같은 무거운 IO — 적은 풀로 격리
+        coreThreadPoolSize: 2
+        queueCapacity: 20
+        keepAliveDuration: 20ms
 
 billing:
   pg:
     enabled: false                 # 로컬 dev: 실제 PG 호출 안 하고 MockPgClient 사용
     base-url: ${PG_BASE_URL:http://wiremock:8090}
+    bulkhead-enabled: true         # ThreadPoolBulkhead 격리 (ADR-0026). pg.enabled=false 환경에선 어차피 자동 비활성
   outbox:
     relay:
       enabled: false               # 로컬: Kafka 미연결이라 relay 비활성 (테이블 INSERT 만 발생)

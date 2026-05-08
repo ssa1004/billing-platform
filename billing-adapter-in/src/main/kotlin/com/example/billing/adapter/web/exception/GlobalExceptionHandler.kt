@@ -3,6 +3,7 @@ package com.example.billing.adapter.web.exception
 import com.example.billing.adapter.web.dto.ErrorResponse
 import com.example.billing.application.exception.OrderNotFoundException
 import com.example.billing.application.exception.PaymentNotFoundException
+import com.example.billing.application.exception.RefundNotFoundException
 import com.example.billing.application.exception.WalletNotFoundException
 import com.example.billing.application.port.out.IdempotencyKeyStore
 import com.example.billing.domain.order.IllegalOrderTransitionException
@@ -24,7 +25,12 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @ExceptionHandler(OrderNotFoundException::class, PaymentNotFoundException::class, WalletNotFoundException::class)
+    @ExceptionHandler(
+        OrderNotFoundException::class,
+        PaymentNotFoundException::class,
+        RefundNotFoundException::class,
+        WalletNotFoundException::class,
+    )
     fun handleNotFound(e: RuntimeException): ResponseEntity<ErrorResponse> =
         build(HttpStatus.NOT_FOUND, "NOT_FOUND", e.message ?: "not found")
 

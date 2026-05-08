@@ -75,7 +75,10 @@ class OutboxRelayTest {
     @Test
     void successfulSend_marksPublished() {
         OutboxJpaEntity m = msg("Order", "Placed");
-        when(outboxRepository.findUnpublished(any(Pageable.class))).thenReturn(List.of(m));
+        // 한 메시지씩 SKIP LOCKED 로 픽업 → 두 번째 호출은 비어 있음
+        when(outboxRepository.findUnpublished(any(Pageable.class)))
+                .thenReturn(List.of(m))
+                .thenReturn(List.of());
         when(kafkaTemplate.send(eq("billing.order.placed"), eq("agg-1"), eq("{}")))
                 .thenReturn(CompletableFuture.completedFuture((SendResult<String, String>) null));
 
@@ -88,7 +91,11 @@ class OutboxRelayTest {
     void runtimeException_isolatedToSingleMessage_otherStillPublishes() {
         OutboxJpaEntity poison = msg("Order", "Placed");
         OutboxJpaEntity good = msg("Order", "Paid");
-        when(outboxRepository.findUnpublished(any(Pageable.class))).thenReturn(List.of(poison, good));
+        // SKIP LOCKED 로 한 row 씩 fetch — poison → good → empty 순서
+        when(outboxRepository.findUnpublished(any(Pageable.class)))
+                .thenReturn(List.of(poison))
+                .thenReturn(List.of(good))
+                .thenReturn(List.of());
         // poison 메시지는 send 시점에 직렬화 / 설정 등으로 RuntimeException
         when(kafkaTemplate.send(eq("billing.order.placed"), eq("agg-1"), eq("{}")))
                 .thenThrow(new IllegalStateException("serialization broken"));
@@ -106,7 +113,9 @@ class OutboxRelayTest {
     @Test
     void kafkaSendReturnsFailedFuture_skipsMarkPublished() {
         OutboxJpaEntity m = msg("Payment", "Approved");
-        when(outboxRepository.findUnpublished(any(Pageable.class))).thenReturn(List.of(m));
+        when(outboxRepository.findUnpublished(any(Pageable.class)))
+                .thenReturn(List.of(m))
+                .thenReturn(List.of());
 
         CompletableFuture<SendResult<String, String>> failed = new CompletableFuture<>();
         failed.completeExceptionally(new RuntimeException("broker down"));

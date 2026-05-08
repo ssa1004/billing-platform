@@ -4,7 +4,6 @@ import com.example.billing.application.command.ProcessPaymentCommand;
 import com.example.billing.application.exception.OrderNotFoundException;
 import com.example.billing.application.port.in.ProcessPaymentUseCase;
 import com.example.billing.application.port.out.EventPublisher;
-import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.application.port.out.OrderRepository;
 import com.example.billing.application.port.out.PaymentRepository;
 import com.example.billing.application.port.out.PgClient;
@@ -36,13 +35,13 @@ public class ProcessPaymentService implements ProcessPaymentUseCase {
     private final PaymentRepository payments;
     private final PgClient pgClient;
     private final EventPublisher events;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final Clock clock;
 
     @Override
     @Transactional
     public Payment process(ProcessPaymentCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
 
         Order order = orders.findById(cmd.orderId())
                 .orElseThrow(() -> new OrderNotFoundException(cmd.orderId()));

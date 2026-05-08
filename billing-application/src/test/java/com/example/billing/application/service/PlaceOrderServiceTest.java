@@ -31,14 +31,14 @@ class PlaceOrderServiceTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-05-04T10:00:00Z"), ZoneOffset.UTC);
 
     @Mock OrderRepository orders;
-    @Mock IdempotencyKeyStore idempotencyKeys;
+    @Mock IdempotentExecution idempotency;
     @Mock EventPublisher events;
 
     PlaceOrderService service;
 
     @BeforeEach
     void setUp() {
-        service = new PlaceOrderService(orders, idempotencyKeys, events, CLOCK);
+        service = new PlaceOrderService(orders, idempotency, events, CLOCK);
     }
 
     @Test
@@ -52,7 +52,7 @@ class PlaceOrderServiceTest {
 
         assertThat(result.status()).isEqualTo(OrderStatus.CREATED);
         assertThat(result.totalAmount().amount()).isEqualByComparingTo("2000");
-        verify(idempotencyKeys).acquireOrThrow("key-1");
+        verify(idempotency).acquireAndReleaseOnRollback("key-1");
         verify(orders).save(any(Order.class));
         verify(events).publish(any(OrderEvents.OrderPlaced.class));
     }
@@ -60,7 +60,7 @@ class PlaceOrderServiceTest {
     @Test
     void place_throwsWhenIdempotencyKeyAlreadyUsed() {
         doThrow(new IdempotencyKeyStore.DuplicateRequestException("key-1"))
-                .when(idempotencyKeys).acquireOrThrow("key-1");
+                .when(idempotency).acquireAndReleaseOnRollback("key-1");
 
         var cmd = new PlaceOrderCommand(
                 "key-1", "alice", Currency.getInstance("KRW"),

@@ -3,7 +3,6 @@ package com.example.billing.application.service;
 import com.example.billing.application.command.PlaceOrderCommand;
 import com.example.billing.application.port.in.PlaceOrderUseCase;
 import com.example.billing.application.port.out.EventPublisher;
-import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.application.port.out.OrderRepository;
 import com.example.billing.domain.order.Order;
 import lombok.RequiredArgsConstructor;
@@ -30,14 +29,14 @@ import java.time.Clock;
 public class PlaceOrderService implements PlaceOrderUseCase {
 
     private final OrderRepository orders;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final EventPublisher events;
     private final Clock clock;
 
     @Override
     @Transactional
     public Order place(PlaceOrderCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
 
         Order order = Order.place(cmd.buyerId(), cmd.toOrderItems(), clock);
         orders.save(order);

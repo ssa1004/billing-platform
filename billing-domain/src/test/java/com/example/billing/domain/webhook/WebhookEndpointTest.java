@@ -37,6 +37,27 @@ class WebhookEndpointTest {
     }
 
     @Test
+    void register_rejectsLocalhostPrefixSpoofedHost() {
+        // "http://localhost.evil.com" 은 startsWith("http://localhost") 만 보면 통과하지만
+        // 실제 호스트는 evil.com — SSRF / spoofing 막기 위해 host 경계까지 정확히 매칭해야 함.
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "http://localhost.evil.com/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("https");
+
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "http://127.0.0.1.attacker.com/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("https");
+
+        // 진짜 localhost 는 여전히 통과해야 함.
+        assertThat(WebhookEndpoint.register(ALICE, "http://localhost/hook", Set.of(), CLOCK).url())
+                .isEqualTo("http://localhost/hook");
+        assertThat(WebhookEndpoint.register(ALICE, "http://127.0.0.1/hook", Set.of(), CLOCK).url())
+                .isEqualTo("http://127.0.0.1/hook");
+    }
+
+    @Test
     void subscribesTo_emptySet_meansAllEvents() {
         var e = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
         assertThat(e.subscribesTo("InvoiceIssued")).isTrue();

@@ -3,7 +3,6 @@ package com.example.billing.adapter.web
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -16,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.Duration
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 /**
  * DLQ 관리 endpoint — 운영자가 .DLT topic 의 메시지를 원본 topic 으로 재처리.
@@ -52,20 +52,37 @@ class DlqAdminController(
         )
 
         var replayed = 0
+        var failed = 0
         KafkaConsumer<String, String>(props).use { consumer ->
             consumer.subscribe(listOf(dltTopic))
             val records = consumer.poll(Duration.ofSeconds(5))
             records.take(max).forEach { record ->
-                kafkaTemplate.send(originalTopic, record.key(), record.value())
-                replayed++
+                // send 는 Future 반환 — get(timeout) 로 동기 확인. 실패한 메시지는 카운트만
+                // 분리하고 다음 record 진행. fire-and-forget 이면 broker 가 죽어도 200 OK 가
+                // 떨어져 운영자가 메시지 유실을 모름.
+                try {
+                    kafkaTemplate.send(originalTopic, record.key(), record.value())
+                        .get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    replayed++
+                } catch (e: Exception) {
+                    failed++
+                    log.warn("DLQ replay failed: topic={} key={} reason={}",
+                        originalTopic, record.key(), e.message)
+                }
             }
-            log.info("DLQ replay: from {} → {} count={}", dltTopic, originalTopic, replayed)
+            log.info("DLQ replay: from {} → {} success={} failed={}",
+                dltTopic, originalTopic, replayed, failed)
         }
 
         return mapOf(
             "from" to dltTopic,
             "to" to originalTopic,
             "replayed" to replayed,
+            "failed" to failed,
         )
+    }
+
+    companion object {
+        private const val SEND_TIMEOUT_SECONDS = 10L
     }
 }

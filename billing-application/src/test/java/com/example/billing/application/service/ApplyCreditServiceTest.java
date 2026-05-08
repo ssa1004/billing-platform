@@ -2,6 +2,7 @@ package com.example.billing.application.service;
 
 import com.example.billing.application.command.ApplyCreditCommand;
 import com.example.billing.application.exception.InvoiceNotFoundException;
+import com.example.billing.application.port.in.AuditLogger;
 import com.example.billing.application.port.out.CreditRepository;
 import com.example.billing.application.port.out.EventPublisher;
 import com.example.billing.application.port.out.InvoiceRepository;
@@ -53,12 +54,13 @@ class ApplyCreditServiceTest {
     @Mock InvoiceRepository invoices;
     @Mock EventPublisher events;
     @Mock IdempotentExecution idempotency;
+    @Mock AuditLogger audit;
 
     ApplyCreditService service;
 
     @BeforeEach
     void setUp() {
-        service = new ApplyCreditService(credits, invoices, events, idempotency, CLOCK);
+        service = new ApplyCreditService(credits, invoices, events, idempotency, audit, CLOCK);
     }
 
     private static Money won(long n) {

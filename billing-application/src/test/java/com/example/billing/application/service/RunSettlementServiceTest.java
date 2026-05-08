@@ -2,6 +2,7 @@ package com.example.billing.application.service;
 
 import com.example.billing.application.command.RunSettlementCommand;
 import com.example.billing.application.command.SettlementResult;
+import com.example.billing.application.port.in.AuditLogger;
 import com.example.billing.application.port.out.AdvisoryLock;
 import com.example.billing.application.port.out.AggregatedUsageRepository;
 import com.example.billing.application.port.out.InvoiceRepository;
@@ -46,6 +47,7 @@ class RunSettlementServiceTest {
     private PricingPlanRepository pricingRepo;
     private InvoiceRepository invoiceRepo;
     private PaymentClient paymentClient;
+    private AuditLogger audit;
     private RunSettlementService service;
 
     private final CustomerId customer = CustomerId.of("acme-corp");
@@ -58,8 +60,9 @@ class RunSettlementServiceTest {
         pricingRepo = mock(PricingPlanRepository.class);
         invoiceRepo = mock(InvoiceRepository.class);
         paymentClient = mock(PaymentClient.class);
+        audit = mock(AuditLogger.class);
         service = new RunSettlementService(advisoryLock, usageRepo, pricingRepo, invoiceRepo,
-                paymentClient, FIXED);
+                paymentClient, audit, FIXED);
     }
 
     @Test

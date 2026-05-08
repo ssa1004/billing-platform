@@ -9,8 +9,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Repository
@@ -18,6 +20,7 @@ import java.util.Optional;
 public class JpaRefundRepositoryAdapter implements RefundRepository {
 
     private final SpringDataRefundRepository jpa;
+    private final Clock clock;
 
     @Override
     public void save(Refund refund) {
@@ -34,5 +37,16 @@ public class JpaRefundRepositoryAdapter implements RefundRepository {
         return jpa.findStaleRequested(staleBefore, PageRequest.of(0, limit)).stream()
                 .map(RefundJpaMapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public boolean softDelete(RefundId id, String deletedBy) {
+        Objects.requireNonNull(deletedBy, "deletedBy");
+        return jpa.softDelete(id.value(), deletedBy, clock.instant()) > 0;
+    }
+
+    @Override
+    public Optional<Refund> findByIdIncludingDeleted(RefundId id) {
+        return jpa.findByIdIncludingDeleted(id.value()).map(RefundJpaMapper::toDomain);
     }
 }

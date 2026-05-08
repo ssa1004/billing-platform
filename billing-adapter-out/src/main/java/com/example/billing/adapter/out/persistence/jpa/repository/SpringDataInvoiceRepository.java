@@ -7,10 +7,12 @@ import jakarta.persistence.QueryHint;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,4 +37,24 @@ public interface SpringDataInvoiceRepository extends JpaRepository<InvoiceJpaEnt
     @Query("SELECT i FROM InvoiceJpaEntity i WHERE i.status = :status ORDER BY i.dueAt")
     List<InvoiceJpaEntity> findForRetryWithLock(
             @Param("status") InvoiceStatus status, Pageable pageable);
+
+    /**
+     * Soft delete (ADR-0030) — UPDATE 1번으로 deleted_at + deleted_by 동시 마킹. 이미 삭제된
+     * row 는 (deleted_at IS NULL 절 때문에) 영향 X — 멱등.
+     *
+     * <p>NativeQuery 인 이유: {@link org.hibernate.annotations.SQLRestriction} 이 JPQL 에는 자동으로
+     * deleted_at IS NULL 을 끼우지만 본 UPDATE 가 이미 그 컬럼을 다루므로 NativeQuery 가 의도가
+     * 명확. 또한 deleted_by 를 동시에 채워야 하는 요구를 {@code @SQLDelete} 만으론 못 함.</p>
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "UPDATE invoices SET deleted_at = :now, deleted_by = :by "
+            + "WHERE id = :id AND deleted_at IS NULL", nativeQuery = true)
+    int softDelete(@Param("id") UUID id, @Param("by") String deletedBy, @Param("now") Instant now);
+
+    /**
+     * 운영자 화면 전용. SQLRestriction 우회를 위한 NativeQuery.
+     * 일반 도메인 흐름에서 호출 금지 — 활성 row 만 본다는 *기본 가정* 을 깸.
+     */
+    @Query(value = "SELECT * FROM invoices WHERE id = :id", nativeQuery = true)
+    Optional<InvoiceJpaEntity> findByIdIncludingDeleted(@Param("id") UUID id);
 }

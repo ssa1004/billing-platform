@@ -6,13 +6,21 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Refund persistence row — soft delete 적용 (ADR-0030). PG 환불 ID 매칭이 살아있어야
+ * 정합 검증 (reconciler) 이 동작하므로 물리 삭제 금지.
+ */
 @Entity
 @Table(name = "refunds")
+@SQLRestriction("deleted_at IS NULL")
+@SQLDelete(sql = "UPDATE refunds SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PUBLIC)
@@ -53,4 +61,12 @@ public class RefundJpaEntity {
     @Version
     @Column(name = "version", nullable = false)
     private long version;
+
+    /** 논리 삭제 시각. NULL 이면 활성 row. */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    /** 누가 삭제했나 — user / operator id. */
+    @Column(name = "deleted_by", length = 128)
+    private String deletedBy;
 }

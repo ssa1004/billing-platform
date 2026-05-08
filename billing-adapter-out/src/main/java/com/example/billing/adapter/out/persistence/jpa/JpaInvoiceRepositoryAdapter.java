@@ -24,9 +24,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.YearMonth;
 import java.util.Currency;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,9 +42,11 @@ public class JpaInvoiceRepositoryAdapter implements InvoiceRepository {
             .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
 
     private final SpringDataInvoiceRepository jpa;
+    private final Clock clock;
 
-    public JpaInvoiceRepositoryAdapter(SpringDataInvoiceRepository jpa) {
+    public JpaInvoiceRepositoryAdapter(SpringDataInvoiceRepository jpa, Clock clock) {
         this.jpa = jpa;
+        this.clock = clock;
     }
 
     @Override
@@ -94,6 +98,17 @@ public class JpaInvoiceRepositoryAdapter implements InvoiceRepository {
                 List.of(InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE),
                 PageRequest.of(0, limit))
                 .stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public boolean softDelete(UUID id, String deletedBy) {
+        Objects.requireNonNull(deletedBy, "deletedBy");
+        return jpa.softDelete(id, deletedBy, clock.instant()) > 0;
+    }
+
+    @Override
+    public Optional<Invoice> findByIdIncludingDeleted(UUID id) {
+        return jpa.findByIdIncludingDeleted(id).map(this::toDomain);
     }
 
     private Invoice toDomain(InvoiceJpaEntity e) {

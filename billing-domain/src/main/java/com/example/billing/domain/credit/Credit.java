@@ -10,32 +10,37 @@ import java.util.Currency;
 import java.util.Objects;
 
 /**
- * Credit 애그리거트 — 청구서 결제 직전에 적용되는 선불/프로모성 잔액.
+ * Credit 애그리거트 — 청구서 결제 직전에 적용되는 선불 / 프로모성 잔액.
  *
- * <p><b>Wallet 과의 차이</b>:
+ * <p><b>Wallet 과 무엇이 다른가</b> (별도 도메인으로 둔 이유):
  * <ul>
- *   <li>{@code Wallet} 은 거래 잔액 (입금/출금/블록). 사용자가 충전한 돈이며 환불 가능.</li>
- *   <li>{@code Credit} 은 *발급된* 잔액 (PROMO / COMPENSATION 등). 환불 대상이 아니고,
- *       만료될 수 있으며, 청구서에 자동 적용됨.</li>
+ *   <li>{@code Wallet} 은 거래 잔액 (입금 / 출금 / 블록). 사용자가 충전한 돈이라 환불 대상.</li>
+ *   <li>{@code Credit} 은 *발급된* 잔액 (PROMO 쿠폰 / 보상 / 프로모션 등). 환불 불가, 만료
+ *       가능, 청구서 결제 시 자동 차감.</li>
  * </ul>
- * 회계상 분리 보관해야 하는 사유 (수익 인식 시점이 다름) 도 있어 같은 테이블로 합치지
- * 않습니다.
+ * 회계상 두 잔액의 *수익 인식 (revenue recognition) 시점이 다름* — Wallet 은 충전 시점에
+ * 부채로 잡고 사용 시점에 수익 전환, Credit 은 발급 시점에 마케팅 비용 / 보상 비용으로 잡힘.
+ * 같은 테이블로 합치면 회계 기간말 마감에서 분리 비용이 더 큽니다.
  *
- * <p><b>Invariant (불변 조건)</b>:
+ * <p><b>Invariant (이 객체가 항상 만족해야 하는 규칙)</b>:
  * <ul>
- *   <li>{@code 0 <= balance <= grantedAmount}</li>
- *   <li>{@code balance > 0 && status == ACTIVE} 일 때만 차감 가능</li>
- *   <li>{@code validUntil != null && now > validUntil} → 차감 불가 (status 가 자동 EXPIRED
- *       로 바뀌지 않은 경우는 호출자 책임)</li>
- *   <li>모든 amount 는 {@code currency} 와 동일</li>
+ *   <li>{@code 0 <= balance <= grantedAmount} — 잔액은 음수가 될 수 없고 발급액을 초과할 수도
+ *       없음</li>
+ *   <li>차감 가능 조건: {@code status == ACTIVE} && {@code balance > 0}</li>
+ *   <li>{@code validUntil != null && now >= validUntil} 이면 차감 거절 (status 가 EXPIRED 로
+ *       자동 갱신되지 않은 시점에 차감 호출이 들어와도 도메인이 거절). 만료 처리는 batch 가
+ *       명시적으로 호출 — ADR-0019 참조.</li>
+ *   <li>모든 amount 는 이 Credit 의 {@code currency} 와 동일 (다른 통화는 호출자가 skip)</li>
  * </ul>
  *
- * <p><b>동시성</b>: {@code version} 으로 낙관적 락 (충돌 시 예외 후 재시도). 같은 Credit 을
- * 동시에 차감할 때 한쪽은 OptimisticLockException → application service 가 retry. 만료 처리
- * batch 와의 충돌도 같은 매커니즘으로 보호합니다.</p>
+ * <p><b>동시성</b>: {@code version} 으로 낙관적 락. 같은 Credit 을 동시에 차감하려 하거나
+ * (동시에 여러 invoice 적용), 차감과 만료 batch 가 동시에 들어오는 경우 한쪽이
+ * OptimisticLockException → application service 가 짧은 budget 안에서 재시도
+ * ({@link com.example.billing.application.service.OptimisticLockRetry}).</p>
  *
- * <p><b>이벤트</b>: 모든 상태 변경 메서드는 {@link CreditEvents} 의 record 를 반환합니다.
- * application service 가 Outbox 에 기록.</p>
+ * <p><b>이벤트 발행 패턴</b>: 모든 상태 변경 메서드는 {@link CreditEvents} 의 record 를
+ * *반환* 합니다. 도메인이 직접 발행하지 않고 application service 가 받은 이벤트를 Outbox 에
+ * INSERT — 도메인이 인프라 (DB / Kafka) 를 모르게 하기 위한 분리.</p>
  */
 public final class Credit {
 

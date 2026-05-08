@@ -3,11 +3,12 @@
 --   운영 분쟁 대응의 1차 근거 자료.
 -- 한 번 INSERT 된 row 는 *절대* UPDATE / DELETE 하지 않습니다. 정정도 새 row 로.
 --
--- 강제 매커니즘:
+-- 강제 매커니즘 (방어선 3겹):
 --   1) 도메인 — AuditEntry record (불변), JPA 엔티티는 setter 없음.
 --   2) JPA listener — AuditAppendOnlyGuard 가 @PreUpdate / @PreRemove 에서 예외.
---   3) (선택) DB trigger — 운영 Postgres 에서 추가 방어선으로 vendor-specific migration 으로
---      걸 수 있음. trigger 문법이 H2 와 호환되지 않아 공통 migration 에는 두지 않습니다.
+--   3) DB trigger — Postgres 전용 (V9_1, db/migration-postgres). EntityManager.createNativeQuery
+--      등 listener 를 우회하는 경로까지 막는 마지막 방어선. H2 는 trigger 문법이 달라 공통
+--      migration 에는 두지 않고 prod (postgres) profile 에서만 적용.
 
 CREATE TABLE audit_entries (
     id              UUID            PRIMARY KEY,

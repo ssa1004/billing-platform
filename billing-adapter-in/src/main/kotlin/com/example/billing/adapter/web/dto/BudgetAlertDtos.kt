@@ -2,12 +2,13 @@ package com.example.billing.adapter.web.dto
 
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 
 data class CreateBudgetAlertRuleRequest(
-    @field:NotBlank val customerId: String,
+    @field:NotBlank @field:Size(max = 64) val customerId: String,
     @field:Positive val threshold: BigDecimal,
-    @field:NotBlank val currency: String,
+    @field:NotBlank @field:Size(min = 3, max = 3) val currency: String,
     /** ISO-8601 duration ("PT24H", "P7D"). null 이면 도메인 기본값 (24h). */
     val cooldown: String? = null,
 )

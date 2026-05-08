@@ -2,17 +2,18 @@ package com.example.billing.adapter.web.dto
 
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 
 /** 크레딧 발급 요청. */
 data class GrantCreditRequest(
-    @field:NotBlank val customerId: String,
-    @field:NotBlank val type: String,                   // PROMO / PREPAID / COMPENSATION / REFUND_TO_CREDIT
+    @field:NotBlank @field:Size(max = 64) val customerId: String,
+    @field:NotBlank @field:Size(max = 32) val type: String,    // PROMO / PREPAID / COMPENSATION / REFUND_TO_CREDIT
     @field:Positive val amount: BigDecimal,
-    @field:NotBlank val currency: String,               // ISO 4217
-    @field:NotBlank val validFrom: String,              // ISO-8601
-    val validUntil: String? = null,                     // ISO-8601, null = 만료 없음
-    val reason: String? = null,
+    @field:NotBlank @field:Size(min = 3, max = 3) val currency: String,   // ISO 4217
+    @field:NotBlank val validFrom: String,                                // ISO-8601
+    val validUntil: String? = null,                                       // ISO-8601, null = 만료 없음
+    @field:Size(max = 256) val reason: String? = null,
 )
 
 data class GrantCreditResponse(
@@ -28,10 +29,10 @@ data class GrantCreditResponse(
 
 /** 청구서에 크레딧 적용 요청. */
 data class ApplyCreditRequest(
-    @field:NotBlank val customerId: String,
-    @field:NotBlank val invoiceId: String,
+    @field:NotBlank @field:Size(max = 64) val customerId: String,
+    @field:NotBlank @field:Size(max = 64) val invoiceId: String,
     @field:Positive val applyAtMost: BigDecimal,
-    @field:NotBlank val currency: String,
+    @field:NotBlank @field:Size(min = 3, max = 3) val currency: String,
 )
 
 data class ApplyCreditResponse(

@@ -2,10 +2,12 @@ package com.example.billing.adapter.web.dto
 
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Size
 
 data class RegisterWebhookEndpointRequest(
-    @field:NotBlank val customerId: String,
+    @field:NotBlank @field:Size(max = 64) val customerId: String,
     @field:NotBlank
+    @field:Size(max = 2048)
     @field:Pattern(regexp = "^https://.+|^http://localhost.*|^http://127\\.0\\.0\\.1.*",
                    message = "url must be https (http://localhost only for dev)")
     val url: String,

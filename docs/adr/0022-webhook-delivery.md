@@ -35,13 +35,24 @@ WebhookDelivery   ─┘  한 이벤트 × 한 endpoint 의 전송 시도 (retry
 ### HMAC 서명 (HMAC = Hash-based Message Authentication Code, 비밀 키와 메시지로 만든 위조
 방지 서명)
 
-- 알고리즘: `HMAC-SHA256(secret, "{timestamp}.{body}")` — Stripe / GitHub / Slack 표준 패턴
-- 헤더: `X-Webhook-Signature: sha256=<hex>` (`sha256=` 접두사를 두면 나중에 SHA-512 /
-  Ed25519 같은 다른 알고리즘으로 바꿀 때도 customer 검증 코드의 호환성을 유지)
-- timestamp 를 같이 묶음 → 한 번 가로챈 요청을 그대로 다시 보내는 *재전송 (replay) 공격* 을
-  막음 (customer 가 5분 이상 오래된 timestamp 는 거절하면 됨)
-- secret 은 256비트 무작위 값. 등록 응답에 한 번만 평문으로 노출되고, 이후 조회는 hash 만
-  반환. 분실 시 rotate-secret 으로 재발급.
+- **알고리즘**: `HMAC-SHA256(secret, "{timestamp}.{body}")` — Stripe / GitHub / Slack 표준
+  패턴. customer 도 같은 식으로 다시 계산해 헤더 값과 일치하는지만 보면 검증 끝.
+
+- **헤더 형식**: `X-Webhook-Signature: sha256=<hex>`
+  `sha256=` 접두사가 있는 이유: 나중에 SHA-512 / Ed25519 같은 다른 알고리즘으로 갈아탈 때
+  customer 검증 코드가 prefix 만 보고 분기 가능 → backward-compatible 하게 운영 가능.
+
+- **timestamp 를 같이 묶는 이유 (replay 공격 방어)**: 공격자가 과거의 정상 요청을 그대로
+  복사해서 다시 우리 customer 에게 보내는 시나리오를 차단.
+    - 헤더에 timestamp 도 따로 같이 실어 customer 가 검증 시 같은 값을 사용
+    - customer 는 *너무 오래된 timestamp* (예: 5분 이상 차이) 는 거절 — 정상 webhook 전송
+      시간은 보통 수 초 이내라 5분 정도면 정상 트래픽은 문제없고 replay 는 못 들어옴
+    - 5분 = clock skew (양쪽 서버 시계 차이) 허용치. 너무 좁으면 시계 오차로 정상 요청도 거절,
+      너무 넓으면 replay 창이 길어짐 → 타협값.
+
+- **Secret 은 endpoint 등록 시점에 한 번만 평문 노출**: 256비트 무작위 값. 이후 조회 응답은
+  hash 만 반환 → DB 가 유출되어도 secret 평문이 같이 흘러나가지 않음. 분실 시 `rotateSecret`
+  으로 재발급 (이전 secret 즉시 무효).
 
 ### Retry 정책
 

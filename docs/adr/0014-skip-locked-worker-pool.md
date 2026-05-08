@@ -18,6 +18,15 @@ worker 가 나눠 처리해야 처리량을 확보할 수 있습니다. Worker p
 
 ## 결정
 
+### SKIP LOCKED 가 하는 일
+
+`SELECT ... FOR UPDATE` 는 잡으려는 row 에 다른 트랜잭션의 lock 이 있으면 *대기* 합니다 →
+워커가 줄 서서 직렬화. `SKIP LOCKED` 옵션을 더하면 *이미 lock 잡힌 row 는 결과에서 제외하고
+자유로운 row 만* 가져옵니다. 즉 "다른 워커가 잡고 있는 건 건너뛰고 내가 잡을 수 있는 것만"
+패턴 — DB 가 자동으로 row 를 워커들에게 분배.
+
+### 적용
+
 PENDING 상태의 SettlementRun 과 결제 재시도 대상 Invoice 모두 `SKIP LOCKED` 로 잡습니다.
 
 ```java
@@ -29,12 +38,15 @@ PENDING 상태의 SettlementRun 과 결제 재시도 대상 Invoice 모두 `SKIP
 List<SettlementRunJpaEntity> claimPendingForUpdate(...);
 ```
 
+JPA 의 `lock.timeout = -2` 가 Postgres SQL 로는 `FOR UPDATE SKIP LOCKED` 로 변환됩니다 (JPA
+spec 의 magic value).
+
 실행 흐름:
 
 1. Worker A 가 `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 50` → 50건 잡음
-2. Worker B 가 동시에 같은 쿼리 → 다른 50건 잡음 (A 가 잡은 건 skip)
+2. Worker B 가 동시에 같은 쿼리 → 다른 50건 잡음 (A 가 잡은 50건은 SKIP 으로 결과에서 제외)
 3. Worker A/B 가 각자 chunk 처리 후 commit → lock 해제
-4. 다음 chunk 에서 같은 패턴 반복
+4. 다음 chunk 에서 같은 패턴 반복 — sharding 키 / partition 사전 분할 없이 DB 가 알아서 분배
 
 H2 (dev 용 in-memory DB) 는 SKIP LOCKED 를 미지원하므로 일반 `FOR UPDATE` 로 fallback (직렬
 처리). 운영 PG 에서만 병렬 처리됩니다.

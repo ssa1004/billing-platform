@@ -8,6 +8,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.util.UUID;
@@ -16,6 +18,11 @@ import java.util.UUID;
  * EventPublisher 의 outbox 구현. 도메인 트랜잭션 안에서 outbox 테이블에 INSERT 만 합니다 —
  * Kafka publish 는 별도로 {@link OutboxRelay} 가 처리합니다. 이렇게 분리해야 DB commit 과
  * 이벤트 발행이 한 트랜잭션에서 묶여 안전합니다 (ADR-0005 참조).
+ *
+ * <p><b>{@code Propagation.MANDATORY}</b>: outbox 패턴의 핵심은 *도메인 변경과 outbox INSERT
+ * 가 같은 트랜잭션에서 commit/rollback 됨* 이므로, 호출자가 트랜잭션을 열지 않은 상태에서
+ * publish 를 호출하면 즉시 예외. 호출자가 깜빡 트랜잭션을 안 잡고 publish 만 호출하는
+ * 사고를 컴파일타임은 아니지만 런타임에 차단.</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -26,6 +33,7 @@ public class OutboxEventPublisher implements EventPublisher {
     private final Clock clock;
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
     public void publish(DomainEvent event) {
         try {
             String aggregateType = inferAggregateType(event);

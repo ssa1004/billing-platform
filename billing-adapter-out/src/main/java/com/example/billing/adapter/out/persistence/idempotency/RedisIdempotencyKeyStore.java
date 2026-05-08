@@ -17,6 +17,8 @@ import java.util.Optional;
  * <ul>
  *   <li>{@code billing:idempotency:lock:<key>} = "1" (TTL 24h) — 점유 lock</li>
  *   <li>{@code billing:idempotency:resp:<key>} = "<status>|<body>" (TTL 24h) — 응답 캐시</li>
+ *   <li>{@code billing:idempotency:fp:<key>} = "<sha256-prefix-hex>" (TTL 24h) — 요청 body fingerprint
+ *       (ADR-0028)</li>
  * </ul>
  */
 @Component
@@ -31,6 +33,7 @@ public class RedisIdempotencyKeyStore implements IdempotencyKeyStore {
 
     private static final String LOCK_PREFIX = "billing:idempotency:lock:";
     private static final String RESP_PREFIX = "billing:idempotency:resp:";
+    private static final String FP_PREFIX = "billing:idempotency:fp:";
 
     @Override
     public void acquireOrThrow(String key) {
@@ -43,7 +46,10 @@ public class RedisIdempotencyKeyStore implements IdempotencyKeyStore {
     @Override
     public void release(String key) {
         // 캐시된 응답은 그대로 두고 (재호출 시 같은 응답 반환), 점유 lock 만 제거.
+        // fingerprint 도 함께 제거 — 첫 요청이 rollback 됐으면 다음 retry 가 다른 body 를 보내도
+        // 정상 처리되어야 함 (예: 입력 검증 실패 → client 가 본문 고쳐 재전송).
         redis.delete(LOCK_PREFIX + key);
+        redis.delete(FP_PREFIX + key);
     }
 
     @Override
@@ -69,5 +75,16 @@ public class RedisIdempotencyKeyStore implements IdempotencyKeyStore {
         }
         String body = value.substring(sep + 1);
         return Optional.of(new CachedResponse(status, body));
+    }
+
+    @Override
+    public void recordRequestFingerprint(String key, String fingerprint) {
+        // setIfAbsent — 첫 호출만 박힘. 두 번째 호출은 mismatch 면 422 검출, 같으면 정상 흐름.
+        redis.opsForValue().setIfAbsent(FP_PREFIX + key, fingerprint, Duration.ofHours(ttlHours));
+    }
+
+    @Override
+    public Optional<String> findRequestFingerprint(String key) {
+        return Optional.ofNullable(redis.opsForValue().get(FP_PREFIX + key));
     }
 }

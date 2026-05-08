@@ -16,10 +16,18 @@
 
 ## 결정
 
-`pg_advisory_xact_lock(hashtext("settlement:" + customerId + ":" + period))` 을
-RunSettlementService 트랜잭션 시작 직후에 획득합니다. advisory lock 은 Postgres 의 이름
-기반 잠금으로, 실제 row 가 없어도 임의의 키 (여기선 customer × period) 에 lock 을 걸 수
-있습니다. `_xact_` 변종은 트랜잭션이 끝나면 자동으로 해제됩니다.
+### advisory lock 이 뭔가
+
+Postgres 의 *이름 기반 잠금*. 일반 row lock 은 row 가 존재해야 잡을 수 있는데, advisory lock
+은 row 가 아니라 *임의의 64-bit 키 (정수)* 에 lock 을 겁니다. "이 키로 들어온 트랜잭션은 한
+번에 하나만" 같은 용도. 키 의미는 우리가 자유롭게 정함 — 여기선 `(customerId, period)` 조합.
+`_xact_` 변종은 트랜잭션이 끝나면 자동 해제되어 unlock 코드를 따로 안 넣어도 됨.
+
+### 적용 방식
+
+`pg_advisory_xact_lock(hashtext("settlement:" + customerId + ":" + period))` 를
+RunSettlementService 트랜잭션 시작 직후에 획득합니다. 같은 customer × period 의 정산이 다른
+인스턴스에서 이미 진행 중이면 *lock 이 풀릴 때까지 대기* → 결과적으로 직렬화.
 
 ```java
 @Transactional

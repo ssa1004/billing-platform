@@ -106,6 +106,7 @@ class IdempotentExecutionTest {
     private static class RecordingStore implements IdempotencyKeyStore {
         final Map<String, Boolean> held = new ConcurrentHashMap<>();
         final Map<String, CachedResponse> cached = new HashMap<>();
+        final Map<String, String> fingerprints = new HashMap<>();
         final java.util.List<String> released = new java.util.ArrayList<>();
         String failOnAcquire;
 
@@ -115,6 +116,7 @@ class IdempotentExecutionTest {
         }
         @Override public void release(String key) {
             held.remove(key);
+            fingerprints.remove(key);
             released.add(key);
         }
         @Override public void cacheResponse(String key, int httpStatus, String body) {
@@ -122,6 +124,12 @@ class IdempotentExecutionTest {
         }
         @Override public Optional<CachedResponse> findCachedResponse(String key) {
             return Optional.ofNullable(cached.get(key));
+        }
+        @Override public void recordRequestFingerprint(String key, String fingerprint) {
+            fingerprints.putIfAbsent(key, fingerprint);
+        }
+        @Override public Optional<String> findRequestFingerprint(String key) {
+            return Optional.ofNullable(fingerprints.get(key));
         }
     }
 }

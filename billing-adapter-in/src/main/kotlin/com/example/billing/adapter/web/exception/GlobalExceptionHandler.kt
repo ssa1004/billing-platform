@@ -40,6 +40,16 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
     fun handleDuplicate(e: IdempotencyKeyStore.DuplicateRequestException): ResponseEntity<ErrorResponse> =
         build(HttpStatus.CONFLICT, "DUPLICATE_REQUEST", e.message ?: "duplicate request")
 
+    /**
+     * Stripe 식 *같은 idempotency 키로 다른 body* 검출 — client bug. 422 로 즉시 알려서 같은 키
+     * 재사용하지 말고 새 키 발급하라고 신호 (Stripe: "Idempotency-Key already used with different parameters").
+     * ADR-0028 참고.
+     */
+    @ExceptionHandler(IdempotencyKeyStore.IncompatibleRequestException::class)
+    fun handleIncompatible(e: IdempotencyKeyStore.IncompatibleRequestException): ResponseEntity<ErrorResponse> =
+        build(HttpStatus.UNPROCESSABLE_ENTITY, "INCOMPATIBLE_PARAMS",
+            e.message ?: "idempotency key reused with different request body")
+
     @ExceptionHandler(InsufficientBalanceException::class)
     fun handleInsufficient(e: InsufficientBalanceException): ResponseEntity<ErrorResponse> =
         build(HttpStatus.UNPROCESSABLE_ENTITY, "INSUFFICIENT_BALANCE", e.message ?: "insufficient balance")

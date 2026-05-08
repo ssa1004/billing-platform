@@ -41,6 +41,9 @@ public class RefundJpaEntity {
     @Column(name = "pg_refund_id", length = 256)
     private String pgRefundId;
 
+    @Column(name = "idempotency_key", nullable = false, length = 128)
+    private String idempotencyKey;
+
     @Column(name = "requested_at", nullable = false)
     private Instant requestedAt;
 

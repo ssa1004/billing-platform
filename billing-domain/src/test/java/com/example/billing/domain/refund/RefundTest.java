@@ -19,7 +19,7 @@ class RefundTest {
 
     @Test
     void request_createsInRequestedStatus() {
-        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "user request", CLOCK);
+        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "user request", "key-1", CLOCK);
 
         assertThat(r.status()).isEqualTo(RefundStatus.REQUESTED);
         assertThat(r.amount()).isEqualTo(Money.of(1000, KRW));
@@ -29,13 +29,13 @@ class RefundTest {
     @Test
     void request_negativeAmount_throws() {
         assertThatThrownBy(() ->
-                Refund.request(PaymentId.newId(), Money.of(-100, KRW), "x", CLOCK))
+                Refund.request(PaymentId.newId(), Money.of(-100, KRW), "x", "k", CLOCK))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void approve_then_complete_flow() {
-        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", CLOCK);
+        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", "k", CLOCK);
         r.approve("pg-refund-1", CLOCK);
         assertThat(r.status()).isEqualTo(RefundStatus.APPROVED);
         assertThat(r.pgRefundId()).isEqualTo("pg-refund-1");
@@ -47,7 +47,7 @@ class RefundTest {
 
     @Test
     void complete_beforeApprove_throws() {
-        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", CLOCK);
+        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", "k", CLOCK);
 
         assertThatThrownBy(() -> r.complete(CLOCK))
                 .isInstanceOf(IllegalStateException.class)
@@ -56,7 +56,7 @@ class RefundTest {
 
     @Test
     void approve_twice_throws() {
-        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", CLOCK);
+        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", "k", CLOCK);
         r.approve("pg-1", CLOCK);
 
         assertThatThrownBy(() -> r.approve("pg-2", CLOCK))
@@ -65,11 +65,11 @@ class RefundTest {
 
     @Test
     void fail_canBeCalledFromAnyNonTerminalStatus() {
-        Refund r1 = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", CLOCK);
+        Refund r1 = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", "k", CLOCK);
         r1.fail("PG declined", CLOCK);
         assertThat(r1.status()).isEqualTo(RefundStatus.FAILED);
 
-        Refund r2 = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", CLOCK);
+        Refund r2 = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", "k", CLOCK);
         r2.approve("pg-1", CLOCK);
         r2.fail("post-approve failure", CLOCK);
         assertThat(r2.status()).isEqualTo(RefundStatus.FAILED);
@@ -77,7 +77,7 @@ class RefundTest {
 
     @Test
     void fail_afterTerminal_throws() {
-        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", CLOCK);
+        Refund r = Refund.request(PaymentId.newId(), Money.of(1000, KRW), "x", "k", CLOCK);
         r.approve("pg-1", CLOCK);
         r.complete(CLOCK);
 

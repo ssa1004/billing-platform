@@ -61,4 +61,33 @@ public class RestClientPgClient implements PgClient {
         log.warn("[pg] refund fallback triggered: {}", t.getMessage());
         return RefundResult.rejected("PG unavailable: " + t.getMessage());
     }
+
+    /**
+     * PG 측 idempotency key 단위 결과 조회. 3-phase 흐름의 phase 3 (DB tx2) 가 깨졌을 때
+     * reconciler 가 사용. CB / Retry 동일 인스턴스 (pg) 사용 — 운영 시 lookup 전용 인스턴스로
+     * 분리해도 됨.
+     *
+     * <p>404 (PG 에 키 없음) 는 비즈니스 의미 (= 처리 안 됨) 라 fallback 이 아니라 정상 path 로
+     * NOT_FOUND 변환해서 돌려준다.</p>
+     */
+    @Override
+    @CircuitBreaker(name = "pg", fallbackMethod = "lookupFallback")
+    @Retry(name = "pg")
+    public LookupResult lookup(String idempotencyKey) {
+        try {
+            return pgRestClient.get()
+                    .uri("/v1/payments/lookup/{key}", idempotencyKey)
+                    .retrieve()
+                    .body(LookupResult.class);
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            return LookupResult.notFound();
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private LookupResult lookupFallback(String idempotencyKey, Throwable t) {
+        // CB OPEN / 네트워크 에러 — 결과 모름 → IN_PROGRESS 로 처리해 다음 사이클에 재조회.
+        log.warn("[pg] lookup fallback triggered key={} reason={}", idempotencyKey, t.getMessage());
+        return LookupResult.inProgress();
+    }
 }

@@ -22,11 +22,15 @@ public enum AuditAction {
     PAYMENT_AUTHORIZED,
     PAYMENT_REJECTED,
     PAYMENT_VOIDED,
+    /** PG-reconciler 가 stuck PENDING 을 PG lookup 결과로 마감. */
+    PAYMENT_RECONCILED,
 
     // ── refund ──
     REFUND_REQUESTED,
     REFUND_APPROVED,
     REFUND_FAILED,
+    /** PG-reconciler 가 stuck REQUESTED 를 PG lookup 결과로 마감. */
+    REFUND_RECONCILED,
 
     // ── credit ──
     CREDIT_GRANTED,

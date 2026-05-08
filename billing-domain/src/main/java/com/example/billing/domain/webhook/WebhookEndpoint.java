@@ -4,10 +4,12 @@ import com.example.billing.domain.shared.CustomerId;
 
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -28,7 +30,19 @@ import java.util.Set;
  *   <li>customer 는 같은 secret 으로 다시 계산해 헤더 값과 일치하면 진짜, 아니면 거절. URL 만
  *       알고 있는 공격자 / 중간자가 보낸 가짜 webhook 은 secret 이 없어 같은 값을 만들지 못함.</li>
  * </ol>
- * 분실 / 노출 시 {@link #rotateSecret} 으로 새 값 발급 (이전 secret 즉시 무효).
+ *
+ * <p><b>Secret rotation + grace window (ADR-0029)</b>: 분실 / 노출 / 정기 갱신 시
+ * {@link #rotateSecret} 으로 새 secret 발급. 운영 표준 (Stripe / GitHub / 토스페이먼츠) 은:
+ * <ul>
+ *   <li>새 secret 을 *current secret* 으로 활성.</li>
+ *   <li>이전 secret 을 *previousSecret* 으로 demote — 24h grace window 동안 *함께 유효*.</li>
+ *   <li>매 webhook 발송 시 *두 secret 으로 각각 서명* 한 두 값을 같은 헤더에 같이 보냄
+ *       — customer 가 자기 측 secret 으로 어느 하나라도 일치하면 검증 통과.</li>
+ *   <li>24h 후 previousSecret 은 자동 expire — 그 시점에 customer 는 새 secret 으로 업데이트
+ *       되어 있어야 함 (grace 안에서 갱신).</li>
+ * </ul>
+ * 이전 ADR (rotate 즉시 invalidate) 의 단점: customer 가 새 secret 을 반영할 짧은 시간 동안
+ * 모든 webhook 이 검증 실패로 떨어짐. grace window 가 *deployment overlap* 을 자연스럽게 흡수.
  *
  * <p><b>subscribedEventTypes 의 default 가 "모든 이벤트"</b>: customer 가 특정 타입만 받고
  * 싶을 때 (예: refund 알림만) 명시. 비어 있으면 *모든 이벤트 구독* 으로 간주 — "기본은 다
@@ -40,6 +54,7 @@ import java.util.Set;
  *       중간자 공격 (man-in-the-middle) 에 secret 이 그대로 노출됨. localhost 만 dev 편의로
  *       예외.</li>
  *   <li>secret 은 32바이트 (256bit) 무작위 값 — HMAC-SHA256 의 권장 키 길이. SecureRandom 사용.</li>
+ *   <li>previousSecret 은 (있다면) previousSecretValidUntil 과 *항상 짝* — 둘 중 하나만 있으면 invariant 깨짐.</li>
  * </ul>
  */
 public final class WebhookEndpoint {
@@ -48,11 +63,18 @@ public final class WebhookEndpoint {
     private static final int SECRET_BYTES = 32;
     private static final SecureRandom RNG = new SecureRandom();
 
+    /** Rotation grace 기본 길이 — 24h. customer 가 새 secret 을 반영할 충분한 시간. */
+    public static final Duration DEFAULT_ROTATION_GRACE = Duration.ofHours(24);
+
     private final WebhookEndpointId id;
     private final CustomerId customerId;
     private final String url;
-    /** Hex 인코딩된 256-bit 키. customer 응답에는 한 번만 평문 노출. */
+    /** 현재 활성 secret. customer 응답에는 한 번만 평문 노출. */
     private String secret;
+    /** rotation 직후 24h grace 동안 유효한 직전 secret. null = grace window 밖 (rotate 안 했거나 expire). */
+    private String previousSecret;
+    /** previousSecret 의 만료 시각. null = previousSecret 도 null. */
+    private Instant previousSecretValidUntil;
     /** 빈 set = 모든 이벤트 구독 (default). */
     private final Set<String> subscribedEventTypes;
     private WebhookEndpointStatus status;
@@ -61,18 +83,26 @@ public final class WebhookEndpoint {
     private long version;
 
     private WebhookEndpoint(WebhookEndpointId id, CustomerId customerId, String url,
-                            String secret, Set<String> subscribedEventTypes,
+                            String secret, String previousSecret, Instant previousSecretValidUntil,
+                            Set<String> subscribedEventTypes,
                             WebhookEndpointStatus status,
                             Instant createdAt, Instant updatedAt, long version) {
         this.id = id;
         this.customerId = customerId;
         this.url = url;
         this.secret = secret;
+        this.previousSecret = previousSecret;
+        this.previousSecretValidUntil = previousSecretValidUntil;
         this.subscribedEventTypes = new LinkedHashSet<>(subscribedEventTypes);
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.version = version;
+        // invariant: previousSecret <-> previousSecretValidUntil 는 짝.
+        if ((previousSecret == null) != (previousSecretValidUntil == null)) {
+            throw new IllegalStateException(
+                    "previousSecret and previousSecretValidUntil must both be set or both null");
+        }
     }
 
     /**
@@ -87,15 +117,19 @@ public final class WebhookEndpoint {
         Instant now = clock.instant();
         return new WebhookEndpoint(
                 WebhookEndpointId.newId(), customerId, url, generateSecret(),
+                null, null,
                 subscribedEventTypes, WebhookEndpointStatus.ACTIVE, now, now, 0L);
     }
 
     public static WebhookEndpoint restore(WebhookEndpointId id, CustomerId customerId, String url,
-                                          String secret, Set<String> subscribedEventTypes,
+                                          String secret,
+                                          String previousSecret, Instant previousSecretValidUntil,
+                                          Set<String> subscribedEventTypes,
                                           WebhookEndpointStatus status,
                                           Instant createdAt, Instant updatedAt, long version) {
-        return new WebhookEndpoint(id, customerId, url, secret, subscribedEventTypes,
-                status, createdAt, updatedAt, version);
+        return new WebhookEndpoint(id, customerId, url, secret,
+                previousSecret, previousSecretValidUntil,
+                subscribedEventTypes, status, createdAt, updatedAt, version);
     }
 
     /**
@@ -124,13 +158,57 @@ public final class WebhookEndpoint {
     }
 
     /**
-     * Secret 을 새로 발급. 이전 secret 은 즉시 무효 — customer 는 응답으로 받은 새 secret 을
-     * 자기 검증 로직에 즉시 반영해야 합니다. 잠시 양쪽을 모두 받는 유예 기간 (grace period)
-     * 이 필요하면 별도 메서드 ({@code rotateSecretWithGrace}) 도입을 검토.
+     * Secret 을 새로 발급 + 24h grace window 적용 (ADR-0029).
+     *
+     * <p>흐름:
+     * <ol>
+     *   <li>현재 secret 을 previousSecret 으로 demote.</li>
+     *   <li>previousSecretValidUntil 을 now + 24h 로 set.</li>
+     *   <li>새 secret 생성, 현재 secret 으로 활성.</li>
+     * </ol>
+     * 이 시점부터 24h 동안 우리 발신 측은 *두 secret 모두로 서명* 한 두 값을 헤더에 같이 보냄.
+     * customer 는 자기 측 (이미 갖고 있던 secret 또는 응답으로 받은 새 secret) 으로 어느 한 쪽이라도
+     * 일치하면 검증 통과. 24h 후 grace 만료 시점에 customer 는 새 secret 으로 업데이트되어 있어야 함.
+     *
+     * <p><b>grace 안에서 또 rotate 하면</b>: 앞선 previousSecret 은 *덮어씀* — chain 으로 keeping
+     * 하지 않습니다. (3개 이상 secret 동시 활성은 운영 복잡도만 키우고 의미 없음.) 단기 사이에
+     * 두 번 rotate 했다면 customer 는 가운데 secret 을 영영 못 보게 되지만, *공격자도 그 secret
+     * 을 못 씀* 이라 보안적으로는 문제없음. 운영 대시보드에 알람만 띄움.
      */
     public void rotateSecret(Clock clock) {
+        rotateSecret(clock, DEFAULT_ROTATION_GRACE);
+    }
+
+    /**
+     * grace 길이를 명시 — 테스트 / 운영 긴급 (예: secret 이 *이미* 누출되어 짧은 grace 만 허용)
+     * 케이스용. 일반 운영은 {@link #rotateSecret(Clock)} 의 24h 기본값.
+     */
+    public void rotateSecret(Clock clock, Duration graceWindow) {
+        Objects.requireNonNull(graceWindow);
+        if (graceWindow.isNegative() || graceWindow.isZero()) {
+            throw new IllegalArgumentException("graceWindow must be positive: " + graceWindow);
+        }
+        Instant now = clock.instant();
+        this.previousSecret = this.secret;
+        this.previousSecretValidUntil = now.plus(graceWindow);
         this.secret = generateSecret();
+        this.updatedAt = now;
+    }
+
+    /**
+     * grace window 가 만료된 previousSecret 을 정리. cron / 운영 작업에서 호출 — 또는 다음 rotation
+     * 직전에 자연스럽게 처리. lazy cleanup 패턴이라 *호출 안 해도* 보안적 위험 없음 (검증 시
+     * {@link #activeSecrets} 가 만료된 previousSecret 을 자동 제외).
+     *
+     * @return previousSecret 이 정리되었으면 true.
+     */
+    public boolean expirePreviousSecretIfDue(Clock clock) {
+        if (previousSecret == null) return false;
+        if (clock.instant().isBefore(previousSecretValidUntil)) return false;
+        this.previousSecret = null;
+        this.previousSecretValidUntil = null;
         this.updatedAt = clock.instant();
+        return true;
     }
 
     private static void validateUrl(String url) {
@@ -168,11 +246,28 @@ public final class WebhookEndpoint {
         return HexFormat.of().formatHex(bytes);
     }
 
+    /**
+     * 발신 측이 webhook 서명 시 사용할 *활성 secret 목록* — clock 기준으로 grace 안의 previousSecret
+     * 도 포함.
+     *
+     * <p>리스트 순서: 현재 secret 이 항상 첫 번째, previousSecret 은 두 번째 (있을 때). webhook
+     * 헤더에 두 서명을 같은 순서로 실음 — customer 가 어느 하나라도 일치하면 통과.</p>
+     */
+    public java.util.List<String> activeSecrets(Clock clock) {
+        if (previousSecret != null && clock.instant().isBefore(previousSecretValidUntil)) {
+            return java.util.List.of(secret, previousSecret);
+        }
+        return java.util.List.of(secret);
+    }
+
     // Getters
     public WebhookEndpointId id() { return id; }
     public CustomerId customerId() { return customerId; }
     public String url() { return url; }
     public String secret() { return secret; }
+    /** previousSecret 의 raw 값 — persistence layer 만 사용. 운영 응답에는 노출 금지. */
+    public Optional<String> previousSecret() { return Optional.ofNullable(previousSecret); }
+    public Optional<Instant> previousSecretValidUntil() { return Optional.ofNullable(previousSecretValidUntil); }
     public Set<String> subscribedEventTypes() { return Set.copyOf(subscribedEventTypes); }
     public WebhookEndpointStatus status() { return status; }
     public Instant createdAt() { return createdAt; }

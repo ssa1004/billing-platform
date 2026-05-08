@@ -8,7 +8,9 @@ CREATE TABLE webhook_endpoints (
     customer_id                 VARCHAR(64)     NOT NULL,
     url                         VARCHAR(2048)   NOT NULL,
     -- HMAC-SHA256 (비밀 키와 메시지로 만든 위조 방지 서명) 키. 256비트 (= 64자 hex).
-    -- 응답에는 endpoint 등록 시점에 한 번만 평문으로 노출, 이후는 hash 만 보관.
+    -- 평문은 endpoint 등록 응답에 단 한 번만 노출 (이후 조회 응답은 secret 미반환).
+    -- DB 에는 매 request 서명에 사용해야 하므로 평문으로 보관 — 운영에서는 KMS / app-level
+    -- envelope encryption 으로 한 단계 더 감싸는 것이 권장 (현재는 단순화).
     secret                      VARCHAR(128)    NOT NULL,
     -- 구독 이벤트 타입 목록을 JSON 배열로. 빈 배열이면 모든 이벤트 구독 (default).
     -- 여기서는 TEXT 로 저장 — 운영 PG 에서는 jsonb 로 바꿔도 됨.

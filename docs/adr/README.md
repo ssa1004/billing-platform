@@ -30,3 +30,9 @@
 | [0024](0024-idempotency-response-cache.md) | Idempotency-Key 응답 캐싱 (Stripe 24h 패턴) | 적용 |
 | [0025](0025-read-replica-routing.md) | Read-Replica 라우팅 (AbstractRoutingDataSource) | 적용 |
 | [0026](0026-bulkhead-thread-pool-isolation.md) | 외부 호출 ThreadPool Bulkhead 격리 | 적용 |
+| [0027](0027-bulkhead-mdc-context-propagation.md) | Bulkhead worker thread 까지 MDC 전파 | 적용 |
+| [0028](0028-idempotency-body-fingerprint.md) | Idempotency-Key + body fingerprint 검증 | 적용 |
+| [0029](0029-webhook-secret-rotation-grace.md) | Webhook secret rotation grace window (24h) | 적용 |
+| [0030](0030-soft-delete-billing-rows.md) | 회계/결제 row soft delete (deleted_at) | 적용 |
+| [0031](0031-api-versioning-path-based.md) | API 버전 routing — path-based v1/v2 | 적용 |
+| [0032](0032-hibernate-query-plan-cache-tuning.md) | Hibernate query plan cache + PG prepared 튜닝 | 적용 |

@@ -16,4 +16,14 @@ public interface RefundRepository {
      * 3-phase 흐름의 phase 3 (DB tx2) 가 깨졌을 가능성이 있는 후보. limit 만큼만.
      */
     List<Refund> findStaleRequested(Instant staleBefore, int limit);
+
+    /**
+     * Soft delete (ADR-0030).
+     *
+     * @return 실제로 삭제된 row 가 있으면 true. 없거나 이미 삭제된 row 면 false.
+     */
+    boolean softDelete(RefundId id, String deletedBy);
+
+    /** 운영자 화면 전용. 삭제된 row 까지 조회. */
+    Optional<Refund> findByIdIncludingDeleted(RefundId id);
 }

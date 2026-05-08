@@ -9,8 +9,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Repository
@@ -18,6 +20,7 @@ import java.util.Optional;
 public class JpaPaymentRepositoryAdapter implements PaymentRepository {
 
     private final SpringDataPaymentRepository jpa;
+    private final Clock clock;
 
     @Override
     public void save(Payment payment) {
@@ -39,5 +42,16 @@ public class JpaPaymentRepositoryAdapter implements PaymentRepository {
         return jpa.findStalePending(staleBefore, PageRequest.of(0, limit)).stream()
                 .map(PaymentJpaMapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public boolean softDelete(PaymentId id, String deletedBy) {
+        Objects.requireNonNull(deletedBy, "deletedBy");
+        return jpa.softDelete(id.value(), deletedBy, clock.instant()) > 0;
+    }
+
+    @Override
+    public Optional<Payment> findByIdIncludingDeleted(PaymentId id) {
+        return jpa.findByIdIncludingDeleted(id.value()).map(PaymentJpaMapper::toDomain);
     }
 }

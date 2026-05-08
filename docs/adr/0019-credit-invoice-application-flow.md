@@ -41,9 +41,13 @@ Invoice
 5. invoice.applyCredit(applied) → invoices.save(invoice)
 ```
 
-원자성: 한 트랜잭션 안에서 *Credit 차감* 과 *Invoice.appliedCredit 증가* 가 같이 묶입니다.
-OptimisticLockException 이 나면 전체 롤백 → 호출자가 재시도. 만료 batch / 동시 결제 등과
-충돌이 있을 수 있습니다.
+원자성: 한 트랜잭션 안에서 *Credit 차감* 과 *Invoice.appliedCredit 증가* 가 같이 묶여서
+commit / rollback 됩니다. 한쪽만 반영된 상태로 남는 정합 사고 회피.
+
+낙관적 락 충돌 (Credit / Invoice 의 `@Version` 이 안 맞아 OptimisticLockException) 이 나면
+전체 rollback. ApplyCreditService 는 짧은 budget (3회 × 50ms) 안에서 자동 재시도하고, budget
+을 넘기면 호출자에게 예외를 그대로 throw. 충돌은 만료 batch (같은 Credit 의 status 를
+EXPIRED 로 바꿈) / 동시에 같은 invoice 에 결제 시도 등에서 발생할 수 있습니다.
 
 ### 통화 mismatch 처리
 

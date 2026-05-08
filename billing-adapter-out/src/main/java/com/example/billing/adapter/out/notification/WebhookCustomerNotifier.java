@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import java.time.Instant;
+import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,11 +36,13 @@ public class WebhookCustomerNotifier implements CustomerNotifier {
 
     private final RestClient client;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
     private String defaultUrl;
 
-    public WebhookCustomerNotifier(RestClient.Builder builder, ObjectMapper objectMapper) {
+    public WebhookCustomerNotifier(RestClient.Builder builder, ObjectMapper objectMapper, Clock clock) {
         this.client = builder.build();
         this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
     public void setDefaultUrl(String defaultUrl) { this.defaultUrl = defaultUrl; }
@@ -53,7 +55,7 @@ public class WebhookCustomerNotifier implements CustomerNotifier {
         Map<String, Object> body = new HashMap<>();
         body.put("customerId", customerId.value());
         body.put("type", type.name());
-        body.put("occurredAt", Instant.now().toString());
+        body.put("occurredAt", clock.instant().toString());
         body.put("context", context);
 
         try {

@@ -33,4 +33,13 @@ public class MockPgClient implements PgClient {
         log.info("[mock-pg] refunded {} → {}", req.pgTransactionId(), pgRefundId);
         return RefundResult.approved(pgRefundId);
     }
+
+    @Override
+    public LookupResult lookup(String idempotencyKey) {
+        // Mock 은 PG 결과를 영속 보관하지 않으므로 항상 NOT_FOUND. 운영 PG 는 실제 조회.
+        // dev 환경에서 reconciler 가 도는 게 의미 없는 환경 — billing.pg.reconciler.enabled=false 로
+        // 끄거나, 통합 테스트 시 별도 Mock 으로 교체.
+        log.debug("[mock-pg] lookup {} → NOT_FOUND", idempotencyKey);
+        return LookupResult.notFound();
+    }
 }

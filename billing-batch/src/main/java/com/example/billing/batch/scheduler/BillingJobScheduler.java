@@ -1,5 +1,6 @@
 package com.example.billing.batch.scheduler;
 
+import com.example.billing.application.port.in.ReconcilePgFailuresUseCase;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -7,6 +8,7 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -47,6 +49,7 @@ public class BillingJobScheduler {
     private final Job expireCreditsJob;
     private final Job evaluateBudgetAlertsJob;
     private final Job deliverWebhooksJob;
+    private final ObjectProvider<ReconcilePgFailuresUseCase> pgReconciler;
     private final Clock clock;
 
     public BillingJobScheduler(JobLauncher jobLauncher,
@@ -55,6 +58,7 @@ public class BillingJobScheduler {
                                @Qualifier("expireCreditsJob") Job expireCreditsJob,
                                @Qualifier("evaluateBudgetAlertsJob") Job evaluateBudgetAlertsJob,
                                @Qualifier("deliverWebhooksJob") Job deliverWebhooksJob,
+                               ObjectProvider<ReconcilePgFailuresUseCase> pgReconciler,
                                Clock clock) {
         this.jobLauncher = jobLauncher;
         this.monthlySettlementJob = monthlySettlementJob;
@@ -62,6 +66,7 @@ public class BillingJobScheduler {
         this.expireCreditsJob = expireCreditsJob;
         this.evaluateBudgetAlertsJob = evaluateBudgetAlertsJob;
         this.deliverWebhooksJob = deliverWebhooksJob;
+        this.pgReconciler = pgReconciler;
         this.clock = clock;
     }
 
@@ -155,6 +160,24 @@ public class BillingJobScheduler {
             jobLauncher.run(deliverWebhooksJob, params);
         } catch (Exception e) {
             log.error("deliverWebhooksJob failed", e);
+        }
+    }
+
+    /**
+     * 매 분. PG 호출은 끝났는데 우리 쪽 phase 3 (DB tx2) 가 깨져 PENDING/REQUESTED 로 stuck
+     * 된 Payment / Refund 들을 PG lookup 으로 동기화. {@code billing.pg.reconciler.enabled=true}
+     * 일 때만 ReconcilePgFailuresService bean 이 생성되며, 없으면 no-op.
+     */
+    @Scheduled(cron = "0 * * * * *")
+    @SchedulerLock(name = "pgFailureReconcile", lockAtMostFor = "PT5M", lockAtLeastFor = "PT30S")
+    public void runPgFailureReconcile() {
+        ReconcilePgFailuresUseCase reconciler = pgReconciler.getIfAvailable();
+        if (reconciler == null) return;
+        try {
+            int processed = reconciler.reconcileBatch();
+            if (processed > 0) log.info("pgFailureReconcile processed={}", processed);
+        } catch (Exception e) {
+            log.error("pgFailureReconcile failed", e);
         }
     }
 }

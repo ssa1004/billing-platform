@@ -6,8 +6,11 @@ import com.example.billing.application.port.out.RefundRepository;
 import com.example.billing.domain.refund.Refund;
 import com.example.billing.domain.refund.RefundId;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -24,5 +27,12 @@ public class JpaRefundRepositoryAdapter implements RefundRepository {
     @Override
     public Optional<Refund> findById(RefundId id) {
         return jpa.findById(id.value()).map(RefundJpaMapper::toDomain);
+    }
+
+    @Override
+    public List<Refund> findStaleRequested(Instant staleBefore, int limit) {
+        return jpa.findStaleRequested(staleBefore, PageRequest.of(0, limit)).stream()
+                .map(RefundJpaMapper::toDomain)
+                .toList();
     }
 }

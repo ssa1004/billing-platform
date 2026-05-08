@@ -6,8 +6,11 @@ import com.example.billing.application.port.out.PaymentRepository;
 import com.example.billing.domain.payment.Payment;
 import com.example.billing.domain.payment.PaymentId;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -29,5 +32,12 @@ public class JpaPaymentRepositoryAdapter implements PaymentRepository {
     @Override
     public Optional<Payment> findByIdempotencyKey(String key) {
         return jpa.findByIdempotencyKey(key).map(PaymentJpaMapper::toDomain);
+    }
+
+    @Override
+    public List<Payment> findStalePending(Instant staleBefore, int limit) {
+        return jpa.findStalePending(staleBefore, PageRequest.of(0, limit)).stream()
+                .map(PaymentJpaMapper::toDomain)
+                .toList();
     }
 }

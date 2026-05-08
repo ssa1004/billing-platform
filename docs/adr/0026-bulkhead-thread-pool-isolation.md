@@ -155,8 +155,7 @@ worker 안에 들어가면 CB 가 OPEN 인지 확인, OPEN 이면 fallback. CLOS
 - CB + Retry + Bulkhead 가 명확한 순서로 중첩 — 각 layer 의 책임 분명.
 - 가상 스레드 환경에서 동기 인터페이스 유지 — application service 침투 없음.
 - (단점) Worker 가 별도라 thread context (MDC, tracing) 가 자동 propagation 되지 않음 — Resilience4j
-  는 contextPropagator 옵션 제공하지만 본 구현엔 미적용. 후속 작업으로 MDC propagator 추가
-  필요.
+  는 contextPropagator 옵션 제공. **ADR-0027 에서 적용** (MdcContextPropagator).
 - (단점) Pool 산정이 운영 metric 없이 *추정* — 6개월 후 실측 latency / TPS 기반 재조정.
 - (단점) `BulkheadedPgClient` 의 caller-side timeout (6s) 과 RestClient read timeout (5s) +
   Retry 합산 (200+400+800ms) 이 비슷한 수준 — 두 timeout 이 거의 동시 발화. 운영 metric 보고
@@ -164,7 +163,7 @@ worker 안에 들어가면 CB 가 OPEN 인지 확인, OPEN 이면 fallback. CLOS
 
 ## 후속 후보
 
-- `ContextPropagator` 로 MDC (traceId, requestId) 를 worker 까지 전파.
+- ~~`ContextPropagator` 로 MDC (traceId, requestId) 를 worker 까지 전파.~~ → ADR-0027 에서 적용.
 - Bulkhead metric 노출 — `resilience4j_bulkhead_available_threads{name=pg}`,
   `resilience4j_bulkhead_queued_calls{name=pg}` → Prometheus + Grafana 대시보드.
 - `webhook` / `audit-export` 격리 풀의 실제 사용처 wiring (현재는 `pg` 만 wire). webhook

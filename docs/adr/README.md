@@ -29,3 +29,4 @@
 | [0023](0023-audit-log.md) | Audit Log — append-only 감사 로그 | 적용 |
 | [0024](0024-idempotency-response-cache.md) | Idempotency-Key 응답 캐싱 (Stripe 24h 패턴) | 적용 |
 | [0025](0025-read-replica-routing.md) | Read-Replica 라우팅 (AbstractRoutingDataSource) | 적용 |
+| [0026](0026-bulkhead-thread-pool-isolation.md) | 외부 호출 ThreadPool Bulkhead 격리 | 적용 |

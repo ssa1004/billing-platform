@@ -8,9 +8,11 @@ import com.example.billing.application.exception.WalletNotFoundException
 import com.example.billing.application.port.out.IdempotencyKeyStore
 import com.example.billing.domain.order.IllegalOrderTransitionException
 import com.example.billing.domain.wallet.InsufficientBalanceException
+import io.github.resilience4j.bulkhead.BulkheadFullException
 import io.micrometer.tracing.Tracer
 import org.slf4j.LoggerFactory
 import org.springframework.dao.OptimisticLockingFailureException
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
@@ -86,6 +88,20 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
     @ExceptionHandler(OptimisticLockingFailureException::class)
     fun handleOptimisticLock(e: OptimisticLockingFailureException): ResponseEntity<ErrorResponse> =
         build(HttpStatus.CONFLICT, "CONCURRENT_MODIFICATION", "concurrent modification, retry")
+
+    /**
+     * 외부 호출 격리 풀 (Bulkhead) 가 가득 차서 호출이 거부된 경우 — 503 + Retry-After.
+     *
+     * <p>Bulkhead 가 가득 찼다 = 우리 시스템이 외부 종속 (PG 등) 의 슬로우다운으로 한계까지
+     * 호출을 발사 중이라는 의미. 클라이언트는 짧은 backoff 후 재시도하면 OK. ADR-0026 참고.</p>
+     */
+    @ExceptionHandler(BulkheadFullException::class)
+    fun handleBulkheadFull(e: BulkheadFullException): ResponseEntity<ErrorResponse> {
+        val traceId = tracer.currentSpan()?.context()?.traceId()
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .header(HttpHeaders.RETRY_AFTER, "1")  // 1초 후 retry 권장
+            .body(ErrorResponse("BULKHEAD_FULL", e.message ?: "service busy, retry later", emptyList(), traceId))
+    }
 
     @ExceptionHandler(Exception::class)
     fun handleAll(e: Exception): ResponseEntity<ErrorResponse> {

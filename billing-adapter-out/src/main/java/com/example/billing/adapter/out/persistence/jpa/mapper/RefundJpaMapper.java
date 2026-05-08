@@ -20,6 +20,7 @@ public final class RefundJpaMapper {
         e.setAmount(r.amount().amount());
         e.setCurrency(r.amount().currency().getCurrencyCode());
         e.setReason(r.reason());
+        e.setIdempotencyKey(r.idempotencyKey());
         e.setStatus(r.status().name());
         e.setPgRefundId(r.pgRefundId());
         e.setRequestedAt(r.requestedAt());
@@ -35,6 +36,7 @@ public final class RefundJpaMapper {
                 new PaymentId(e.getPaymentId()),
                 Money.of(e.getAmount(), currency),
                 e.getReason(),
+                e.getIdempotencyKey(),
                 RefundStatus.valueOf(e.getStatus()),
                 e.getPgRefundId(),
                 e.getRequestedAt(),

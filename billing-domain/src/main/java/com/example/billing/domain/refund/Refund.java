@@ -10,6 +10,10 @@ import java.util.Objects;
 
 /**
  * Refund 애그리거트. 환불 요청 → PG 환불 호출 → Wallet 환원 흐름의 상태 보존.
+ *
+ * <p><b>idempotencyKey</b>: phase 1 (트랜잭션 안에서 REQUESTED Refund 영속화) 시점에 점유한
+ * 키를 그대로 보관. PG-reconciler 가 PENDING/REQUESTED 상태로 stuck 된 Refund 를 발견했을 때
+ * 같은 키로 PG lookup 해서 실제 결과를 다시 끌어올 때 사용.</p>
  */
 public class Refund {
 
@@ -17,6 +21,7 @@ public class Refund {
     private final PaymentId paymentId;
     private final Money amount;
     private final String reason;
+    private final String idempotencyKey;
     private RefundStatus status;
     private String pgRefundId;
     private final Instant requestedAt;
@@ -24,12 +29,14 @@ public class Refund {
     private long version;
 
     private Refund(RefundId id, PaymentId paymentId, Money amount, String reason,
+                   String idempotencyKey,
                    RefundStatus status, String pgRefundId,
                    Instant requestedAt, Instant completedAt, long version) {
         this.id = id;
         this.paymentId = paymentId;
         this.amount = amount;
         this.reason = reason;
+        this.idempotencyKey = idempotencyKey;
         this.status = status;
         this.pgRefundId = pgRefundId;
         this.requestedAt = requestedAt;
@@ -37,19 +44,23 @@ public class Refund {
         this.version = version;
     }
 
-    public static Refund request(PaymentId paymentId, Money amount, String reason, Clock clock) {
+    public static Refund request(PaymentId paymentId, Money amount, String reason,
+                                 String idempotencyKey, Clock clock) {
         Objects.requireNonNull(paymentId);
         Objects.requireNonNull(amount);
         if (!amount.isPositive()) throw new IllegalArgumentException("amount must be positive");
-        return new Refund(RefundId.newId(), paymentId, amount, reason,
+        Objects.requireNonNull(idempotencyKey, "idempotencyKey");
+        if (idempotencyKey.isBlank()) throw new IllegalArgumentException("idempotencyKey must not be blank");
+        return new Refund(RefundId.newId(), paymentId, amount, reason, idempotencyKey,
                 RefundStatus.REQUESTED, null, clock.instant(), null, 0L);
     }
 
     /** 영속 계층에서 복원. */
     public static Refund restore(RefundId id, PaymentId paymentId, Money amount, String reason,
+                                 String idempotencyKey,
                                  RefundStatus status, String pgRefundId,
                                  Instant requestedAt, Instant completedAt, long version) {
-        return new Refund(id, paymentId, amount, reason, status, pgRefundId,
+        return new Refund(id, paymentId, amount, reason, idempotencyKey, status, pgRefundId,
                 requestedAt, completedAt, version);
     }
 
@@ -84,6 +95,7 @@ public class Refund {
     public PaymentId paymentId() { return paymentId; }
     public Money amount() { return amount; }
     public String reason() { return reason; }
+    public String idempotencyKey() { return idempotencyKey; }
     public RefundStatus status() { return status; }
     public String pgRefundId() { return pgRefundId; }
     public Instant requestedAt() { return requestedAt; }

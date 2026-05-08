@@ -52,12 +52,19 @@ public class OutboxEventPublisher implements EventPublisher {
     }
 
     private String inferAggregateType(DomainEvent event) {
-        // 이벤트 클래스 이름으로 aggregate 타입 추론 (예: WalletEvents$WalletDeposited → Wallet)
+        // 이벤트 클래스의 패키지로 aggregate 타입 추론 (예: WalletEvents$WalletDeposited → Wallet).
+        // 새 도메인을 추가하면 여기에 등록 — 누락 시 Kafka topic 이 billing.unknown.* 로 잘못
+        // 라우팅됩니다. 누락이 디버깅에서 빨리 보이도록 IllegalStateException 으로 fail-fast.
         String fqn = event.getClass().getName();
         if (fqn.contains(".wallet.")) return "Wallet";
         if (fqn.contains(".order.")) return "Order";
         if (fqn.contains(".payment.")) return "Payment";
         if (fqn.contains(".refund.")) return "Refund";
-        return "Unknown";
+        if (fqn.contains(".credit.")) return "Credit";
+        if (fqn.contains(".budget.")) return "Budget";
+        if (fqn.contains(".invoice.")) return "Invoice";
+        if (fqn.contains(".webhook.")) return "Webhook";
+        throw new IllegalStateException("unknown aggregate type for event " + fqn
+                + " — register it in OutboxEventPublisher.inferAggregateType");
     }
 }

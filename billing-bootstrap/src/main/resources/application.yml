@@ -102,6 +102,8 @@ billing:
       enabled: false               # 로컬: PermissiveSecurityConfig (JWT 검증 skip)
   idempotency:
     ttl-hours: 24                  # Idempotency-Key 점유 유지 시간 — 이 안에 같은 키 재시도는 거절
+    response-cache-enabled: true   # Stripe 식 응답 캐싱 (24h) — 같은 키 재시도 시 처음 응답 그대로 반환 (ADR-0024)
+    cached-paths: /api/v1/payments,/api/v1/refunds   # 응답 캐싱 대상 endpoint (CSV)
 
 logging:
   pattern:

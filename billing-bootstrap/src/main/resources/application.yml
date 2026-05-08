@@ -28,15 +28,15 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:}
     producer:
-      acks: all
-      retries: 5
+      acks: all                        # 모든 in-sync replica 가 받았을 때만 ack — 안전성 우선
+      retries: 5                       # 일시 broker 장애 시 자동 재시도
       properties:
-        enable.idempotence: true
-        max.in.flight.requests.per.connection: 5
+        enable.idempotence: true       # 동일 메시지 중복 발행 방지 (재시도 시 중복 차단)
+        max.in.flight.requests.per.connection: 5  # idempotent producer 의 안전한 상한
     consumer:
       group-id: billing-platform
-      enable-auto-commit: false
-      auto-offset-reset: earliest
+      enable-auto-commit: false        # 처리 완료 시 명시적 commit (at-least-once)
+      auto-offset-reset: earliest      # 새 consumer 는 가장 오래된 메시지부터 (메시지 누락 방지)
 
 server:
   port: 8080
@@ -65,42 +65,43 @@ springdoc:
     path: /v3/api-docs
 
 resilience4j:
+  # 외부 PG (결제 게이트웨이) 호출용 — 슬로우다운 / 장애 시 우리 자원 보호
   circuitbreaker:
     instances:
       pg:
-        slidingWindowSize: 20
-        minimumNumberOfCalls: 10
-        failureRateThreshold: 50
-        waitDurationInOpenState: 30s
-        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowSize: 20                       # 최근 20번 호출의 결과로 실패율 판정
+        minimumNumberOfCalls: 10                    # 최소 10번 호출 누적 후 판정 시작 (초기 노이즈 회피)
+        failureRateThreshold: 50                    # 실패율 50% 넘으면 OPEN (호출 차단)
+        waitDurationInOpenState: 30s                # OPEN 상태 30초 유지 → 그 후 HALF_OPEN 로 시험
+        permittedNumberOfCallsInHalfOpenState: 3    # HALF_OPEN 에서 3번 시험해 회복 여부 판정
   retry:
     instances:
       pg:
-        maxAttempts: 3
-        waitDuration: 200ms
-        enableExponentialBackoff: true
+        maxAttempts: 3                              # 한 번 호출당 최대 3번 시도
+        waitDuration: 200ms                         # 첫 retry 까지 200ms 대기
+        enableExponentialBackoff: true              # 점점 간격을 늘려 재시도 (200ms → 400ms → 800ms)
         exponentialBackoffMultiplier: 2
 
 billing:
   pg:
-    enabled: false                 # 로컬 dev: MockPgClient 사용
+    enabled: false                 # 로컬 dev: 실제 PG 호출 안 하고 MockPgClient 사용
     base-url: ${PG_BASE_URL:http://wiremock:8090}
   outbox:
     relay:
-      enabled: false               # 로컬: Kafka 미연결
-      poll-interval-ms: 1000
-      batch-size: 100
-      send-timeout-ms: 5000
-      topic-prefix: "billing."
+      enabled: false               # 로컬: Kafka 미연결이라 relay 비활성 (테이블 INSERT 만 발생)
+      poll-interval-ms: 1000       # 매 1초 마다 outbox 테이블 polling
+      batch-size: 100              # 한 polling cycle 에 최대 100건 처리 (메시지 단위 별도 tx)
+      send-timeout-ms: 5000        # Kafka send 응답 5초 안에 못 받으면 timeout → 다음 polling 재시도
+      topic-prefix: "billing."     # 토픽 명: billing.<aggregateType>.<eventType> (lowercase)
   cache:
-    redis-enabled: false           # 로컬: Caffeine L1 only
-    local-ttl-seconds: 30
-    global-ttl-seconds: 300
+    redis-enabled: false           # 로컬: Caffeine 만 (단일 인스턴스 in-memory L1 cache)
+    local-ttl-seconds: 30          # L1 (Caffeine, 인스턴스 로컬) 캐시 TTL
+    global-ttl-seconds: 300        # L2 (Redis, 인스턴스 공유) 캐시 TTL — prod 에서만 사용
   security:
     jwt:
-      enabled: false               # 로컬: PermissiveSecurityConfig
+      enabled: false               # 로컬: PermissiveSecurityConfig (JWT 검증 skip)
   idempotency:
-    ttl-hours: 24
+    ttl-hours: 24                  # Idempotency-Key 점유 유지 시간 — 이 안에 같은 키 재시도는 거절
 
 logging:
   pattern:

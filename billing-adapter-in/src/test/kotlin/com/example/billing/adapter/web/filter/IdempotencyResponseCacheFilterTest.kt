@@ -39,6 +39,9 @@ class IdempotencyResponseCacheFilterTest {
         val field = IdempotencyResponseCacheFilter::class.java.getDeclaredField("cachedPathsCsv")
         field.isAccessible = true
         field.set(filter, "/api/v1/payments,/api/v1/refunds")
+        // fingerprint 검증 (ADR-0028): 모든 케이스에서 default 는 empty (= 첫 호출), 일부 테스트가
+        // override.
+        whenever(store.findRequestFingerprint(any())).thenReturn(Optional.empty())
     }
 
     @Test
@@ -168,6 +171,95 @@ class IdempotencyResponseCacheFilterTest {
         verify(store, never()).cacheResponse(any(), any(), any())
         // 응답 본문은 그대로 client 에게 전달됨.
         assertThat(res.contentAsString).isEqualTo(bigBody)
+    }
+
+    // ─── ADR-0028: body fingerprint 검증 ────────────────────────────────────
+
+    @Test
+    fun `cache miss — first call records body fingerprint`() {
+        val req = MockHttpServletRequest("POST", "/api/v1/payments")
+        req.addHeader("Idempotency-Key", "k-fp-1")
+        req.setContent("""{"amount":1000}""".toByteArray())
+        val res = MockHttpServletResponse()
+
+        val chain = FilterChainStub { _, response ->
+            (response as HttpServletResponse).status = 201
+            response.writer.write("""{"id":"p-1"}""")
+        }
+
+        filter.doFilter(req, res, chain)
+
+        // 첫 호출 — 같은 키 재호출 시 비교에 사용할 fingerprint 가 박혀야 함.
+        verify(store).recordRequestFingerprint(eq("k-fp-1"), any())
+    }
+
+    @Test
+    fun `same key with different body throws IncompatibleRequestException`() {
+        val req = MockHttpServletRequest("POST", "/api/v1/payments")
+        req.addHeader("Idempotency-Key", "k-fp-2")
+        req.setContent("""{"amount":2000,"orderId":"o-1"}""".toByteArray())
+        val res = MockHttpServletResponse()
+
+        // 첫 요청에서 박힌 fingerprint — 다른 body 의 fingerprint 라고 가정.
+        val storedFingerprint = RequestBodyFingerprint.compute(
+            """{"amount":9999,"orderId":"o-DIFFERENT"}""".toByteArray()
+        )
+        whenever(store.findRequestFingerprint(eq("k-fp-2"))).thenReturn(Optional.of(storedFingerprint))
+
+        val chain = FilterChainStub { _, _ -> /* 호출되면 안 됨 — fingerprint mismatch 에서 차단 */ }
+
+        org.assertj.core.api.Assertions.assertThatThrownBy {
+            filter.doFilter(req, res, chain)
+        }.isInstanceOf(com.example.billing.application.port.out.IdempotencyKeyStore.IncompatibleRequestException::class.java)
+
+        assertThat(chain.invoked).isFalse()
+        verify(store, never()).cacheResponse(any(), any(), any())
+    }
+
+    @Test
+    fun `same key with same body proceeds normally — fingerprint match`() {
+        val req = MockHttpServletRequest("POST", "/api/v1/payments")
+        req.addHeader("Idempotency-Key", "k-fp-3")
+        val bodyBytes = """{"amount":3000}""".toByteArray()
+        req.setContent(bodyBytes)
+        val res = MockHttpServletResponse()
+
+        // 같은 body 의 fingerprint 가 이미 박혀 있음 — race window 에서 첫 요청이 cache 직전 단계.
+        val matchingFingerprint = RequestBodyFingerprint.compute(bodyBytes)
+        whenever(store.findRequestFingerprint(eq("k-fp-3"))).thenReturn(Optional.of(matchingFingerprint))
+        whenever(store.findCachedResponse(eq("k-fp-3"))).thenReturn(Optional.empty())
+
+        val chain = FilterChainStub { _, response ->
+            (response as HttpServletResponse).status = 201
+            response.writer.write("""{"id":"p-3"}""")
+        }
+
+        filter.doFilter(req, res, chain)
+
+        assertThat(chain.invoked).isTrue()
+        assertThat(res.status).isEqualTo(201)
+    }
+
+    @Test
+    fun `controller can re-read body after fingerprint computation`() {
+        // 핵심 — fingerprint 계산을 위해 우리가 inputStream 을 한 번 읽었으니, controller 가 다시
+        // 읽었을 때도 *같은 body* 가 보여야 함.
+        val req = MockHttpServletRequest("POST", "/api/v1/payments")
+        req.addHeader("Idempotency-Key", "k-fp-4")
+        val originalBody = """{"orderId":"o-99","amount":4500}"""
+        req.setContent(originalBody.toByteArray())
+        val res = MockHttpServletResponse()
+
+        var bodyReadByController: String? = null
+        val chain = FilterChainStub { request, response ->
+            bodyReadByController = (request as jakarta.servlet.ServletRequest).reader.readText()
+            (response as HttpServletResponse).status = 201
+            response.writer.write("""{"id":"ok"}""")
+        }
+
+        filter.doFilter(req, res, chain)
+
+        assertThat(bodyReadByController).isEqualTo(originalBody)
     }
 
     @Test

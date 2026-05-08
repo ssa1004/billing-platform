@@ -129,8 +129,8 @@ path 를 자연스럽게 표현.
 
 ## 후속 후보
 
-- Request body fingerprint 검증 — 같은 키인데 본문이 다르면 *오용* (client bug) 으로 간주, 422.
-  Stripe 가 적용 중인 추가 안전장치.
+- ~~Request body fingerprint 검증 — 같은 키인데 본문이 다르면 *오용* (client bug) 으로 간주, 422.
+  Stripe 가 적용 중인 추가 안전장치.~~ → ADR-0028 에서 적용.
 - Cache miss 시 점유 lock + cache 의 atomic 한 묶음 — Redis Lua script 로 `SET NX` + cache
   를 한 번에. 현재는 둘이 별도 호출이라 race window 가 짧게 존재.
 - `Idempotency-Key` 형식 검증 (UUID-like, length cap) 추가.

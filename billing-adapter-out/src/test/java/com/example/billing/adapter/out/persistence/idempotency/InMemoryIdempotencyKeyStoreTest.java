@@ -83,4 +83,40 @@ class InMemoryIdempotencyKeyStoreTest {
     void release_unknownKey_isNoop() {
         assertThatCode(() -> store.release("never-acquired")).doesNotThrowAnyException();
     }
+
+    // ─── ADR-0028: request body fingerprint ─────────────────────────────────
+
+    @Test
+    void recordRequestFingerprint_then_findRequestFingerprint() {
+        store.recordRequestFingerprint("key-fp-1", "abcd1234");
+
+        assertThat(store.findRequestFingerprint("key-fp-1")).contains("abcd1234");
+    }
+
+    @Test
+    void findRequestFingerprint_unknownKey_returnsEmpty() {
+        assertThat(store.findRequestFingerprint("never-set")).isEmpty();
+    }
+
+    @Test
+    void recordRequestFingerprint_isIdempotent_firstWriteWins() {
+        // 첫 호출이 진실 — 같은 키로 두 번째 fingerprint 가 박혀도 첫 값 유지.
+        // (race window 에서 두 동시 호출이 모두 record 시도 시 한 쪽만 이김.)
+        store.recordRequestFingerprint("key-fp-2", "first-fp");
+        store.recordRequestFingerprint("key-fp-2", "second-fp");
+
+        assertThat(store.findRequestFingerprint("key-fp-2")).contains("first-fp");
+    }
+
+    @Test
+    void release_alsoClearsFingerprint_soNextRetryCanUseDifferentBody() {
+        // rollback 시나리오: 첫 요청이 검증 실패로 rollback → release 호출.
+        // 다음 retry 가 *고친 body* 를 보내도 정상 처리되어야 함 — fingerprint 가 남아있으면 422 로
+        // 막혀 사용자 경험 깨짐.
+        store.acquireOrThrow("key-fp-3");
+        store.recordRequestFingerprint("key-fp-3", "old-fp");
+        store.release("key-fp-3");
+
+        assertThat(store.findRequestFingerprint("key-fp-3")).isEmpty();
+    }
 }

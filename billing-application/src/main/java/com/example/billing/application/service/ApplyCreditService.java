@@ -3,9 +3,12 @@ package com.example.billing.application.service;
 import com.example.billing.application.command.ApplyCreditCommand;
 import com.example.billing.application.exception.InvoiceNotFoundException;
 import com.example.billing.application.port.in.ApplyCreditUseCase;
+import com.example.billing.application.port.in.AuditLogger;
 import com.example.billing.application.port.out.CreditRepository;
 import com.example.billing.application.port.out.EventPublisher;
 import com.example.billing.application.port.out.InvoiceRepository;
+import com.example.billing.domain.audit.AuditAction;
+import com.example.billing.domain.audit.AuditActor;
 import com.example.billing.domain.credit.Credit;
 import com.example.billing.domain.invoice.Invoice;
 import com.example.billing.domain.shared.CustomerId;
@@ -43,6 +46,7 @@ public class ApplyCreditService implements ApplyCreditUseCase {
     private final InvoiceRepository invoices;
     private final EventPublisher events;
     private final IdempotentExecution idempotency;
+    private final AuditLogger audit;
     private final Clock clock;
 
     @Override
@@ -87,6 +91,20 @@ public class ApplyCreditService implements ApplyCreditUseCase {
         if (applied.isPositive()) {
             invoice.applyCredit(applied);
             invoices.save(invoice);
+
+            // Audit — credit 적용은 invoice 의 amountDue 를 줄이는 자금 이동. 회계 감사
+            // (어떤 invoice 에 어떤 customer 의 어떤 credit 이 얼마나 들어갔는지) 1차 근거.
+            audit.log(
+                    AuditActor.system("apply-credit-service"),
+                    AuditAction.INVOICE_CREDIT_APPLIED,
+                    "Invoice",
+                    cmd.invoiceId().toString(),
+                    null,
+                    String.format("{\"customerId\":\"%s\",\"applied\":\"%s\",\"currency\":\"%s\",\"amountDueAfter\":\"%s\"}",
+                            customerId.value(), applied.amount(),
+                            applied.currency().getCurrencyCode(), invoice.amountDue().amount()),
+                    null
+            );
         }
 
         log.info("credit applied invoice={} customer={} cap={} applied={} amountDueAfter={}",

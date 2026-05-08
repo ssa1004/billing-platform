@@ -2,12 +2,15 @@ package com.example.billing.application.service;
 
 import com.example.billing.application.command.RunSettlementCommand;
 import com.example.billing.application.command.SettlementResult;
+import com.example.billing.application.port.in.AuditLogger;
 import com.example.billing.application.port.in.RunSettlementUseCase;
 import com.example.billing.application.port.out.AdvisoryLock;
 import com.example.billing.application.port.out.AggregatedUsageRepository;
 import com.example.billing.application.port.out.InvoiceRepository;
 import com.example.billing.application.port.out.PaymentClient;
 import com.example.billing.application.port.out.PricingPlanRepository;
+import com.example.billing.domain.audit.AuditAction;
+import com.example.billing.domain.audit.AuditActor;
 import com.example.billing.domain.invoice.Invoice;
 import com.example.billing.domain.invoice.InvoiceLine;
 import com.example.billing.domain.metering.AggregatedUsage;
@@ -49,6 +52,7 @@ public class RunSettlementService implements RunSettlementUseCase {
     private final PricingPlanRepository pricingPlanRepository;
     private final InvoiceRepository invoiceRepository;
     private final PaymentClient paymentClient;
+    private final AuditLogger audit;
     private final Clock clock;
 
     public RunSettlementService(AdvisoryLock advisoryLock,
@@ -56,12 +60,14 @@ public class RunSettlementService implements RunSettlementUseCase {
                                 PricingPlanRepository pricingPlanRepository,
                                 InvoiceRepository invoiceRepository,
                                 PaymentClient paymentClient,
+                                AuditLogger audit,
                                 Clock clock) {
         this.advisoryLock = advisoryLock;
         this.usageRepository = usageRepository;
         this.pricingPlanRepository = pricingPlanRepository;
         this.invoiceRepository = invoiceRepository;
         this.paymentClient = paymentClient;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -109,6 +115,19 @@ public class RunSettlementService implements RunSettlementUseCase {
         invoice.issue(clock);
         invoiceRepository.save(invoice);
 
+        // Audit — invoice 발행은 회계상 최초 매출 인식 시점. 회계 감사 / 분쟁 대응 1차 근거.
+        audit.log(
+                AuditActor.system("settlement-service"),
+                AuditAction.INVOICE_ISSUED,
+                "Invoice",
+                invoice.id().toString(),
+                null,
+                String.format("{\"customerId\":\"%s\",\"period\":\"%s\",\"total\":\"%s\",\"currency\":\"%s\"}",
+                        cmd.customerId().value(), cmd.period().toKey(),
+                        invoice.total().amount(), invoice.total().currency().getCurrencyCode()),
+                null
+        );
+
         // 6. 결제 시도 (실패해도 invoice 는 ISSUED 로 남고, 별도 retry job 이 다음에 잡아감)
         boolean paid;
         try {
@@ -116,6 +135,16 @@ public class RunSettlementService implements RunSettlementUseCase {
             if (paid) {
                 invoice.markPaid(clock);
                 invoiceRepository.save(invoice);
+                audit.log(
+                        AuditActor.system("settlement-service"),
+                        AuditAction.INVOICE_PAID,
+                        "Invoice",
+                        invoice.id().toString(),
+                        null,
+                        String.format("{\"customerId\":\"%s\",\"amount\":\"%s\"}",
+                                cmd.customerId().value(), invoice.total().amount()),
+                        null
+                );
             }
         } catch (PaymentClient.PaymentFatalException e) {
             log.warn("payment fatal for invoice={}: {}", invoice.id(), e.getMessage());

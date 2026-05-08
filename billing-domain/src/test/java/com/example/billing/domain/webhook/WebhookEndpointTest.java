@@ -4,8 +4,10 @@ import com.example.billing.domain.shared.CustomerId;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -73,12 +75,102 @@ class WebhookEndpointTest {
     }
 
     @Test
-    void rotateSecret_changesSecret() {
+    void rotateSecret_changesSecret_andDemotesPreviousToGrace() {
+        // ADR-0029: rotate 후 이전 secret 은 24h grace 동안 함께 유효.
         var e = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
         String before = e.secret();
         e.rotateSecret(CLOCK);
         assertThat(e.secret()).isNotEqualTo(before);
         assertThat(e.secret()).hasSize(64);
+        // 이전 secret 이 previousSecret 으로 demote 되었음.
+        assertThat(e.previousSecret()).contains(before);
+        assertThat(e.previousSecretValidUntil()).contains(CLOCK.instant().plus(Duration.ofHours(24)));
+    }
+
+    @Test
+    void rotateSecret_register_withoutRotation_hasNoPreviousSecret() {
+        var e = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
+        assertThat(e.previousSecret()).isEmpty();
+        assertThat(e.previousSecretValidUntil()).isEmpty();
+    }
+
+    @Test
+    void activeSecrets_includesPreviousWithinGrace_excludesAfterExpiry() {
+        var e = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
+        String oldSecret = e.secret();
+        e.rotateSecret(CLOCK);
+        String newSecret = e.secret();
+
+        // grace 안: 두 secret 모두 활성 (현재 secret 이 첫 번째, previous 가 두 번째).
+        Clock midGrace = Clock.fixed(CLOCK.instant().plus(Duration.ofHours(1)), ZoneOffset.UTC);
+        List<String> active = e.activeSecrets(midGrace);
+        assertThat(active).containsExactly(newSecret, oldSecret);
+
+        // grace 밖: 현재 secret 만.
+        Clock pastGrace = Clock.fixed(CLOCK.instant().plus(Duration.ofHours(25)), ZoneOffset.UTC);
+        assertThat(e.activeSecrets(pastGrace)).containsExactly(newSecret);
+    }
+
+    @Test
+    void rotateSecret_twiceWithinGrace_overwritesPreviousChain() {
+        // 짧은 사이에 두 번 rotate — 가운데 secret 은 사라짐 (previous 는 마지막 직전 secret 으로 덮어씀).
+        // 3개 동시 활성은 운영 복잡도만 키우고 의미 없음. 보안적으로도 안전 (덮어씌워진 secret 도 무효).
+        var e = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
+        e.rotateSecret(CLOCK);
+        String middleSecret = e.secret();   // 첫 rotate 후 secret
+        Clock laterClock = Clock.fixed(CLOCK.instant().plus(Duration.ofMinutes(10)), ZoneOffset.UTC);
+        e.rotateSecret(laterClock);
+
+        // previous 는 *방금 직전* secret 이어야 함 — 첫 번째 secret 은 사라짐.
+        assertThat(e.previousSecret()).contains(middleSecret);
+    }
+
+    @Test
+    void rotateSecret_customGrace_negativeOrZeroRejected() {
+        var e = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
+
+        assertThatThrownBy(() -> e.rotateSecret(CLOCK, Duration.ZERO))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> e.rotateSecret(CLOCK, Duration.ofSeconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void expirePreviousSecretIfDue_clearsExpiredGrace() {
+        var e = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
+        e.rotateSecret(CLOCK);
+        assertThat(e.previousSecret()).isPresent();
+
+        // grace 안 — cleanup 호출해도 변경 없음.
+        Clock midGrace = Clock.fixed(CLOCK.instant().plus(Duration.ofHours(1)), ZoneOffset.UTC);
+        assertThat(e.expirePreviousSecretIfDue(midGrace)).isFalse();
+        assertThat(e.previousSecret()).isPresent();
+
+        // grace 후 — 정리됨.
+        Clock pastGrace = Clock.fixed(CLOCK.instant().plus(Duration.ofHours(25)), ZoneOffset.UTC);
+        assertThat(e.expirePreviousSecretIfDue(pastGrace)).isTrue();
+        assertThat(e.previousSecret()).isEmpty();
+        assertThat(e.previousSecretValidUntil()).isEmpty();
+    }
+
+    @Test
+    void expirePreviousSecretIfDue_noPrevious_isNoop() {
+        var e = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
+        assertThat(e.expirePreviousSecretIfDue(CLOCK)).isFalse();
+    }
+
+    @Test
+    void restore_inconsistentPreviousSecretFields_throws() {
+        // invariant 검증: previousSecret / previousSecretValidUntil 은 짝.
+        assertThatThrownBy(() -> WebhookEndpoint.restore(
+                WebhookEndpointId.newId(), ALICE, "https://acme.example.com/hook",
+                "current-secret",
+                "leftover-previous", null,    // valid_until 만 빠짐 — 운영 사고 신호
+                Set.of(),
+                WebhookEndpointStatus.ACTIVE,
+                CLOCK.instant(), CLOCK.instant(), 0L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("previousSecret");
     }
 
     @Test

@@ -32,6 +32,17 @@ public class WebhookEndpointJpaEntity {
     @Column(name = "secret", nullable = false, length = 128)
     private String secret;
 
+    /**
+     * Rotation grace 동안 함께 유효한 직전 secret. null = grace 밖 (rotate 안 했거나 만료 후 정리).
+     * ADR-0029.
+     */
+    @Column(name = "previous_secret", length = 128)
+    private String previousSecret;
+
+    /** previousSecret 만료 시각. previousSecret 과 항상 짝 (둘 다 null 이거나 둘 다 set). */
+    @Column(name = "previous_secret_valid_until")
+    private Instant previousSecretValidUntil;
+
     /** 구독 이벤트 타입의 JSON 배열 직렬화. mapper 가 Set<String> 로 변환. */
     @Column(name = "subscribed_event_types_json", nullable = false, columnDefinition = "TEXT")
     private String subscribedEventTypesJson;

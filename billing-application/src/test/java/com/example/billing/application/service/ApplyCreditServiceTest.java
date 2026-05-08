@@ -4,7 +4,6 @@ import com.example.billing.application.command.ApplyCreditCommand;
 import com.example.billing.application.exception.InvoiceNotFoundException;
 import com.example.billing.application.port.out.CreditRepository;
 import com.example.billing.application.port.out.EventPublisher;
-import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.application.port.out.InvoiceRepository;
 import com.example.billing.domain.credit.Credit;
 import com.example.billing.domain.credit.CreditEvents;
@@ -53,13 +52,13 @@ class ApplyCreditServiceTest {
     @Mock CreditRepository credits;
     @Mock InvoiceRepository invoices;
     @Mock EventPublisher events;
-    @Mock IdempotencyKeyStore idempotencyKeys;
+    @Mock IdempotentExecution idempotency;
 
     ApplyCreditService service;
 
     @BeforeEach
     void setUp() {
-        service = new ApplyCreditService(credits, invoices, events, idempotencyKeys, CLOCK);
+        service = new ApplyCreditService(credits, invoices, events, idempotency, CLOCK);
     }
 
     private static Money won(long n) {

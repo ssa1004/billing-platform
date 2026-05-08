@@ -6,7 +6,6 @@ import com.example.billing.application.exception.PaymentNotFoundException;
 import com.example.billing.application.port.in.AuditLogger;
 import com.example.billing.application.port.in.RefundUseCase;
 import com.example.billing.application.port.out.EventPublisher;
-import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.application.port.out.OrderRepository;
 import com.example.billing.application.port.out.PaymentRepository;
 import com.example.billing.application.port.out.PgClient;
@@ -37,14 +36,14 @@ public class RefundService implements RefundUseCase {
     private final OrderRepository orders;
     private final PgClient pgClient;
     private final EventPublisher events;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final AuditLogger audit;
     private final Clock clock;
 
     @Override
     @Transactional
     public Refund refund(RefundCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
 
         Payment payment = payments.findById(cmd.paymentId())
                 .orElseThrow(() -> new PaymentNotFoundException(cmd.paymentId()));

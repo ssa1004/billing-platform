@@ -59,4 +59,28 @@ class InMemoryIdempotencyKeyStoreTest {
         // 아직 응답 캐시 안 함
         assertThat(store.findCachedResponse("key-4")).isEmpty();
     }
+
+    @Test
+    void release_freesAcquiredKeyForRetry() {
+        store.acquireOrThrow("key-5");
+        // 트랜잭션 rollback 시뮬레이션 — release 호출 후 같은 키 재사용 가능해야 함
+        store.release("key-5");
+
+        assertThatCode(() -> store.acquireOrThrow("key-5")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void release_keepsCachedResponse() {
+        store.acquireOrThrow("key-6");
+        store.cacheResponse("key-6", 201, "{\"ok\":true}");
+        // release 가 응답 캐시를 지워서는 안 됨 (응답 캐시는 별도 lifecycle).
+        store.release("key-6");
+
+        assertThat(store.findCachedResponse("key-6")).isPresent();
+    }
+
+    @Test
+    void release_unknownKey_isNoop() {
+        assertThatCode(() -> store.release("never-acquired")).doesNotThrowAnyException();
+    }
 }

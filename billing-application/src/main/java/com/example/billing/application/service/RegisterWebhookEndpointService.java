@@ -2,7 +2,6 @@ package com.example.billing.application.service;
 
 import com.example.billing.application.command.RegisterWebhookEndpointCommand;
 import com.example.billing.application.port.in.RegisterWebhookEndpointUseCase;
-import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.application.port.out.WebhookEndpointRepository;
 import com.example.billing.domain.shared.CustomerId;
 import com.example.billing.domain.webhook.WebhookEndpoint;
@@ -25,13 +24,13 @@ import java.time.Clock;
 public class RegisterWebhookEndpointService implements RegisterWebhookEndpointUseCase {
 
     private final WebhookEndpointRepository endpoints;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final Clock clock;
 
     @Override
     @Transactional
     public WebhookEndpoint register(RegisterWebhookEndpointCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
 
         WebhookEndpoint endpoint = WebhookEndpoint.register(
                 CustomerId.of(cmd.customerId()),

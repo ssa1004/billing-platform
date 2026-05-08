@@ -133,12 +133,28 @@ public final class WebhookEndpoint {
             throw new IllegalArgumentException("url must not be blank");
         }
         // production 은 https 강제. 로컬 / 테스트 (http://localhost) 만 예외.
-        boolean https = url.startsWith("https://");
-        boolean localhost = url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1");
-        if (!https && !localhost) {
-            throw new IllegalArgumentException(
-                    "url must be https (or http://localhost for dev): " + url);
+        // 호스트 경계까지 정확히 매칭 — "http://localhost.evil.com" 같은 prefix 우회 방어.
+        if (url.startsWith("https://")) return;
+        if (isLocalhostHttp(url)) return;
+        throw new IllegalArgumentException(
+                "url must be https (or http://localhost for dev): " + url);
+    }
+
+    private static boolean isLocalhostHttp(String url) {
+        // host 부분만 추출해서 정확히 일치 여부를 확인.
+        if (!url.startsWith("http://")) return false;
+        String afterScheme = url.substring("http://".length());
+        // 호스트 종료 문자: ":" (port), "/" (path), "?" (query), "#" (fragment), 끝.
+        int hostEnd = afterScheme.length();
+        for (int i = 0; i < afterScheme.length(); i++) {
+            char c = afterScheme.charAt(i);
+            if (c == ':' || c == '/' || c == '?' || c == '#') {
+                hostEnd = i;
+                break;
+            }
         }
+        String host = afterScheme.substring(0, hostEnd);
+        return "localhost".equals(host) || "127.0.0.1".equals(host);
     }
 
     private static String generateSecret() {

@@ -129,8 +129,10 @@ CREATE TABLE outbox (
 CREATE INDEX idx_outbox_unpublished ON outbox (published_at, created_at);
 
 -- ────────────────────────────────────────────────────────
--- IDEMPOTENCY_KEYS — 클라이언트 재시도가 두 번 처리되는 것을 막아주는 키 저장소
--- (Redis NX 와 별개로 DB 기준에서도 영구 보존, Redis 장애 시 DB 가 마지막 방어선)
+-- IDEMPOTENCY_KEYS — 초기에 "Redis 장애 시 DB 폴백" 용도로 잡아 두었지만, 실제 코드에서는
+-- 사용하지 않아 V10 에서 DROP 합니다. 새 환경 부팅 시 V1 → V10 순으로 적용되므로 결과는
+-- 동일하게 테이블 없음. 폴백을 다시 도입하게 되면 그때 새 migration 으로 추가하는 것이
+-- 의도가 명확합니다.
 -- ────────────────────────────────────────────────────────
 CREATE TABLE idempotency_keys (
     key_value       VARCHAR(128) PRIMARY KEY,

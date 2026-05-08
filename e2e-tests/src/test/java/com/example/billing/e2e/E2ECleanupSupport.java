@@ -23,7 +23,6 @@ abstract class E2ECleanupSupport {
         jdbc.execute("""
                 TRUNCATE TABLE
                   outbox,
-                  idempotency_keys,
                   dlq_replay_log,
                   ledger_entries,
                   refunds,

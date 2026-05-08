@@ -54,9 +54,16 @@ public class OutboxRelay {
 
         int published = 0;
         for (OutboxJpaEntity msg : batch) {
-            if (publish(msg)) {
-                outboxRepository.markPublished(msg.getId(), clock.instant());
-                published++;
+            // 한 메시지 처리 중 *예상 못한* RuntimeException 이 발생해도 전체 batch 가 죽지
+            // 않도록 격리. 다음 polling 에서 같은 메시지를 다시 시도 (at-least-once).
+            try {
+                if (publish(msg)) {
+                    outboxRepository.markPublished(msg.getId(), clock.instant());
+                    published++;
+                }
+            } catch (RuntimeException e) {
+                log.warn("outbox relay unexpected error id={} type={} skipping",
+                        msg.getId(), msg.getEventType(), e);
             }
         }
         if (published > 0) log.debug("outbox relay published {}/{}", published, batch.size());

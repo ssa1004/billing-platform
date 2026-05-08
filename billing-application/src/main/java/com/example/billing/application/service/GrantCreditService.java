@@ -5,7 +5,6 @@ import com.example.billing.application.port.in.AuditLogger;
 import com.example.billing.application.port.in.GrantCreditUseCase;
 import com.example.billing.application.port.out.CreditRepository;
 import com.example.billing.application.port.out.EventPublisher;
-import com.example.billing.application.port.out.IdempotencyKeyStore;
 import com.example.billing.domain.audit.AuditAction;
 import com.example.billing.domain.audit.AuditActor;
 import com.example.billing.domain.credit.Credit;
@@ -35,14 +34,14 @@ public class GrantCreditService implements GrantCreditUseCase {
 
     private final CreditRepository credits;
     private final EventPublisher events;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final AuditLogger audit;
     private final Clock clock;
 
     @Override
     @Transactional
     public Credit grant(GrantCreditCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
         Credit credit = Credit.grant(
                 CustomerId.of(cmd.customerId()),
                 cmd.type(),

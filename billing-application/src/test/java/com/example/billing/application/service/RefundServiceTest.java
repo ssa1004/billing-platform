@@ -22,6 +22,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionException;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -43,6 +48,21 @@ class RefundServiceTest {
     private static final Currency KRW = Currency.getInstance("KRW");
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-05-04T10:00:00Z"), ZoneOffset.UTC);
 
+    private static final PlatformTransactionManager NO_OP_TX_MANAGER = new PlatformTransactionManager() {
+        @Override
+        public TransactionStatus getTransaction(TransactionDefinition definition) throws TransactionException {
+            return new SimpleTransactionStatus();
+        }
+
+        @Override
+        public void commit(TransactionStatus status) throws TransactionException {
+        }
+
+        @Override
+        public void rollback(TransactionStatus status) throws TransactionException {
+        }
+    };
+
     @Mock PaymentRepository payments;
     @Mock RefundRepository refunds;
     @Mock OrderRepository orders;
@@ -56,7 +76,7 @@ class RefundServiceTest {
     @BeforeEach
     void setUp() {
         service = new RefundService(payments, refunds, orders, pgClient, events, idempotency,
-                audit, CLOCK);
+                audit, CLOCK, NO_OP_TX_MANAGER);
     }
 
     private Order paidOrder() {
@@ -74,6 +94,12 @@ class RefundServiceTest {
 
         when(payments.findById(payment.id())).thenReturn(Optional.of(payment));
         when(orders.findById(order.id())).thenReturn(Optional.of(order));
+        // Phase 1 의 save 로 점유한 Refund 를 Phase 3 가 다시 로드
+        doAnswer(inv -> {
+            Refund r = inv.getArgument(0);
+            when(refunds.findById(r.id())).thenReturn(Optional.of(r));
+            return null;
+        }).when(refunds).save(any(Refund.class));
         when(pgClient.refund(any())).thenReturn(PgClient.RefundResult.approved("pg-refund-1"));
 
         Refund r = service.refund(new RefundCommand("k1", payment.id(), "user request"));
@@ -90,6 +116,11 @@ class RefundServiceTest {
         payment.approve("pg-tx-1", CLOCK);
 
         when(payments.findById(payment.id())).thenReturn(Optional.of(payment));
+        doAnswer(inv -> {
+            Refund r = inv.getArgument(0);
+            when(refunds.findById(r.id())).thenReturn(Optional.of(r));
+            return null;
+        }).when(refunds).save(any(Refund.class));
         when(pgClient.refund(any())).thenReturn(PgClient.RefundResult.rejected("PG offline"));
 
         Refund r = service.refund(new RefundCommand("k1", payment.id(), "user"));

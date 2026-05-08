@@ -28,6 +28,9 @@ dependencies {
 
     // Tracing
     implementation("io.micrometer:micrometer-tracing")
+    // Metrics — ApiVersionMetricsFilter (ADR-0031). spring-boot-starter-actuator 는 bootstrap
+    // 모듈에만 있으므로 여기는 micrometer-core 만 직접 의존.
+    implementation("io.micrometer:micrometer-core")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")

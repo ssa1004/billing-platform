@@ -59,7 +59,7 @@ B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 �
 
 ## 핵심 설계 결정
 
-설계 결정의 상세 배경은 [docs/adr/](docs/adr/)의 ADR 22건에 정리되어 있습니다. 빌링
+설계 결정의 상세 배경은 [docs/adr/](docs/adr/)의 ADR 32건에 정리되어 있습니다. 빌링
 도메인 특화 결정은 다음과 같습니다.
 
 - [ADR-0013: 정산 동시성 — Postgres advisory lock](docs/adr/0013-settlement-advisory-lock.md)
@@ -112,7 +112,7 @@ Spring Modulith가 모듈 간 의존 방향을 빌드 시점에 검증합니다.
 graph LR
     in[billing-adapter-in<br/>REST 컨트롤러<br/>Kotlin]
     app[billing-application<br/>유스케이스 + 포트]
-    domain[billing-domain<br/>13개 도메인 sub-package]
+    domain[billing-domain<br/>14개 도메인 sub-package + shared]
     out[billing-adapter-out<br/>JPA + Outbox + PG + AdvisoryLock]
     batch[billing-batch<br/>Spring Batch]
     boot[billing-bootstrap<br/>Boot main + Flyway]
@@ -142,6 +142,7 @@ graph LR
 | `settlement` | 정산 실행 (SettlementRun, BillingPeriod) |
 | `budget` | 예산 알림 규칙과 트리거 이력 |
 | `webhook` | 고객사 webhook endpoint와 전송 상태 |
+| `audit` | 운영 감사 로그 (append-only, who/when/what) |
 | `shared` | Money, CustomerId, DomainEvent 등 공통 VO |
 
 ## 실행 방법
@@ -215,11 +216,14 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
   local/dev 는 NoOp 으로 대체)
 - OAuth2 Resource Server (JWT 토큰 검증) 인증 (local/dev 는 모두 통과)
 - Outbox Relay (DB 의 outbox 테이블에서 메시지를 읽어 Kafka 로 보내는 워커) 활성화
+- Read-replica 라우팅 — 읽기 전용 트랜잭션은 replica 로 ([ADR-0025](docs/adr/0025-read-replica-routing.md))
+- ThreadPool Bulkhead — PG / webhook / audit-export 도메인별 worker pool 격리 ([ADR-0026](docs/adr/0026-bulkhead-thread-pool-isolation.md))
+- Audit log — 도메인 변경 이벤트의 append-only 기록 ([ADR-0023](docs/adr/0023-audit-log.md))
 
 ## 향후 개선 사항
 
 - 사용량 집계를 streaming aggregation으로 전환 (Kafka Streams) — 대용량 고객 대응
-- 멀티테넌시 — schema-per-tenant vs row-level (현재는 row-level + customer_id)
+- schema-per-tenant 옵션 — 현재는 row-level (`customer_id`, [ADR-0017](docs/adr/0017-multi-tenancy-row-level.md))
 - 가격 변경 알림 — 요금제 변경 시 고객에게 사전 통지하는 워크플로
 - Invoice PDF 생성 + 이메일 발송
-- 미수금 대시보드 + 자동 추심 워크플로
+- 미수금 대시보드 자동 추심 — 현재는 조회 API ([AgedReceivablesController](billing-adapter-in/src/main/kotlin/com/example/billing/adapter/web/AgedReceivablesController.kt)) 까지

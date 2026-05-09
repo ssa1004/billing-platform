@@ -20,6 +20,8 @@ abstract class E2ECleanupSupport {
 
     @BeforeEach
     void truncateAllDomainTables() {
+        // audit_entries 의 BEFORE UPDATE/DELETE 트리거는 TRUNCATE 를 막지 않는다 (트리거 적용
+        // 범위 밖). 트리거를 건드릴 필요 없이 그냥 같은 TRUNCATE 로 비운다.
         jdbc.execute("""
                 TRUNCATE TABLE
                   outbox,
@@ -34,7 +36,8 @@ abstract class E2ECleanupSupport {
                   settlement_runs,
                   pricing_plans,
                   aggregated_usage,
-                  usage_events
+                  usage_events,
+                  audit_entries
                 RESTART IDENTITY CASCADE
                 """);
     }

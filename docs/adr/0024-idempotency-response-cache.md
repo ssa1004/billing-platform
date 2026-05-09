@@ -1,4 +1,4 @@
-# ADR-0024: Idempotency-Key 응답 캐싱 (Stripe 24h 패턴)
+# ADR-0024: Idempotency-Key 응답 캐싱 (24h)
 
 ## 상태
 적용
@@ -20,9 +20,9 @@ ADR-0006 의 Idempotency-Key (같은 요청이 두 번 와도 한 번만 처리�
 결제는 됐는데 다시 결제하라고 유도하는 사고가 발생합니다. 별도 조회 API 로 상태 확인하는
 복잡한 흐름을 클라이언트가 구현해야 함.
 
-업계 표준 (Stripe / 토스페이먼츠 / 네이버페이 / iamport) 은 **같은 키 재시도 시 처음 응답을
-그대로 24h 동안 반환**합니다. 두 번째 요청도 첫 번째와 *완전히 동일한* status / body 를
-받아 정합. 클라이언트는 같은 키로 무한 재시도해도 안전.
+결제 API 의 표준 패턴은 **같은 키 재시도 시 처음 응답을 그대로 24h 동안 반환** — 대표 출처로
+Stripe API 의 Idempotency-Key 명세 (24h 응답 캐시) 가 잘 알려져 있습니다. 두 번째 요청도 첫
+번째와 *완전히 동일한* status / body 를 받아 정합. 클라이언트는 같은 키로 무한 재시도해도 안전.
 
 ## 결정
 
@@ -54,14 +54,14 @@ GraphQL / 다른 도메인 추가는 별도 검토.
 응답 본문이 16KB 를 넘으면 cache skip (정상 처리는 그대로). 결제 / 환불 응답은 1~2KB 수준이라
 cap 내에서 거의 모두 cover. PDF / CSV 같은 streaming 응답은 자연스럽게 우회.
 
-Stripe 도 명세에 cap 명시는 없으나 실측 응답이 1~2KB. 16KB 면 충분.
+결제 API 응답 본문은 보통 1~2KB 수준. 16KB cap 이면 충분.
 
 ### 24h TTL
 
 - 결제 timeout retry 는 보통 수 초 ~ 수 분 단위 (모바일 push 알림 retry 도 길어야 1시간).
 - 24h 면 거의 모든 정상 retry 시나리오 cover.
 - TTL 길수록 Redis 메모리 증가 — 결제 1건당 ~ 1~2KB × 24h 트래픽.
-- Stripe / 토스페이먼츠 모두 24h.
+- 24h 는 결제 API 의 사실상 기본값 (Stripe Idempotency-Key 명세 등 대표 출처).
 
 ### 4xx / 5xx 는 cache 안 함
 
@@ -98,8 +98,8 @@ path 를 자연스럽게 표현.
 
 ### Replay 헤더 (Idempotent-Replayed: true)
 
-캐시 hit 응답에는 `Idempotent-Replayed: true` 헤더 추가. Stripe 와 동일 명세. 클라이언트가
-"이건 새 처리가 아닌 replay" 라는 점을 인지할 수 있어 metric / 로그 분기 가능.
+캐시 hit 응답에는 `Idempotent-Replayed: true` 헤더 추가. 결제 API 의 통상적인 명세를 따름.
+클라이언트가 "이건 새 처리가 아닌 replay" 라고 인지할 수 있어 metric / 로그 분기 가능.
 
 ## 대안 검토
 
@@ -119,7 +119,7 @@ path 를 자연스럽게 표현.
 
 - 클라이언트가 같은 키 재시도해도 *완전히 동일한 응답* 을 받아 정합 사고 회피.
 - 클라이언트 코드가 단순해짐 (별도 status 조회 불필요).
-- Stripe / 토스페이먼츠 표준에 맞춘 호환성 — 외부 통합 시 친숙.
+- 결제 API 표준 (24h 응답 캐시 + Idempotent-Replayed 헤더) 호환 — 외부 통합 시 친숙.
 - 16KB cap 으로 메모리 폭주 차단.
 - (단점) Redis 메모리 증가 — 결제/환불 1건당 ~ 1~2KB × 24h 트래픽. 운영 6개월 후 cap 재검토.
 - (단점) Filter 가 critical path 위에 추가됨 — cache lookup 1회 (Redis ping) 가 latency 에
@@ -129,8 +129,8 @@ path 를 자연스럽게 표현.
 
 ## 후속 후보
 
-- ~~Request body fingerprint 검증 — 같은 키인데 본문이 다르면 *오용* (client bug) 으로 간주, 422.
-  Stripe 가 적용 중인 추가 안전장치.~~ → ADR-0028 에서 적용.
+- ~~Request body fingerprint 검증 — 같은 키인데 본문이 다르면 *오용* (client bug) 으로 간주,
+  422 로 즉시 알림.~~ → ADR-0028 에서 적용.
 - Cache miss 시 점유 lock + cache 의 atomic 한 묶음 — Redis Lua script 로 `SET NX` + cache
   를 한 번에. 현재는 둘이 별도 호출이라 race window 가 짧게 존재.
 - `Idempotency-Key` 형식 검증 (UUID-like, length cap) 추가.

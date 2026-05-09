@@ -4,7 +4,7 @@ import java.security.MessageDigest
 import java.util.HexFormat
 
 /**
- * 요청 본문의 SHA-256 fingerprint — Stripe 식 *Idempotency-Key + 다른 본문* 검출에 사용.
+ * 요청 본문의 SHA-256 fingerprint — *Idempotency-Key 는 같은데 본문이 다른* 사고 검출에 사용.
  *
  * <p><b>왜 SHA-256 prefix 16 byte 인가</b>:</p>
  * <ul>
@@ -19,9 +19,9 @@ import java.util.HexFormat
  * 같은 fingerprint = 거의 같은 body (충돌 무시), 다른 fingerprint = 확실히 다른 body — 우리에게
  * 필요한 모든 동작.
  *
- * <p><b>timing-safe 비교 ({@link MessageDigest#isEqual})</b>: Stripe / 토스페이먼츠는 비교 자체를
- * timing-safe 로 함. 우리 use-case 는 *공격* 이 아닌 *client bug 검출* 이라 timing attack 위험은
- * 낮지만, 표준 패턴 따르기 + 향후 secret 비교에 동일 utility 재사용 여지를 고려해 timing-safe.
+ * <p><b>timing-safe 비교 ({@link MessageDigest#isEqual})</b>: 우리 use-case 는 *공격* 이 아닌
+ * *client bug 검출* 이라 timing attack 위험은 낮지만, 표준 보안 패턴 따르기 + 향후 secret 비교에
+ * 동일 utility 재사용 여지를 고려해 timing-safe.
  *
  * <p>ADR-0028 참고.</p>
  */

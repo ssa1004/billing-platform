@@ -30,9 +30,9 @@
 - 운영 중에 *처음으로* v1/v2 routing 을 도입하려 하면, 모든 controller 를 한꺼번에 수정해야
   하는 큰 작업이 되어 *변경 위험* 자체가 큽니다.
 
-업계 표준 — Stripe / GitHub / 토스페이먼츠 / 카카오 모두 *처음부터 path-based versioning*.
-필요 없을 때도 `/v1/` 을 박아두는 게 *기본*. 미리 갖춰두는 비용은 path prefix 한 줄, 얻는 건
-schema 변경 시점의 *grace 6개월 마이그레이션 여유*.
+업계에 자리 잡은 관행 — 외부 client 가 붙는 공개 REST API 는 *처음부터 path-based versioning*
+을 쓰는 경우가 일반적. 필요 없을 때도 `/v1/` 을 박아두는 게 기본. 미리 갖춰두는 비용은 path
+prefix 한 줄, 얻는 건 schema 변경 시점의 *grace 6개월 마이그레이션 여유*.
 
 ## 결정
 
@@ -56,9 +56,9 @@ v1 과 v2 는 *별도 controller, 별도 DTO*. 같은 도메인 객체를 각자
 | client 디버깅 | curl 로 즉시 재현 | curl + 헤더 옵션 필요 |
 | 깔끔함 (idealist) | URL 에 *resource 가 아닌* 정보 (버전) 가 박힘 | Accept 헤더의 본래 의도와 부합 |
 
-depending on philosophy 문제지만 *운영 편의 + 업계 관례* 가 path-based 손을 들어주고 있습니다.
-GitHub 가 헤더 기반에서 path 기반으로 *마이그레이션* 한 사례가 결정적 — "헤더 기반은 디버깅이
-괴롭다" 가 운영 1년 차의 결론.
+철학에 따라 갈리는 문제지만, *운영 편의 + 업계 관례* 가 path-based 손을 들어주고 있습니다.
+실제로 헤더 기반 versioning 을 쓰다 path 기반으로 옮긴 공개 API 사례가 여럿 있고, "헤더 기반은
+디버깅이 괴롭다" 가 운영 1년 차의 공통된 결론.
 
 ### v2 도입 시범 — invoice 단건/목록 조회
 
@@ -148,7 +148,8 @@ private fun parseVersionAndResource(uri: String): Pair<String?, String> {
 유지하는 게 *변경 risk 와 코드 양 모두 최소*. 시간이 지나 필요한 endpoint 들이 전부 v2 로
 이전됐을 때 v1 통째 sunset.
 
-GitHub 의 v3 → v4 GraphQL 마이그레이션이 정확히 이 패턴 — v3 는 7년 grace 후 sunset.
+REST → GraphQL 같은 큰 전환을 단행한 공개 API 들도 이 패턴을 따랐습니다 — 구 버전을 수년간
+유지한 뒤 점진 sunset.
 
 ## 다시 검토할 시점
 

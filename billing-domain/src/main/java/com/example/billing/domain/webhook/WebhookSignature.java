@@ -14,11 +14,11 @@ import java.util.HexFormat;
  * 공격* 방지. customer 는 timestamp 가 너무 오래된 (예: 5분 이상) 요청은 거절하면 됨.
  *
  * <p><b>서명 알고리즘</b>: {@code HMAC-SHA256(secret, "{timestamp}.{body}")}
- * Stripe / GitHub / Slack 모두 같은 식. customer side 검증 코드도 짧게 끝남.
+ * webhook 발신 SaaS 가 보편적으로 채택한 형식. customer side 검증 코드도 짧게 끝남.
  *
  * <p><b>헤더 형식</b>: {@code X-Webhook-Signature: sha256=<hex>}<br>
  * 알고리즘 prefix 를 두는 건 나중에 SHA-512 / Ed25519 같은 걸로 갈아탈 때 backward-compatible
- * 하게 운영하기 위함 (Stripe v1=, t= 형식과 비슷한 의도).
+ * 하게 운영하기 위함 (signature scheme + timestamp 를 같은 헤더에 묶는 일반 관례를 따름).
  */
 public final class WebhookSignature {
 

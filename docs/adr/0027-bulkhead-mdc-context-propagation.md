@@ -6,7 +6,7 @@
 ## 배경
 
 ADR-0026 의 ThreadPoolBulkhead 격리는 PG / webhook / audit-export 호출을 *별도 worker pool*
-에서 실행. Cascade 차단 효과는 분명한데 *관측 가능성* 한 가지가 누락됐습니다.
+에서 실행. 장애 전파 차단 효과는 분명한데 *관측 가능성* 한 가지가 누락됐습니다.
 
 ### 문제 — worker thread 에 MDC 가 없음
 
@@ -30,9 +30,9 @@ ThreadPoolBulkhead 가 caller (servlet / 가상 스레드) 의 작업을 별도 
 
 ### 운영에서 본 같은 패턴
 
-- Netflix 의 Hystrix → 같은 cascade 차단 효과 + 자체 ContextPropagator 명세.
+- Resilience4j 자체가 `ContextPropagator` 인터페이스를 표준 명세로 제공.
 - Spring Cloud Sleuth (legacy) / Micrometer Tracing → `TraceableExecutorService` 로 wrap.
-- 카카오 / Line 의 webhook fan-out 시스템도 같은 문제로 propagator 적용 사례 있음.
+- 분산 추적이 도입된 webhook fan-out 시스템들은 어디서나 같은 propagator 패턴이 필요해집니다.
 
 ## 결정
 

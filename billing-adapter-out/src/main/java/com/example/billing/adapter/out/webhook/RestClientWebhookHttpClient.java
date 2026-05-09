@@ -53,8 +53,8 @@ public class RestClientWebhookHttpClient implements WebhookHttpClient {
     public Outcome send(WebhookEndpoint endpoint, WebhookDelivery delivery) {
         long timestamp = clock.instant().getEpochSecond();
         // grace window 안이면 두 secret 으로 각각 서명한 두 값을 같은 헤더에 콤마 구분으로 실음.
-        // Stripe 의 t=12345,v1=newhash,v1=oldhash 와 같은 의도 — customer 가 두 값 중 어느 것이든
-        // 자기 측 secret 으로 일치하면 통과. ADR-0029 참고.
+        // 한 헤더 안에 콤마로 두 서명을 결합하는 webhook 표준 형식 — customer 가 두 값 중 어느
+        // 것이든 자기 측 secret 으로 일치하면 통과. ADR-0029 참고.
         String signatureHeader = endpoint.activeSecrets(clock).stream()
                 .map(secret -> WebhookSignature.sign(secret, timestamp, delivery.payload()))
                 .reduce((a, b) -> a + "," + b)

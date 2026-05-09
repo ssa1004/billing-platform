@@ -19,7 +19,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * DataSource 에서 connection 을 *즉시* 잡습니다. RoutingDataSource 가 readOnly flag 를 보려면
  * connection 획득이 *트랜잭션 동기화 setup 이후* 로 늦춰져야 합니다.
  * {@code LazyConnectionDataSourceProxy} 가 connection 획득을 첫 SQL 호출 시점까지 늦춰주는
- * 표준 트릭입니다 (Spring 가이드 / 토스/카카오의 실제 운영 패턴 동일).</p>
+ * Spring 진영의 표준 트릭입니다.</p>
  *
  * <p><b>왜 트랜잭션 없음 (no @Transactional) 도 master 인가</b>: replication lag (slave 가 master
  * 보다 늦음) 를 명시적으로 인지한 read 만 replica 로 보내는 정책. {@code @Transactional} 없이

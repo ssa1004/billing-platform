@@ -12,12 +12,12 @@ PricingPlan 은 변경될 수 있습니다 (기업 고객 협상으로 요금제
 - **변경 시 새 PricingPlan row 를 추가 (effective_from 컬럼으로 시작 시점 표기)**: 이미
   적용 중. 하지만 invoice 가 plan id 만 참조하면, plan 행이 수정되었을 때 (실수로 update
   등) 과거 invoice 가 영향을 받음
-- **Invoice 안에 사용된 가격 정보를 박제해서 저장 (snapshot)**: invoice 가 PricingSnapshot
-  을 자체 보유. plan 행이 어떻게 바뀌어도 무관
+- **Invoice 안에 사용된 가격 정보를 그 시점 그대로 저장 (snapshot)**: invoice 가
+  PricingSnapshot 을 자체 보유. plan 행이 어떻게 바뀌어도 무관
 
 ## 결정
 
-`PricingSnapshot` (그 시점 요금표를 통째로 박제한 값 객체) 을 `Invoice` 에 포함시켜 JSON
+`PricingSnapshot` (그 시점 요금표를 그대로 보관한 값 객체) 을 `Invoice` 에 포함시켜 JSON
 으로 직렬화 저장.
 
 ```java

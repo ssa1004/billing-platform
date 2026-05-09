@@ -16,7 +16,7 @@ SIEM export, audit timeline 조회 같은 무거운 query 가 *master* 한 곳�
   pool wait 에 걸림 → 결제 latency 가 P99 에서 초 단위로 튐.
 - 회계 리포트 batch 가 월말에 *invoice 수개월치* 를 한꺼번에 SELECT — 같은 효과.
 
-업계 표준 (카카오 / Line / 토스 / Stripe) 은 master / replica 분리 — write 는 master, read 는
+읽기 부하가 큰 OLTP 시스템의 표준 처방은 master / replica 분리 — write 는 master, read 는
 replica. Spring 진영의 표준 패턴은 `AbstractRoutingDataSource` 로 `@Transactional(readOnly =
 true)` 를 hint 삼아 자동 라우팅하는 방식.
 

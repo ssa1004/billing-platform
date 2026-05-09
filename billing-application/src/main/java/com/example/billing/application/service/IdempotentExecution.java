@@ -27,7 +27,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * 트랜잭션이 active 가 아니면 훅이 등록되지 않아 단순 acquire 와 같아지므로, 이 경우 release
  * 책임은 호출자에게 넘어갑니다.</p>
  *
- * <p><b>응답 캐시 (24h, Stripe 패턴)</b>는 별도 계층에서 처리합니다 — 인터셉터
+ * <p><b>응답 캐시 (24h, 결제 API 표준 패턴)</b>는 별도 계층에서 처리합니다 — 인터셉터
  * ({@code IdempotencyResponseCacheFilter}) 가 들어올 때 hit 체크, 나갈 때 store.
  * 이 helper 는 점유 (lock) 만 책임. ADR-0024 참고.</p>
  */

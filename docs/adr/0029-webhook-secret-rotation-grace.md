@@ -6,7 +6,7 @@
 ## 배경
 
 ADR-0022 의 webhook 발신은 endpoint 마다 secret 을 두고 HMAC-SHA256 으로 본문에 서명합니다.
-customer 는 자기가 보관한 같은 secret 으로 검증해 *진짜 우리* 가 보낸 webhook 인지 판정.
+customer 는 자기가 보관한 같은 secret 으로 검증해 우리 시스템이 보낸 webhook 인지 판정.
 
 Secret 갱신 (rotation) 은 *분실 / 노출 / 정기 갱신* 시 운영 표준 흐름. 기존 구현은:
 
@@ -34,14 +34,14 @@ public void rotateSecret(Clock clock) {
 
 ### 업계 표준 — grace window
 
-Stripe / GitHub / 토스페이먼츠 / 카카오워크 모두 같은 패턴:
+Webhook 을 발송하는 SaaS 가 공통적으로 쓰는 패턴:
 
 - Rotation 시 새 secret 을 *current* 로 활성, 이전 secret 을 *previousSecret* 으로 demote.
 - 24h grace 동안 *두 secret 모두 유효* — 발신 측은 두 secret 으로 각각 서명한 두 값을 같은
   헤더에 콤마로 결합해 보냄. customer 가 *어느 한 쪽이라도* 자기 secret 과 일치하면 검증 통과.
 - 24h 후 previousSecret 자동 만료. 그 시점에 customer 는 새 secret 으로 업데이트되어 있어야 함.
 
-Stripe 의 헤더 형식 참고:
+Stripe 의 헤더 형식이 같은 의도의 표준 사례 (헤더 한 개에 콤마로 두 값 결합):
 
 ```
 Stripe-Signature: t=1612480200,v1=NEW_HASH,v1=OLD_HASH
@@ -136,7 +136,7 @@ previousSecret 이 됨. 3개 이상 동시 활성은 운영 복잡도만 키우�
 1. **활성 검증 시 자동 제외** — `activeSecrets(clock)` 가 grace 만료 secret 을 자동으로 빼버림.
    영속 row 에는 남아있지만 *검증/서명에는 영향 없음*. 보안적으로 안전.
 2. **명시적 cleanup** — cron / on-demand 로 `expirePreviousSecretIfDue` 호출해 row 정리.
-   필수는 아니고 *운영 위생* 목적.
+   필수는 아니고 *DB row 정돈* 목적.
 
 이중 layer 라 cleanup 작업이 한 번 빠져도 보안 사고 안 남.
 
@@ -149,7 +149,7 @@ previousSecret 이 됨. 3개 이상 동시 활성은 운영 복잡도만 키우�
 
 - **24h 미만 (1h, 6h)**: customer 운영팀이 야간 / 주말에 secret 교체 못 하는 케이스 발견. customer
   CS 부담 증가.
-- **24h**: Stripe / GitHub 표준. customer 가 *영업일 안에 한 번만* 작업하면 충분.
+- **24h**: 업계에 자리 잡은 기본값. customer 가 *영업일 안에 한 번만* 작업하면 충분.
 - **24h 초과 (72h, 7d)**: secret 노출 시나리오에서 *오래 활성 유지* 가 위험. 24h 가 균형점.
 
 긴급 노출 케이스에는 `rotateSecret(clock, Duration.ofMinutes(5))` 같이 짧은 grace 호출 (테스트 / 운영
@@ -161,8 +161,8 @@ previousSecret 이 됨. 3개 이상 동시 활성은 운영 복잡도만 키우�
 - **이전 secret 을 영원히 유지** (chain 식): 보안적으로 위험. 분실 secret 이 만료되지 않으면
   공격자가 그 secret 으로 영원히 위조 webhook 보낼 수 있음.
 - **두 secret 을 별도 *헤더* 로**: `X-Webhook-Signature` 와 `X-Webhook-Signature-Old`. 동작은
-  같지만 customer 측에서 두 헤더를 따로 처리해야 — 표준 SDK 와 호환 깨짐. Stripe 식 *콤마 결합*
-  이 한 헤더라 코드 단순.
+  같지만 customer 측에서 두 헤더를 따로 처리해야 — 표준 SDK 와 호환 깨짐. *한 헤더 안에 콤마로
+  결합* 하는 쪽이 코드가 단순.
 - **AsymmetricKey (Ed25519) 기반 서명**: customer 가 우리 *공개키* 로만 검증 — secret 갱신 시
   공개키만 교체. 그러나 Ed25519 라이브러리 의존성 / customer 측 구현 부담 증가. webhook 표준은
   여전히 HMAC.
@@ -172,7 +172,8 @@ previousSecret 이 됨. 3개 이상 동시 활성은 운영 복잡도만 키우�
 ## 결과
 
 - Rotation 의 *deployment overlap* 사라짐 — customer 가 24h 안에 새 secret 반영하면 끊김 없음.
-- Stripe / GitHub 표준에 호환 — customer 가 다른 SaaS 와 같은 검증 코드 패턴 사용 가능.
+- 업계에서 통용되는 헤더 형식 (한 헤더 안에 콤마로 두 서명 결합) 과 호환 — customer 가 다른
+  SaaS 와 같은 검증 코드 패턴 사용 가능.
 - DB CHECK 제약으로 invariant 강제 — 한쪽 컬럼만 set 인 row 자체를 거부.
 - Lazy cleanup + 자동 제외 이중 layer — cleanup 작업 미실행 시에도 보안 안전.
 - (단점) Webhook 헤더 크기 증가 — 두 서명 = 약 200 byte. 정상 운영 영향 없음.

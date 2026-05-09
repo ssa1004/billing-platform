@@ -35,8 +35,8 @@ WebhookDelivery   ─┘  한 이벤트 × 한 endpoint 의 전송 시도 (retry
 ### HMAC 서명 (HMAC = Hash-based Message Authentication Code, 비밀 키와 메시지로 만든 위조
 방지 서명)
 
-- **알고리즘**: `HMAC-SHA256(secret, "{timestamp}.{body}")` — Stripe / GitHub / Slack 표준
-  패턴. customer 도 같은 식으로 다시 계산해 헤더 값과 일치하는지만 보면 검증 끝.
+- **알고리즘**: `HMAC-SHA256(secret, "{timestamp}.{body}")` — webhook 발신 SaaS 가 보편적으로
+  쓰는 형식. customer 도 같은 식으로 다시 계산해 헤더 값과 일치하는지만 보면 검증 끝.
 
 - **헤더 형식**: `X-Webhook-Signature: sha256=<hex>`
   `sha256=` 접두사가 있는 이유: 나중에 SHA-512 / Ed25519 같은 다른 알고리즘으로 갈아탈 때

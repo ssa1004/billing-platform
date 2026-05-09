@@ -21,7 +21,7 @@ import java.util.Set;
  * URL 로 HTTP POST 가 갑니다.
  *
  * <p><b>secret 이 endpoint 단위로 있는 이유 (HMAC 서명 검증)</b>: customer 서버가 "이 요청이
- * 진짜 우리 billing 시스템에서 온 게 맞나" 를 검증하기 위해 필요. 동작은:
+ * 우리 billing 시스템에서 온 게 맞나" 를 검증하기 위해 필요. 동작은:
  * <ol>
  *   <li>등록 시 우리가 256-bit 무작위 secret 을 생성 — 응답에 *한 번만 평문으로* 노출.
  *       customer 는 자기 서버에 그 secret 을 보관.</li>
@@ -32,7 +32,7 @@ import java.util.Set;
  * </ol>
  *
  * <p><b>Secret rotation + grace window (ADR-0029)</b>: 분실 / 노출 / 정기 갱신 시
- * {@link #rotateSecret} 으로 새 secret 발급. 운영 표준 (Stripe / GitHub / 토스페이먼츠) 은:
+ * {@link #rotateSecret} 으로 새 secret 발급. webhook 발신 SaaS 의 표준 흐름:
  * <ul>
  *   <li>새 secret 을 *current secret* 으로 활성.</li>
  *   <li>이전 secret 을 *previousSecret* 으로 demote — 24h grace window 동안 *함께 유효*.</li>

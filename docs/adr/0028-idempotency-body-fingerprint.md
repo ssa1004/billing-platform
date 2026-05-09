@@ -1,4 +1,4 @@
-# ADR-0028: Idempotency 키 + 본문 fingerprint 검증 (Stripe 식 422)
+# ADR-0028: Idempotency 키 + 본문 fingerprint 검증 (mismatch 시 422)
 
 ## 상태
 적용
@@ -31,9 +31,10 @@ await api.payments.create({
 이게 *idempotency key 의 오용* — 같은 키는 *완전히 동일한 요청* 의 재시도여야 한다는 명세를
 client 가 위반한 사례. 서버는 이걸 *침묵으로 받아들임* — 캐시 hit 만 보고 응답하니까.
 
-### 업계 표준 — Stripe 의 422
+### 업계 표준 — 422 응답으로 즉시 알림
 
-Stripe 는 같은 idempotency key 로 *다른 parameters* 가 오면:
+Stripe API 는 같은 idempotency key 로 *다른 parameters* 가 오면 다음 응답을 표준으로 정의 —
+대표 출처로 인용:
 
 ```
 HTTP/1.1 422 Unprocessable Entity
@@ -45,8 +46,8 @@ HTTP/1.1 422 Unprocessable Entity
 }
 ```
 
-→ client 가 *즉시* bug 를 인지. 새 키로 재시도하면 정상 처리. GitHub / Square / Adyen 도 동일
-명세.
+→ client 가 *즉시* bug 를 인지. 새 키로 재시도하면 정상 처리. 같은 명세를 채택하는 결제 / API
+플랫폼이 다수 있어 client SDK 호환에 유리.
 
 ## 결정
 
@@ -153,11 +154,11 @@ ADR-0024 의 release 시나리오 — 첫 요청이 검증 실패로 rollback. �
 - *완전히 동일한 byte* 의 retry 만 같은 처리 보장.
 - 의미적 동등성 (semantic equality) 까지 검증하려면 body 정규화 (canonical JSON) 필요한데:
   - JSON 키 순서, 공백, 숫자 표현 (`1000` vs `1.0e3`) 등 normalization 복잡.
-  - 가짜 동등성 (의도는 같은데 형식 약간 다른) 으로 *진짜 다른 의도* 가 통과되는 위험.
-  - Stripe / Square 도 raw byte 만 비교.
+  - 가짜 동등성 (의도는 같은데 형식이 약간 다른) 으로 의도가 다른 요청이 통과되는 위험.
+  - 업계 표준 결제 API 도 raw byte 비교만 한다는 점이 참고가 됨.
 
 → Client 가 같은 키로 retry 할 때는 *원본 byte 그대로* 보내야 한다는 명세를 client 측에서 유지.
-대부분의 SDK (Stripe SDK 포함) 가 retry 시 같은 직렬화를 보장.
+대부분의 결제 SDK 가 retry 시 같은 직렬화를 보장.
 
 ## 대안 검토
 
@@ -176,7 +177,8 @@ ADR-0024 의 release 시나리오 — 첫 요청이 검증 실패로 rollback. �
 ## 결과
 
 - 같은 키로 *다른 body* 재요청이 422 INCOMPATIBLE_PARAMS 로 즉시 검출.
-- Stripe 표준에 호환 — 외부 통합 시 client SDK 가 같은 에러 처리 흐름 사용 가능.
+- 결제 API 표준 (idempotency mismatch → 422) 에 호환 — 외부 통합 시 client SDK 가 같은 에러
+  처리 흐름 사용 가능.
 - Race window 에서도 first-write-wins 로 안전.
 - Filter 단 fast-fail — service / DB 까지 진입 안 함.
 - (단점) Body byte 비교만 — JSON 공백 등 형식 차이도 mismatch. Client SDK 의 retry 직렬화 일관성

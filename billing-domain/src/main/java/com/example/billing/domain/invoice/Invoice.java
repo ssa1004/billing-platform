@@ -20,8 +20,8 @@ import java.util.UUID;
  * 메서드로만 가능합니다. setter 가 없습니다.</p>
  *
  * <p>총액은 {@link InvoiceLine#lineTotal} 의 합. 가격 정책은 {@link PricingSnapshot} (그
- * 시점 요금표를 통째로 박제한 값) 으로 invoice 자체에 저장하므로, 요금제가 변경되어도 과거
- * 청구서 금액은 변하지 않습니다.</p>
+ * 시점 요금표를 그대로 보관한 값 객체) 으로 invoice 자체에 저장하므로, 요금제가 변경되어도
+ * 과거 청구서 금액은 변하지 않습니다.</p>
  */
 public final class Invoice {
 

@@ -12,13 +12,13 @@ import java.util.Optional;
  *   <li><b>점유 lock</b>: {@link #acquireOrThrow} 가 false 면 같은 키로 중복 요청이 들어왔다는 의미 →
  *       {@link DuplicateRequestException} 을 던집니다.</li>
  *   <li><b>응답 캐시</b>: {@link #cacheResponse} 로 저장 → {@link #findCachedResponse} 로 조회.
- *       Stripe / 토스페이먼츠 / iamport 모두 같은 idempotencyKey 로 재시도 시 *처음 응답 그대로*
- *       반환합니다 (24h). 결제 / 환불처럼 client 가 timeout 으로 retry 해도 두 번째 요청이
- *       똑같은 응답을 받아야 정합. ADR-0024 참고.</li>
+ *       결제 API 표준 패턴 — 같은 idempotencyKey 로 재시도 시 *처음 응답 그대로* 24h 반환.
+ *       client 가 timeout 으로 retry 해도 두 번째 요청이 똑같은 응답을 받아야 정합. ADR-0024
+ *       참고.</li>
  *   <li><b>요청 본문 fingerprint</b>: {@link #recordRequestFingerprint} 로 첫 요청의 body SHA-256
  *       prefix 를 저장 → {@link #findRequestFingerprint} 로 재요청 시 비교. 같은 키로 *다른 body*
- *       가 오면 client bug (같은 멱등 키로 다른 의도의 요청) — Stripe 식 422 응답으로 즉시 검출.
- *       ADR-0028 참고.</li>
+ *       가 오면 client bug (같은 멱등 키로 다른 의도의 요청) — 422 INCOMPATIBLE_PARAMS 로 즉시
+ *       검출. ADR-0028 참고.</li>
  * </ul>
  *
  * <p><b>롤백 시 release</b>: 트랜잭션이 rollback 되면 도메인 변경은 사라지지만 Redis 락은
@@ -77,9 +77,8 @@ public interface IdempotencyKeyStore {
     /**
      * 응답 본문 캐시 상한 — 16KB. 이를 넘는 응답은 cache skip (처리 중 응답 그대로 통과시킴).
      *
-     * <p>왜 16KB 인가: Stripe 가 명세상 limit 을 두지는 않지만 실측 응답이 1~2KB 수준.
-     * 결제 / 환불 응답도 비슷. 16KB 면 거의 모든 정상 응답을 cover 하면서 대형 streaming 응답
-     * (PDF, CSV) 을 자연스럽게 우회.</p>
+     * <p>왜 16KB 인가: 결제 API 응답 본문은 보통 1~2KB 수준. 16KB 면 거의 모든 정상 응답을
+     * cover 하면서 대형 streaming 응답 (PDF, CSV) 을 자연스럽게 우회.</p>
      */
     int MAX_BODY_BYTES = 16 * 1024;
 
@@ -99,8 +98,8 @@ public interface IdempotencyKeyStore {
     }
 
     /**
-     * 같은 idempotency 키로 *다른 body* 가 들어왔을 때. Stripe 의 {@code Stripe-Idempotency-Key
-     * already used with different parameters} 와 동일 의미 — client bug 즉시 검출.
+     * 같은 idempotency 키로 *다른 body* 가 들어왔을 때 — client bug 즉시 검출. 결제 API 의 통상
+     * 메시지 ({@code "Idempotency-Key already used with different parameters"}) 와 같은 의도.
      */
     class IncompatibleRequestException extends RuntimeException {
         public IncompatibleRequestException(String key) {

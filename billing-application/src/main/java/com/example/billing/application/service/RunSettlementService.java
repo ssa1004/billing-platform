@@ -35,9 +35,9 @@ import java.util.List;
  *       시작되지 않도록 직렬화. 트랜잭션 종료 시 자동 해제.</li>
  *   <li><b>멱등성 (idempotency)</b> — 같은 customer × period 에 이미 invoice 가 있으면 skip.
  *       재실행해도 안전.</li>
- *   <li><b>frozen pricing (요금표 박제)</b> — 청구서 생성 시점의 PricingSnapshot (그 시점
- *       요금표를 통째로 박제한 값) 을 invoice 에 저장. 요금제가 바뀌어도 과거 청구서 금액은
- *       변하지 않음.</li>
+ *   <li><b>frozen pricing (요금표 동결)</b> — 청구서 생성 시점의 PricingSnapshot (그 시점
+ *       요금표를 그대로 보관한 값 객체) 을 invoice 에 저장. 요금제가 바뀌어도 과거 청구서
+ *       금액은 변하지 않음.</li>
  *   <li><b>partial failure (부분 실패 허용)</b> — invoice 발행은 성공했지만 결제가 실패한
  *       경우, invoice 는 ISSUED 상태로 남아 있고 별도 retry job 이 잡아서 처리.</li>
  * </ul>

@@ -8,7 +8,7 @@
 ADR-0008 의 Resilience4j Circuit Breaker (서킷브레이커) 는 *실패 누적 시 호출 차단* 으로 자원
 보호. 그런데 **CB OPEN 직전 — 즉 호출이 *느려지는* 단계** 가 위험합니다.
 
-### 실제 시나리오 (Hystrix 가 풀던 cascade failure)
+### 실제 시나리오 (느려진 종속이 caller 까지 무너뜨리는 cascade failure)
 
 1. PG 호출이 평소 200ms → 갑자기 4초로 슬로우다운 (PG 측 일시 장애 / 네트워크 지연).
 2. 결제 endpoint 가 servlet thread 위에서 그대로 블로킹 → 200 호출 동시 처리 시 200 thread
@@ -18,8 +18,8 @@ ADR-0008 의 Resilience4j Circuit Breaker (서킷브레이커) 는 *실패 누�
 4. CB 가 50% failure threshold 넘기 전엔 (호출은 *느려도* 일단 완료) OPEN 으로 안 가서 자원
    보호가 안 됨. CB OPEN 되어도 이미 thread pool 은 고갈된 상태.
 
-이게 Netflix Hystrix 가 풀던 cascade failure (한 종속이 느려져 caller 까지 무너지는 현상).
-카카오 / Line / 토스 페이먼츠 모두 *도메인별 ThreadPool 격리* 로 같은 문제 풀고 있음.
+이게 분산 시스템의 고전적 cascade failure (한 종속이 느려져 그걸 호출하는 caller 까지 함께
+무너지는 현상). 도메인별 ThreadPool 격리 (bulkhead 패턴) 가 이런 상황을 끊는 표준 처방입니다.
 
 ## 결정
 
@@ -72,10 +72,10 @@ Resilience4j 는 두 종류 Bulkhead 지원:
 - **ThreadPool**: 별도 worker thread 가 호출 실행. caller 는 future 만 받음.
 
 Semaphore 의 한계: PG 가 슬로우다운되면 *caller thread 자체가 PG 응답 대기로 묶임*. 동시성
-제한은 해도 *이미 잡힌 caller thread* 는 풀리지 않아 cascade 차단 못함. ThreadPool 은 caller
-가 future timeout 으로 짧게 wait → worker 만 막혀도 caller 는 풀림.
+제한은 해도 *이미 잡힌 caller thread* 는 풀리지 않아 다른 endpoint 로의 전파를 못 막음.
+ThreadPool 은 caller 가 future timeout 으로 짧게 wait → worker 만 막혀도 caller 는 풀림.
 
-따라서 *cascade 차단의 본질적 효과* 는 ThreadPool 만 가능. 본 ADR 의 핵심 결정.
+따라서 *전파 차단의 본질적 효과* 는 ThreadPool 만 가능. 본 ADR 의 핵심 결정.
 
 ### 왜 동기 인터페이스 유지인가
 
@@ -87,7 +87,7 @@ ApplicationService 까지 비동기로 바꾸려면 침투가 큼 — 결제 / �
 - `BulkheadedPgClient` 데코레이터가 PgClient 인터페이스 (동기) 를 그대로 implement.
 - 내부에서 `bulkhead.executeSupplier(...)` 로 별도 worker 에서 실행 + caller 는 짧은 timeout
   으로 future.get() 대기.
-- caller 의 *동기 시그니처* 는 유지하면서, *worker 는 격리 풀* 에 있어 cascade 차단 효과는 그대로.
+- caller 의 *동기 시그니처* 는 유지하면서, *worker 는 격리 풀* 에 있어 전파 차단 효과는 그대로.
 
 핵심 trade-off: caller thread 도 wait 하긴 함 (가상 스레드라 OS thread 는 안 잡힘). 그래도
 *bulkhead 가득 차면 즉시 fast-fail* + *worker 풀이 별도라 다른 도메인 endpoint 영향 없음* —
@@ -134,10 +134,10 @@ worker 안에 들어가면 CB 가 OPEN 인지 확인, OPEN 이면 fallback. CLOS
 
 ## 대안 검토
 
-- **Semaphore Bulkhead**: 위에서 설명. cascade 차단 효과 부족.
+- **Semaphore Bulkhead**: 위에서 설명. caller thread 가 같이 묶여 전파 차단 효과 부족.
 - **호출 자체를 비동기 (CompletableFuture) 로 변환**: 도메인 service 까지 침투. 큰 변경 + 도메인
   로직이 비동기 콜백 chain 으로 분산됨. 가상 스레드와 결합된 동기 model 이 이해 단순.
-- **별도 microservice 로 PG 호출만 분리**: cascade 는 막을 수 있으나 분산 시스템 운영 복잡도 +
+- **별도 microservice 로 PG 호출만 분리**: 전파는 막을 수 있으나 분산 시스템 운영 복잡도 +
   네트워크 hop 추가 + 인프라 변경 큼. 응답 속도 저하 가능. ADR-0001 의 *모듈러 모놀리스* 방향
   과 충돌.
 - **Servlet thread pool 자체를 도메인별로 분리** (Tomcat custom executor): 가능. Spring MVC 가
@@ -150,7 +150,7 @@ worker 안에 들어가면 CB 가 OPEN 인지 확인, OPEN 이면 fallback. CLOS
 ## 결과
 
 - PG / webhook / audit-export 가 *도메인별 격리 풀* 로 분리 — 한쪽 슬로우다운이 다른 쪽으로
-  cascade 안 됨.
+  번지지 않음.
 - Bulkhead full 시 fast-fail 로 자원 보호 + 503 + Retry-After 헤더로 client 가 안전하게 재시도.
 - CB + Retry + Bulkhead 가 명확한 순서로 중첩 — 각 layer 의 책임 분명.
 - 가상 스레드 환경에서 동기 인터페이스 유지 — application service 침투 없음.

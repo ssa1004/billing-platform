@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/.well-known/openid-configuration"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "issuer": "http://auth-stub:8080",
+      "jwks_uri": "http://auth-stub:8080/.well-known/jwks.json",
+      "token_endpoint": "http://auth-stub:8080/oauth2/token",
+      "id_token_signing_alg_values_supported": ["RS256"]
+    }
+  }
+}

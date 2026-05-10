@@ -14,12 +14,11 @@ data class Caller(val owner: String, val isAdmin: Boolean) {
         const val ADMIN_ROLE = "ROLE_admin"
 
         fun from(jwt: Jwt?): Caller {
-            if (jwt != null) {
-                return Caller(jwt.subject ?: ANONYMOUS, hasAdmin())
-            }
+            jwt?.let { return Caller(it.subject ?: ANONYMOUS, hasAdmin()) }
+
             val auth = SecurityContextHolder.getContext().authentication
-            if (auth == null || !auth.isAuthenticated) return Caller(ANONYMOUS, false)
-            val name = auth.name?.takeIf { it.isNotBlank() } ?: ANONYMOUS
+            if (auth?.isAuthenticated != true) return Caller(ANONYMOUS, false)
+            val name = auth.name?.takeIf(String::isNotBlank) ?: ANONYMOUS
             return Caller(name, hasAdmin())
         }
 

@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "billing-platform.fullname" . }}
+  labels:
+    {{- include "billing-platform.labels" . | nindent 4 }}
+spec:
+  # HPA 가 켜졌으면 replicas 는 HPA 가 관리 — Helm 이 매 upgrade 마다 replicas
+  # 를 desired 값으로 덮어쓰면 HPA 와 충돌해 진동이 생김. 그래서 HPA on 일 때는
+  # spec.replicas 를 *아예 안 보냄* (기존 값 유지).
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "billing-platform.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "billing-platform.selectorLabels" . | nindent 8 }}
+      annotations:
+        # ConfigMap / Secret 변경 시 Pod 가 자동으로 재시작되도록 hash 를 annotation
+        # 으로 박음. 변경된 값이 Pod 에 반영되려면 reload 가 필요한데, ConfigMap
+        # 변경 자체는 rolling update 를 트리거하지 않음.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if not .Values.postgres.credentials.existingSecret }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.metrics.enabled }}
+        prometheus.io/scrape: "true"
+        prometheus.io/path: {{ .Values.metrics.path | quote }}
+        prometheus.io/port: {{ .Values.metrics.port | quote }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "billing-platform.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      # Spring Boot 의 graceful shutdown 30s + endpoint propagation 15s + reaper
+      # margin → 50~60s. 여기서 60s 로 잡고, ConfigMap 의
+      # SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE 가 30s.
+      terminationGracePeriodSeconds: {{ .Values.gracefulShutdown.terminationGracePeriodSeconds }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ include "billing-platform.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- include "billing-platform.commonEnv" . | nindent 12 }}
+          volumeMounts:
+            # readOnlyRootFilesystem=true 라 /tmp 를 emptyDir 로. Spring 이 /tmp
+            # 에 캐시 / 임시파일을 자주 씀 (e.g. multipart upload, hibernate temp).
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          # Probes — startup → readiness → liveness 순. startup 이 통과해야
+          # readiness/liveness 가 작동 (K8s 1.16+).
+          startupProbe:
+            {{- toYaml .Values.probes.startup | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.probes.readiness | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.probes.liveness | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec:
+                # Service endpoint 에서 빠지는 시간을 벌어줌 — kube-proxy 가
+                # endpoints 갱신을 받아 LB 에서 떼는 데 보통 5~10s 걸림. 그동안에도
+                # 신규 트래픽이 오면 graceful shutdown 도중인 Pod 가 거절. 그래서
+                # 먼저 sleep, 그다음 SIGTERM 으로 Spring graceful shutdown 발동.
+                command: ["sh", "-c", "sleep {{ .Values.gracefulShutdown.preStopSleepSeconds }}"]
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

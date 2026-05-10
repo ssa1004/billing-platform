@@ -42,21 +42,19 @@ data class OrderResponse(
     val items: List<OrderItemResponse>,
     val createdAt: Instant,
     val updatedAt: Instant,
-) {
-    companion object {
-        fun from(o: Order): OrderResponse = OrderResponse(
-            id = o.id().toString(),
-            buyerId = o.buyerId(),
-            totalAmount = o.totalAmount().amount(),
-            currency = o.currency().currencyCode,
-            status = o.status().name,
-            paymentId = o.paymentId(),
-            refundId = o.refundId(),
-            items = o.items().map { OrderItemResponse(it.sku(), it.quantity(), it.unitPrice().amount()) },
-            createdAt = o.createdAt(),
-            updatedAt = o.updatedAt(),
-        )
-    }
-}
+)
 
 data class OrderItemResponse(val sku: String, val quantity: Int, val unitPrice: BigDecimal)
+
+fun Order.toResponse(): OrderResponse = OrderResponse(
+    id = id().toString(),
+    buyerId = buyerId(),
+    totalAmount = totalAmount().amount(),
+    currency = currency().currencyCode,
+    status = status().name,
+    paymentId = paymentId(),
+    refundId = refundId(),
+    items = items().map { OrderItemResponse(it.sku(), it.quantity(), it.unitPrice().amount()) },
+    createdAt = createdAt(),
+    updatedAt = updatedAt(),
+)

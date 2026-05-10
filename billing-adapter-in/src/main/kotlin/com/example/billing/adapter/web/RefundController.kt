@@ -2,6 +2,7 @@ package com.example.billing.adapter.web
 
 import com.example.billing.adapter.web.dto.RefundRequest
 import com.example.billing.adapter.web.dto.RefundResponse
+import com.example.billing.adapter.web.dto.toResponse
 import com.example.billing.application.port.`in`.RefundUseCase
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -27,6 +28,6 @@ class RefundController(
         @Valid @RequestBody req: RefundRequest,
     ): ResponseEntity<RefundResponse> {
         val refund = refundUseCase.refund(req.toCommand(idempotencyKey))
-        return ResponseEntity.status(HttpStatus.CREATED).body(RefundResponse.from(refund))
+        return ResponseEntity.status(HttpStatus.CREATED).body(refund.toResponse())
     }
 }

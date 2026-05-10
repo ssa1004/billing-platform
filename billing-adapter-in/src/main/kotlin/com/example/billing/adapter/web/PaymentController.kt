@@ -2,6 +2,7 @@ package com.example.billing.adapter.web
 
 import com.example.billing.adapter.web.dto.PaymentResponse
 import com.example.billing.adapter.web.dto.ProcessPaymentRequest
+import com.example.billing.adapter.web.dto.toResponse
 import com.example.billing.application.port.`in`.ProcessPaymentUseCase
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -27,6 +28,6 @@ class PaymentController(
         @Valid @RequestBody req: ProcessPaymentRequest,
     ): ResponseEntity<PaymentResponse> {
         val payment = processPayment.process(req.toCommand(idempotencyKey))
-        return ResponseEntity.status(HttpStatus.CREATED).body(PaymentResponse.from(payment))
+        return ResponseEntity.status(HttpStatus.CREATED).body(payment.toResponse())
     }
 }

@@ -30,20 +30,18 @@ data class PaymentResponse(
     val errorMessage: String?,
     val createdAt: Instant,
     val updatedAt: Instant,
-) {
-    companion object {
-        fun from(p: Payment): PaymentResponse = PaymentResponse(
-            id = p.id().toString(),
-            orderId = p.orderId().toString(),
-            amount = p.amount().amount(),
-            currency = p.amount().currency().currencyCode,
-            method = p.method().name,
-            status = p.status().name,
-            pgTransactionId = p.pgTransactionId(),
-            errorCode = p.errorCode(),
-            errorMessage = p.errorMessage(),
-            createdAt = p.createdAt(),
-            updatedAt = p.updatedAt(),
-        )
-    }
-}
+)
+
+fun Payment.toResponse(): PaymentResponse = PaymentResponse(
+    id = id().toString(),
+    orderId = orderId().toString(),
+    amount = amount().amount(),
+    currency = amount().currency().currencyCode,
+    method = method().name,
+    status = status().name,
+    pgTransactionId = pgTransactionId(),
+    errorCode = errorCode(),
+    errorMessage = errorMessage(),
+    createdAt = createdAt(),
+    updatedAt = updatedAt(),
+)

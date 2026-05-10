@@ -1,7 +1,9 @@
 package com.example.billing.adapter.web.v2
 
 import com.example.billing.adapter.web.dto.v2.InvoiceV2Response
+import com.example.billing.adapter.web.dto.v2.toV2Response
 import com.example.billing.application.port.out.InvoiceRepository
+import com.example.billing.domain.invoice.Invoice
 import com.example.billing.domain.shared.CustomerId
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -40,7 +42,7 @@ class InvoiceV2Controller(
     fun get(@PathVariable id: String): ResponseEntity<InvoiceV2Response> {
         val invoice = invoiceRepository.findById(UUID.fromString(id)).getOrNull()
             ?: return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(InvoiceV2Response.from(invoice))
+        return ResponseEntity.ok(invoice.toV2Response())
     }
 
     @GetMapping
@@ -52,6 +54,6 @@ class InvoiceV2Controller(
     ): List<InvoiceV2Response> = invoiceRepository.findByCustomer(CustomerId.of(customerId), limit)
         .asSequence()
         .filter { currency.isNullOrBlank() || it.total().currency().currencyCode == currency }
-        .map(InvoiceV2Response::from)
+        .map(Invoice::toV2Response)
         .toList()
 }

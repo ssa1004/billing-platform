@@ -19,6 +19,7 @@ import org.springframework.web.util.ContentCachingResponseWrapper
 import java.io.BufferedReader
 import java.io.ByteArrayInputStream
 import java.io.InputStreamReader
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Idempotency-Key 응답 캐싱 + body fingerprint 검증 필터 (결제 API 표준 패턴).
@@ -103,22 +104,20 @@ class IdempotencyResponseCacheFilter(
 
         // 1. 같은 키로 *다른 body* 가 들어왔는지 검출 — 422 INCOMPATIBLE_PARAMS.
         if (fingerprint != null) {
-            val existing = store.findRequestFingerprint(k)
-            if (existing.isPresent && !RequestBodyFingerprint.matches(existing.get(), fingerprint)) {
+            val existing = store.findRequestFingerprint(k).getOrNull()
+            if (existing != null && !RequestBodyFingerprint.matches(existing, fingerprint)) {
                 log.warn("idempotency key reused with different body key={}", k)
                 throw IdempotencyKeyStore.IncompatibleRequestException(k)
             }
         }
 
         // 2. 캐시 hit — 처음 응답 그대로 반환.
-        val cached = store.findCachedResponse(k)
-        if (cached.isPresent) {
-            val c = cached.get()
-            log.info("idempotency cache hit key={} status={}", k, c.status())
-            res.status = c.status()
+        store.findCachedResponse(k).getOrNull()?.let { cached ->
+            log.info("idempotency cache hit key={} status={}", k, cached.status())
+            res.status = cached.status()
             res.contentType = "application/json"
             res.setHeader(REPLAY_HEADER, "true")
-            res.writer.write(c.body() ?: "")
+            res.writer.write(cached.body() ?: "")
             res.writer.flush()
             return
         }

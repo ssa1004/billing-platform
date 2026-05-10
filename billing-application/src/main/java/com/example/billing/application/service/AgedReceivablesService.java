@@ -50,7 +50,11 @@ public class AgedReceivablesService {
                     .add(inv, now);
         }
         Map<String, AgingBuckets> sorted = new TreeMap<>();
-        byCustomer.forEach((k, v) -> sorted.put(k.value(), v));
+        // amountDue 가 모두 0 인 customer (전 invoice 가 credit 으로 상계된 경우) 는 제외 —
+        // collection 화면에 노이즈만 됨.
+        byCustomer.forEach((k, v) -> {
+            if (!v.total().isZero()) sorted.put(k.value(), v);
+        });
         return new Report(now, sorted);
     }
 
@@ -74,7 +78,11 @@ public class AgedReceivablesService {
         void add(Invoice inv, Instant now) {
             Instant due = inv.dueAt() != null ? inv.dueAt() : inv.createdAt();
             long days = ChronoUnit.DAYS.between(due, now);
-            Money amount = inv.total();
+            // amountDue = total - appliedCredit. credit 이 일부 적용된 invoice 는 이미 그만큼
+            // 받은 셈이라 receivable 에서 빼고 잡아야 한다. total() 을 쓰면 collection 팀이
+            // 보는 미수 금액이 부풀려져 잘못된 액션 (계정 정지 / 법무 송장) 으로 이어진다.
+            Money amount = inv.amountDue();
+            if (amount.isZero()) return;   // 전액 credit 으로 상계된 invoice 는 표에 안 잡음
             if (days <= 30) current = current.add(amount);
             else if (days <= 60) over30 = over30.add(amount);
             else if (days <= 90) over60 = over60.add(amount);

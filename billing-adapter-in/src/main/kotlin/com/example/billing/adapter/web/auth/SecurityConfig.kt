@@ -19,41 +19,43 @@ import org.springframework.security.web.SecurityFilterChain
 class SecurityConfig {
 
     @Bean
-    fun filterChain(http: HttpSecurity): SecurityFilterChain {
-        http
-            .csrf { it.disable() }
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .authorizeHttpRequests {
-                it.requestMatchers(
-                    "/actuator/health/**", "/actuator/info",
-                    "/v3/api-docs/**", "/swagger", "/swagger-ui/**", "/swagger-ui.html",
-                ).permitAll()
-                it.requestMatchers("/actuator/prometheus").permitAll()
-                it.requestMatchers("/actuator/modulith/**").permitAll()
-                it.requestMatchers("/api/**").authenticated()
-                it.anyRequest().denyAll()
-            }
-            .oauth2ResourceServer { oauth2 ->
-                oauth2.jwt { jwt -> jwt.jwtAuthenticationConverter(jwtConverter()) }
-            }
-        return http.build()
-    }
+    fun filterChain(http: HttpSecurity): SecurityFilterChain = http
+        .csrf { it.disable() }
+        .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+        .authorizeHttpRequests {
+            it.requestMatchers(
+                "/actuator/health/**", "/actuator/info",
+                "/v3/api-docs/**", "/swagger", "/swagger-ui/**", "/swagger-ui.html",
+            ).permitAll()
+            it.requestMatchers("/actuator/prometheus").permitAll()
+            it.requestMatchers("/actuator/modulith/**").permitAll()
+            it.requestMatchers("/api/**").authenticated()
+            it.anyRequest().denyAll()
+        }
+        .oauth2ResourceServer { oauth2 ->
+            oauth2.jwt { jwt -> jwt.jwtAuthenticationConverter(jwtConverter()) }
+        }
+        .build()
 
     private fun jwtConverter(): JwtAuthenticationConverter {
         val scopes = JwtGrantedAuthoritiesConverter().apply {
             setAuthorityPrefix("SCOPE_")
             setAuthoritiesClaimName("scope")
         }
-        val converter = JwtAuthenticationConverter()
-        converter.setPrincipalClaimName("sub")
-        converter.setJwtGrantedAuthoritiesConverter { jwt ->
-            val all = mutableListOf<org.springframework.security.core.GrantedAuthority>()
-            scopes.convert(jwt)?.let { all.addAll(it) }
-            val realmAccess = jwt.getClaim<Map<String, Any>>("realm_access")
-            (realmAccess?.get("roles") as? List<*>)?.filterIsInstance<String>()
-                ?.forEach { all.add(org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_$it")) }
-            all
+        return JwtAuthenticationConverter().apply {
+            setPrincipalClaimName("sub")
+            setJwtGrantedAuthoritiesConverter { jwt ->
+                buildList {
+                    scopes.convert(jwt)?.let(::addAll)
+                    val realmRoles = (jwt.getClaim<Map<String, Any>>("realm_access")
+                        ?.get("roles") as? List<*>)
+                        ?.filterIsInstance<String>()
+                        .orEmpty()
+                    realmRoles.forEach { role ->
+                        add(org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_$role"))
+                    }
+                }
+            }
         }
-        return converter
     }
 }

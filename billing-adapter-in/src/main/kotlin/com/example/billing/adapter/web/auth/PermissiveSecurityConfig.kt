@@ -15,13 +15,11 @@ import org.springframework.security.web.SecurityFilterChain
 class PermissiveSecurityConfig {
 
     @Bean
-    fun permissiveFilterChain(http: HttpSecurity): SecurityFilterChain {
-        http
-            .csrf { it.disable() }
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .authorizeHttpRequests { it.anyRequest().permitAll() }
-            .httpBasic { it.disable() }
-            .formLogin { it.disable() }
-        return http.build()
-    }
+    fun permissiveFilterChain(http: HttpSecurity): SecurityFilterChain = http
+        .csrf { it.disable() }
+        .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+        .authorizeHttpRequests { it.anyRequest().permitAll() }
+        .httpBasic { it.disable() }
+        .formLogin { it.disable() }
+        .build()
 }

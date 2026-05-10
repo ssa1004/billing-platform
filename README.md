@@ -272,13 +272,24 @@ sequenceDiagram
 
 ### 통합 데모
 
-`docker-compose.integration.yml` 이 본 레포 + auth/usage/notification stub 4종을 한
-번에 띄웁니다. `scripts/integration-demo.sh` 가 mock JWT 발급 → usage 발사 →
-invoice 발행 → 결제 → notification stub 수신을 한 번에 재현합니다.
+`docker-compose.integration.yml` 이 다른 레포 stub 3종 (auth-stub /
+notification-stub / usage-producer) 과 메시지 버스 (kafka) 를 띄웁니다.
+`scripts/integration-demo.sh` 가 mock JWT 발급 → usage 발사 → invoice 발행 →
+결제 → notification stub 수신까지 한 사이클로 재현합니다.
 
 ```bash
+# 1. stub 들 띄움
 docker compose -f infrastructure/docker-compose.integration.yml up -d --wait
+
+# 2. 옆 터미널에서 billing-platform 을 outbox-relay on + kafka 연결로 띄움
+BILLING_OUTBOX_RELAY_ENABLED=true \
+  SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
+  ./gradlew :billing-bootstrap:bootRun
+
+# 3. 통합 데모 실행
 scripts/integration-demo.sh
+
+# 4. 정리
 docker compose -f infrastructure/docker-compose.integration.yml down -v
 ```
 

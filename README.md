@@ -220,6 +220,54 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
 - ThreadPool Bulkhead — PG / webhook / audit-export 도메인별 worker pool 격리 ([ADR-0026](docs/adr/0026-bulkhead-thread-pool-isolation.md))
 - Audit log — 도메인 변경 이벤트의 append-only 기록 ([ADR-0023](docs/adr/0023-audit-log.md))
 
+## Helm Chart
+
+Kubernetes 배포는 [`helm/billing-platform/`](helm/billing-platform/) chart 로
+패키징되어 있습니다. `infrastructure/k8s/` 의 raw manifest 는 단일 환경 시연용,
+chart 는 dev / staging / prod 환경별 override 를 풀어내기 위한 용도입니다.
+
+```bash
+# 1) 정합성 검증
+helm lint helm/billing-platform/
+helm lint helm/billing-platform/ -f helm/billing-platform/values-prod.yaml
+
+# 2) manifest 미리 보기 (실제 적용 X)
+helm template billing-platform helm/billing-platform/ -n billing
+helm template billing-platform helm/billing-platform/ \
+  -n billing -f helm/billing-platform/values-prod.yaml
+
+# 3) 설치 (dev — chart 가 placeholder Secret 자동 생성)
+helm install billing-platform helm/billing-platform/ -n billing --create-namespace
+
+# 4) 운영 (prod — 외부 Secret 이 미리 만들어져 있어야 함)
+helm upgrade --install billing-platform helm/billing-platform/ \
+  -n billing -f helm/billing-platform/values-prod.yaml \
+  --set image.tag=$(git rev-parse --short HEAD)
+```
+
+`values-prod.yaml` 은 운영에서 강제하는 정책들을 모아둔 override 입니다.
+
+- replicas 3 + AZ 3개 hard spread + HPA (CPU 65% target, max 12)
+- Ingress TLS 강제 — `/api/v1/payments`, `/api/v1/invoices`, `/api/v1/admin`,
+  `/webhooks` 4 개 path prefix
+- DB / Redis / PG (외부 결제 게이트웨이) credential 은 모두 `existingSecret`
+  참조 — chart 가 직접 Secret 을 만들지 않음 (rotation 은 외부 KMS / Sealed
+  Secrets / External Secrets Operator 등에 위임)
+- NetworkPolicy 활성 (default deny + ingress-nginx + kube-dns + Postgres / Redis
+  / Kafka / 외부 PG egress 만 명시 allow)
+- PodDisruptionBudget `minAvailable: 1` — node drain 시에도 money path 무중단
+- graceful shutdown — `terminationGracePeriodSeconds: 60` (preStop sleep 15s
+  + Spring `server.shutdown=graceful` 30s + reaper margin 15s) — in-flight 결제
+  / outbox commit 이 마무리될 시간 확보
+- Spring Batch (월간 정산 / 연체 스캔 / outbox cleanup) 는 별도 K8s CronJob 으로
+  분리 — web Pod 의 `spring.batch.job.enabled=false` 와 결합해 같은 image 가 두
+  모드로 돌면서 자동 실행 사고를 피함. CronJob 은 `SPRING_BATCH_JOB_NAMES` 로
+  단일 job 만 트리거하고 `concurrencyPolicy: Forbid` 로 중복 실행 차단
+
+자세한 항목별 주석은 [`values.yaml`](helm/billing-platform/values.yaml) 와
+[`values-prod.yaml`](helm/billing-platform/values-prod.yaml) 에 인라인으로
+달아두었습니다.
+
 ## Portfolio Set 통합
 
 본 레포는 단독으로도 돌아가지만, 8 개 레포로 구성된 포트폴리오 묶음의 한 조각이기도 합니다.

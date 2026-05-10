@@ -20,13 +20,13 @@ class AgedReceivablesController(
 ) {
 
     @GetMapping
-    @Operation(summary = "고객별 aging bucket (0-30 / 31-60 / 61-90 / 90+ 일) 미수 금액")
+    @Operation(summary = "(고객 × 통화) 별 aging bucket (0-30 / 31-60 / 61-90 / 90+ 일) 미수 금액")
     fun report(): AgedReportDto {
         val report = agedReceivables.report()
-        val rows = report.byCustomer().map { (customer, buckets) ->
+        val rows = report.byCustomerCurrency().map { (key, buckets) ->
             CustomerAgingDto(
-                customerId = customer,
-                currency = buckets.currency().currencyCode,
+                customerId = key.customerId().value(),
+                currency = key.currency().currencyCode,
                 current = buckets.current().amount(),
                 over30 = buckets.over30().amount(),
                 over60 = buckets.over60().amount(),

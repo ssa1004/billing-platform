@@ -1,0 +1,140 @@
+# Cross-repo 통합 시연용 docker-compose.
+#
+# 같은 portfolio 묶음의 다른 레포 (auth-service / notification-hub /
+# resell-orderbook / gpu-job-orchestrator) 가 본 레포 양쪽 끝에 매달려 있는
+# 그림을 mock 으로 재현한다. mock 이지만 인터페이스 (HTTP / Kafka topic /
+# JWT 모양) 는 실제 레포의 것과 같다.
+#
+# 구성:
+#   - postgres / redis / kafka  → billing-platform 의 직속 의존성
+#   - billing-platform          → 본 레포. dev 프로필 (JWT off) + outbox-relay on
+#   - auth-stub  (wiremock)     → auth-service 흉내. /.well-known/openid-configuration
+#                                 + /.well-known/jwks.json 노출
+#   - notification-stub         → notification-hub 흉내. billing.* 토픽을 구독해
+#                                 stdout 으로 dump (kafka-console-consumer)
+#   - usage-producer            → resell-orderbook + gpu-job-orchestrator 의
+#                                 usage 발사 흉내. 한 번 돌고 종료
+#
+# 실행:
+#   docker compose -f infrastructure/docker-compose.integration.yml up -d --wait
+#   scripts/integration-demo.sh
+#   docker compose -f infrastructure/docker-compose.integration.yml down -v
+#
+# 일반 docker-compose.yml 과 다른 점:
+#   - billing-platform 이 항상 컨테이너로 뜨고 outbox-relay 가 켜져 있음
+#   - kafka 주변에 가짜 producer / consumer 가 붙음
+#   - PG (결제대행사) 는 docker-compose.yml 의 wiremock 과 동일하게 닫혀 있음
+#     (billing.pg.enabled=false 로 MockPgClient 사용)
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: billing
+      POSTGRES_USER: billing
+      POSTGRES_PASSWORD: billing
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "billing"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: bitnami/kafka:3.7
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  # auth-service stub. JWK Set 만 정적으로 노출. 실제 auth-service 는 발급 흐름이
+  # 더 풍부하지만, 여기서는 "다른 서비스가 이 issuer 의 토큰으로 본 레포를 호출한다"
+  # 라는 *그림* 만 보여주면 됨. demo script 는 auth-stub 와 같은 키로 JWT 를 직접
+  # 서명해서 시연.
+  auth-stub:
+    image: wiremock/wiremock:3.10.0-alpine
+    command: ["--port", "8080", "--global-response-templating"]
+    volumes:
+      - ./integration/auth-stub:/home/wiremock/mappings:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/.well-known/openid-configuration >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # billing-platform 본체. dev 프로필 (JWT off, MockPgClient) 인데 outbox-relay
+  # 만 켜서 kafka 로 발송하게 만든다. 그래야 notification-stub 가 메시지를 받음.
+  billing-platform:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile
+    environment:
+      # dev 프로필 그대로 — JWT off, MockPgClient, H2 가 아니라 PG 만 갈아끼움
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/billing
+      SPRING_DATASOURCE_USERNAME: billing
+      SPRING_DATASOURCE_PASSWORD: billing
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migration,classpath:db/migration-postgres
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP: kafka:9092
+      # Outbox relay on — kafka 로 메시지가 흘러야 notification-stub 가 받음
+      BILLING_OUTBOX_RELAY_ENABLED: "true"
+      # PG (결제대행사) 는 닫혀 있음 — MockPgClient 가 응답
+      BILLING_PG_ENABLED: "false"
+    ports: ["8080:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      auth-stub: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # notification-hub stub. billing.* 토픽 (invoice / payment / overdue / ...)
+  # 을 구독해서 stdout 으로 dump. `docker compose logs notification-stub` 로 본다.
+  notification-stub:
+    image: bitnami/kafka:3.7
+    entrypoint: ["/bin/sh", "/opt/notification-stub/consume.sh"]
+    environment:
+      BOOTSTRAP: kafka:9092
+      TOPIC_REGEX: "billing[.].*"
+    volumes:
+      - ./integration/notification-stub:/opt/notification-stub:ro
+    depends_on:
+      kafka: { condition: service_healthy }
+
+  # resell-orderbook + gpu-job-orchestrator 가 발사하는 사용량 이벤트 흉내.
+  # `--profile producer` 로만 뜸 — 평소엔 멱등성이 깨지니 demo script 가 단발성으로 부른다.
+  usage-producer:
+    profiles: [producer]
+    image: curlimages/curl:8.10.1
+    entrypoint: ["/bin/sh", "/opt/usage-producer/produce.sh"]
+    environment:
+      BILLING: http://billing-platform:8080
+      CUSTOMER: acme-corp
+    volumes:
+      - ./integration/usage-producer:/opt/usage-producer:ro
+    depends_on:
+      billing-platform: { condition: service_healthy }

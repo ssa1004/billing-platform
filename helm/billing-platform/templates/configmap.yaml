@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "billing-platform.fullname" . }}-config
+  labels:
+    {{- include "billing-platform.labels" . | nindent 4 }}
+data:
+  DB_HOST: {{ .Values.postgres.host | quote }}
+  DB_PORT: {{ .Values.postgres.port | quote }}
+  DB_NAME: {{ .Values.postgres.database | quote }}
+  # Replica 가 비어있으면 master 와 동일 — application.yml 의 fallback 표현식이
+  # 작동하도록 빈 문자열 그대로 흘림.
+  DB_REPLICA_HOST: {{ .Values.postgres.replica.host | quote }}
+  DB_REPLICA_PORT: {{ .Values.postgres.replica.port | quote }}
+  REDIS_HOST: {{ .Values.redis.host | quote }}
+  REDIS_PORT: {{ .Values.redis.port | quote }}
+  KAFKA_BOOTSTRAP: {{ .Values.kafka.bootstrapServers | quote }}
+  PG_BASE_URL: {{ .Values.pg.baseUrl | quote }}
+  OAUTH_ISSUER_URI: {{ .Values.oauth.issuerUri | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.otel.endpoint | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.otel.serviceName | quote }}

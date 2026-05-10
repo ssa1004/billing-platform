@@ -1,0 +1,16 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "billing-platform.fullname" . }}
+  labels:
+    {{- include "billing-platform.labels" . | nindent 4 }}
+spec:
+  # voluntary disruption (node drain, autoscaler 의 spot 회수 등) 시에도 최소
+  # minAvailable 만큼은 살아있게 보장. node 1대 다운 → 다른 node 로 옮기는
+  # 동안에도 money path 가 끊기지 않게.
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "billing-platform.selectorLabels" . | nindent 6 }}
+{{- end }}

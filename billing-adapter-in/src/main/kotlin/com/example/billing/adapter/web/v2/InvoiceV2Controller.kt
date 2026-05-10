@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * 청구서 조회 v2 (ADR-0031).
@@ -37,9 +38,9 @@ class InvoiceV2Controller(
     @GetMapping("/{id}")
     @Operation(summary = "청구서 단건 조회 v2")
     fun get(@PathVariable id: String): ResponseEntity<InvoiceV2Response> {
-        return invoiceRepository.findById(UUID.fromString(id))
-            .map { ResponseEntity.ok(InvoiceV2Response.from(it)) }
-            .orElse(ResponseEntity.notFound().build())
+        val invoice = invoiceRepository.findById(UUID.fromString(id)).getOrNull()
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(InvoiceV2Response.from(invoice))
     }
 
     @GetMapping
@@ -48,13 +49,9 @@ class InvoiceV2Controller(
         @RequestParam customerId: String,
         @RequestParam(defaultValue = "20") limit: Int,
         @RequestParam(required = false) currency: String?,
-    ): List<InvoiceV2Response> {
-        val invoices = invoiceRepository.findByCustomer(CustomerId.of(customerId), limit)
-        val filtered = if (currency.isNullOrBlank()) {
-            invoices
-        } else {
-            invoices.filter { it.total().currency().currencyCode == currency }
-        }
-        return filtered.map(InvoiceV2Response::from)
-    }
+    ): List<InvoiceV2Response> = invoiceRepository.findByCustomer(CustomerId.of(customerId), limit)
+        .asSequence()
+        .filter { currency.isNullOrBlank() || it.total().currency().currencyCode == currency }
+        .map(InvoiceV2Response::from)
+        .toList()
 }

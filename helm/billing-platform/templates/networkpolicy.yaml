@@ -1,0 +1,29 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "billing-platform.fullname" . }}
+  labels:
+    {{- include "billing-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "billing-platform.selectorLabels" . | nindent 6 }}
+  # default deny + 명시 allow 패턴. 새 통신이 필요하면 values 에 추가해야 하니
+  # 망각으로 인한 외부 노출 사고가 줄어듦.
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    {{- with .Values.networkPolicy.ingressFrom }}
+    - from:
+        {{- toYaml . | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: 8080
+    {{- end }}
+  egress:
+    {{- with .Values.networkPolicy.egressTo }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

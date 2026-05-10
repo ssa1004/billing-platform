@@ -3,7 +3,9 @@ package com.example.billing.adapter.web
 import com.example.billing.adapter.web.auth.Caller
 import com.example.billing.adapter.web.dto.TransactionResponse
 import com.example.billing.adapter.web.dto.WalletResponse
+import com.example.billing.adapter.web.dto.toResponse
 import com.example.billing.application.port.`in`.WalletQueryUseCase
+import com.example.billing.domain.ledger.LedgerEntry
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -22,7 +24,7 @@ class WalletController(
     @GetMapping
     @Operation(summary = "내 지갑 (잔액, 사용 가능 등)")
     fun me(@AuthenticationPrincipal jwt: Jwt?): WalletResponse =
-        WalletResponse.from(walletQuery.getByOwner(Caller.from(jwt).owner))
+        walletQuery.getByOwner(Caller.from(jwt).owner).toResponse()
 
     @GetMapping("/transactions")
     @Operation(summary = "최근 거래 내역")
@@ -30,5 +32,5 @@ class WalletController(
         @AuthenticationPrincipal jwt: Jwt?,
         @RequestParam(defaultValue = "20") limit: Int,
     ): List<TransactionResponse> =
-        walletQuery.recentTransactions(Caller.from(jwt).owner, limit).map(TransactionResponse::from)
+        walletQuery.recentTransactions(Caller.from(jwt).owner, limit).map(LedgerEntry::toResponse)
 }

@@ -1,8 +1,10 @@
 package com.example.billing.adapter.web
 
 import com.example.billing.adapter.web.dto.InvoiceResponse
+import com.example.billing.adapter.web.dto.toResponse
 import com.example.billing.application.port.out.InvoicePdfRenderer
 import com.example.billing.application.port.out.InvoiceRepository
+import com.example.billing.domain.invoice.Invoice
 import com.example.billing.domain.shared.CustomerId
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -30,7 +32,7 @@ class InvoiceController(
     fun get(@PathVariable id: String): ResponseEntity<InvoiceResponse> {
         val invoice = invoiceRepository.findById(UUID.fromString(id)).getOrNull()
             ?: return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(InvoiceResponse.from(invoice))
+        return ResponseEntity.ok(invoice.toResponse())
     }
 
     @GetMapping
@@ -38,10 +40,8 @@ class InvoiceController(
     fun listByCustomer(
         @RequestParam customerId: String,
         @RequestParam(defaultValue = "20") limit: Int,
-    ): List<InvoiceResponse> {
-        val invoices = invoiceRepository.findByCustomer(CustomerId.of(customerId), limit)
-        return invoices.map(InvoiceResponse::from)
-    }
+    ): List<InvoiceResponse> = invoiceRepository.findByCustomer(CustomerId.of(customerId), limit)
+        .map(Invoice::toResponse)
 
     @GetMapping("/{id}/pdf")
     @Operation(summary = "청구서 PDF 다운로드")

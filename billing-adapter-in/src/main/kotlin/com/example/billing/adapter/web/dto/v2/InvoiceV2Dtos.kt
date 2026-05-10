@@ -42,36 +42,28 @@ data class InvoiceV2Response(
     val issuedAt: Instant?,
     val dueAt: Instant?,
     val paidAt: Instant?,
-) {
-    companion object {
-        fun from(i: Invoice) = InvoiceV2Response(
-            id = i.id().toString(),
-            customerId = i.customerId().value(),
-            period = i.period().toKey(),
-            status = i.status(),
-            total = MoneyV2(i.total().amount(), i.total().currency().currencyCode),
-            appliedCredit = MoneyV2(
-                i.appliedCredit().amount(),
-                i.appliedCredit().currency().currencyCode
-            ),
-            amountDue = MoneyV2(
-                i.amountDue().amount(),
-                i.amountDue().currency().currencyCode
-            ),
-            lines = i.lines().map {
-                InvoiceLineV2Response(
-                    resourceType = it.resourceType().name,
-                    quantity = it.quantity(),
-                    lineTotal = MoneyV2(
-                        it.lineTotal().amount(),
-                        it.lineTotal().currency().currencyCode
-                    ),
-                    description = it.unitPriceDescription(),
-                )
-            },
-            issuedAt = i.issuedAt(),
-            dueAt = i.dueAt(),
-            paidAt = i.paidAt(),
+)
+
+private fun com.example.billing.domain.shared.Money.toV2(): MoneyV2 =
+    MoneyV2(amount(), currency().currencyCode)
+
+fun Invoice.toV2Response(): InvoiceV2Response = InvoiceV2Response(
+    id = id().toString(),
+    customerId = customerId().value(),
+    period = period().toKey(),
+    status = status(),
+    total = total().toV2(),
+    appliedCredit = appliedCredit().toV2(),
+    amountDue = amountDue().toV2(),
+    lines = lines().map {
+        InvoiceLineV2Response(
+            resourceType = it.resourceType().name,
+            quantity = it.quantity(),
+            lineTotal = it.lineTotal().toV2(),
+            description = it.unitPriceDescription(),
         )
-    }
-}
+    },
+    issuedAt = issuedAt(),
+    dueAt = dueAt(),
+    paidAt = paidAt(),
+)

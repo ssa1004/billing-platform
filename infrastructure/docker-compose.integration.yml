@@ -47,7 +47,7 @@ services:
       retries: 10
 
   kafka:
-    image: bitnami/kafka:3.7
+    image: bitnamilegacy/kafka:3.7   # bitnami/kafka:3.7 은 docker hub 에서 내려갔음 (2026Q1 정책 변경)
     environment:
       KAFKA_CFG_NODE_ID: 1
       KAFKA_CFG_PROCESS_ROLES: controller,broker
@@ -70,7 +70,7 @@ services:
   # 라는 *그림* 만 보여주면 됨. demo script 는 auth-stub 와 같은 키로 JWT 를 직접
   # 서명해서 시연.
   auth-stub:
-    image: wiremock/wiremock:3.10.0-alpine
+    image: wiremock/wiremock:3.10.0   # alpine 변종은 arm64 manifest 가 없음
     command: ["--port", "8080", "--global-response-templating"]
     ports: ["8081:8080"]   # demo script 가 host 의 :8081 로 admin API 호출
     volumes:
@@ -116,7 +116,7 @@ services:
   # notification-hub stub. billing.* 토픽 (invoice / payment / overdue / ...)
   # 을 구독해서 stdout 으로 dump. `docker compose logs notification-stub` 로 본다.
   notification-stub:
-    image: bitnami/kafka:3.7
+    image: bitnamilegacy/kafka:3.7   # console-consumer 만 쓰기 위한 같은 이미지
     entrypoint: ["/bin/sh", "/opt/notification-stub/consume.sh"]
     environment:
       BOOTSTRAP: kafka:9092

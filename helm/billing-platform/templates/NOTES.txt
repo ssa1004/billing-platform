@@ -1,0 +1,42 @@
+{{ include "billing-platform.fullname" . }} 배포 완료.
+
+이미지: {{ include "billing-platform.image" . }}
+프로파일: {{ .Values.springProfile }}
+
+상태 확인:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "billing-platform.fullname" . }}
+
+{{- if .Values.ingress.enabled }}
+
+Ingress:
+{{- range .Values.ingress.hosts }}
+  https://{{ .host }}
+{{- range .paths }}
+    - {{ .path }}
+{{- end }}
+{{- end }}
+{{- else }}
+
+포트 포워딩 (로컬 확인):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "billing-platform.fullname" . }} 8080:{{ .Values.service.port }}
+  curl http://localhost:8080/actuator/health
+{{- end }}
+
+{{- if .Values.autoscaling.enabled }}
+
+HPA: minReplicas={{ .Values.autoscaling.minReplicas }} maxReplicas={{ .Values.autoscaling.maxReplicas }} targetCPU={{ .Values.autoscaling.targetCPUUtilizationPercentage }}%
+{{- end }}
+
+{{- if .Values.batchCronJobs.enabled }}
+
+Spring Batch CronJob:
+{{- range .Values.batchCronJobs.jobs }}
+  - {{ .name }}: {{ .schedule }} ({{ .jobName }})
+{{- end }}
+  kubectl -n {{ $.Release.Namespace }} get cronjobs -l app.kubernetes.io/instance={{ $.Release.Name }}
+{{- end }}
+
+운영 주의:
+  - graceful shutdown 은 {{ .Values.gracefulShutdown.terminationGracePeriodSeconds }}s 까지 받음. 그 안에 in-flight 결제 / outbox commit 마무리.
+  - PG / DB credential 은 {{- if .Values.postgres.credentials.existingSecret }} 외부 Secret ({{ .Values.postgres.credentials.existingSecret }}) {{- else }} chart 가 생성한 임시 Secret (dev 전용){{- end }} 로 주입됨.

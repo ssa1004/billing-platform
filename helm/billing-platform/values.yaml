@@ -1,0 +1,250 @@
+# ─── billing-platform default values ───────────────────────────────────────
+# 이 파일은 *dev / staging 의 안전한 기본값* 이라고 보면 됨. prod 는 values-prod.yaml
+# 에서 override (replicaCount/HPA/ingress TLS/network policy/secret 외부화 등).
+#
+# 운영 원칙:
+# - 기본값은 가능한 가장 보수적 (적은 자원, replicas=2, HPA off, NetworkPolicy off).
+# - "돈 다루는 서비스" 라는 점은 graceful shutdown / PDB / probes 로 표현 — 이건
+#   기본값에서도 켜져 있음.
+
+# 이미지 — CI 가 image.tag 를 override. 빈 값일 때만 Chart.appVersion 사용.
+image:
+  repository: ghcr.io/ssa1004/billing-platform
+  pullPolicy: IfNotPresent
+  tag: ""        # 빈 문자열 → templates 가 .Chart.AppVersion 으로 fallback
+imagePullSecrets: []
+
+# 일반 메타
+nameOverride: ""
+fullnameOverride: ""
+
+# replicas — 최소 2 (single point of failure 방지). HPA 가 켜지면 minReplicas 가
+# 우선되니 이 값은 sub-prod 에서만 의미가 있음.
+replicaCount: 2
+
+# RollingUpdate — money path 는 단 한순간이라도 0 instance 가 되면 안 되므로
+# maxUnavailable=0. PDB 와 함께 zero-downtime 보장.
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# Spring Boot fat-jar + Flyway + JPA 초기화 — JIT warmup 까지 합치면 메모리/CPU
+# burst 가 큼. requests 를 너무 작게 잡으면 startup 동안 throttling 으로 fail.
+resources:
+  requests:
+    cpu: 300m
+    memory: 768Mi
+  limits:
+    # CPU limit 은 일반적으로 throttling 위험이 있어 "안 거는" 게 권장이지만
+    # multi-tenant noisy-neighbor 방지가 더 중요한 환경이면 켜는 게 나음.
+    # 우리 도메인은 burst-y (정산 배치, PG 콜백 fan-in) → 넉넉히 2.
+    cpu: 2
+    memory: 1.5Gi
+
+service:
+  type: ClusterIP
+  port: 8080
+  # ClusterIP 의 경우 nodePort/loadBalancer 미지정. mgmt port 는 별도 Service
+  # 로 빼는 패턴도 있지만 여긴 같은 actuator endpoint 라 단일 포트로 묶음.
+  annotations: {}
+
+# 3 종 probe — startup 은 Flyway / JPA validate / Redis 연결 다 합쳐서 최대 ~150s
+# 까지 기다림. liveness / readiness 는 actuator 의 /readiness, /liveness.
+probes:
+  startup:
+    httpGet:
+      path: /actuator/health/readiness
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 30      # 10 + 5*30 = 160s
+  readiness:
+    httpGet:
+      path: /actuator/health/readiness
+      port: http
+    periodSeconds: 5
+    failureThreshold: 3
+  liveness:
+    httpGet:
+      path: /actuator/health/liveness
+      port: http
+    periodSeconds: 10
+    failureThreshold: 5
+
+# Graceful shutdown — application.yml 의 server.shutdown=graceful 와 함께 동작.
+# preStop 의 sleep 은 endpoint 에서 Pod 가 빠질 때 LB / kube-proxy 가 endpoints
+# 를 갱신하는 시간을 벌어줌. terminationGracePeriodSeconds 는 그 이후 in-flight
+# request 를 마무리할 시간 (Spring graceful timeout 30s + 여유).
+gracefulShutdown:
+  preStopSleepSeconds: 15           # endpoint propagation
+  terminationGracePeriodSeconds: 60 # 15(preStop) + 30(spring) + 15(reaper margin)
+  # spring.lifecycle.timeout-per-shutdown-phase. ConfigMap 으로 흘려서 SPRING_*
+  # env var 로 매핑됨.
+  springTimeout: 30s
+
+serviceAccount:
+  create: true
+  name: ""              # 빈 값이면 fullname
+  # IRSA / Workload Identity — AWS / GKE 환경별 annotation 직접 지정.
+  annotations: {}
+  # eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/billing-platform
+
+# Pod-level / container-level securityContext — restricted PSS 를 통과해야 함.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+# Pod Disruption Budget — voluntary disruption (drain) 시에도 minAvailable 보장.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Prometheus scrape — Helm 에서 가장 흔하게 쓰이는 두 가지 방식 모두 지원.
+# 1) prometheus.io/* annotation (기본 — 가장 단순)
+# 2) PodMonitor / ServiceMonitor (Operator 환경) — 본 chart 에서는 미포함.
+metrics:
+  enabled: true
+  path: /actuator/prometheus
+  port: 8080
+
+# Ingress — 기본 off. prod 에서 enabled=true 로 켜고 TLS / host 추가.
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts: []
+  # - host: billing.example.com
+  #   paths:
+  #     - path: /api/v1/payments
+  #       pathType: Prefix
+  tls: []
+
+# HPA — 기본 off. prod 에서 켬. 메모리 metric 은 JVM heap 특성상 신뢰도가 낮아
+# CPU 만 사용 (본 레포의 ADR-0026 참조 — bulkhead 로 IO 격리).
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  # behavior 는 안티-flapping 의 standard pattern — scaleDown 은 천천히, scaleUp 은
+  # 빠르게.
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+
+# NetworkPolicy — 기본 off. prod 에서 켜고 namespace selector / port 명시.
+networkPolicy:
+  enabled: false
+  # ingress 출처 — 보통 ingress-nginx namespace + 동일 ns 의 sidecar metrics scrape.
+  ingressFrom: []
+  # - namespaceSelector:
+  #     matchLabels:
+  #       kubernetes.io/metadata.name: ingress-nginx
+  # egress 대상 — DNS, PG (외부 PG), Postgres, Redis, Kafka 만 허용.
+  egressTo: []
+
+# ── 의존성 / 외부 시스템 ─────────────────────────────────────────────────
+# 본 chart 는 Postgres / Redis / Kafka 를 *띄우지 않음* (운영 환경마다 다른
+# manage 방식 — RDS / ElastiCache / MSK / 자체 cluster 등). 단순히 endpoint /
+# credential 만 받아 ConfigMap / Secret 으로 흘림.
+
+postgres:
+  host: postgres.billing.svc.cluster.local
+  port: 5432
+  database: billing
+  # Read replica — 미설정 시 master 와 같은 host 사용 (application.yml fallback).
+  replica:
+    host: ""
+    port: ""
+  # 자격증명 — 기본은 chart 가 Secret 을 만들지만 prod 에선 existingSecret 사용.
+  credentials:
+    existingSecret: ""        # 비우면 chart 가 username/password 로 Secret 생성
+    usernameKey: db.user
+    passwordKey: db.password
+    # 아래 값은 dev 전용 placeholder. prod 는 절대 여기에 두지 말 것 (secret manager).
+    username: billing
+    password: changeme-in-secret
+
+redis:
+  host: redis.billing.svc.cluster.local
+  port: 6379
+  # Redis 인증 — 없으면 비워둠.
+  credentials:
+    existingSecret: ""
+    passwordKey: redis.password
+    password: ""
+
+kafka:
+  bootstrapServers: kafka.billing.svc.cluster.local:9092
+  # SASL 등 인증은 prod values 에서 추가 — 여기선 PLAINTEXT 가정.
+
+pg:
+  # 외부 PG (결제 게이트웨이) — wallet/PG. 본 레포의 핵심 자금 외부 호출.
+  baseUrl: https://pg.example.com
+  credentials:
+    existingSecret: ""
+    apiKeyKey: pg.apiKey
+    webhookSecretKey: pg.webhookSecret
+    apiKey: ""                # dev 에서는 wiremock 이라 빈 값
+    webhookSecret: ""
+
+oauth:
+  issuerUri: https://auth.example.com/realms/billing
+
+otel:
+  endpoint: http://tempo.observability.svc.cluster.local:4318
+  serviceName: billing-platform
+
+# Spring profile — 기본 prod (production-like). dev 환경에서 override.
+springProfile: prod
+
+# 추가 env — Map. 자유 항목 (테스트용 토글 등).
+extraEnv: {}
+# extraEnv:
+#   BILLING_FEATURE_FLAG_X: "true"
+
+# Spring Batch CronJob — monthly settlement, overdue scan 등을 K8s CronJob 으로
+# 분리 (in-process @Scheduled 와 양자택일). 기본 off — application.yml 의 batch
+# job.enabled=false 와 호환.
+batchCronJobs:
+  enabled: false
+  # 각 job 은 SPRING_BATCH_JOB_NAMES 를 받아 해당 job 만 실행하고 즉시 종료.
+  # restartPolicy=Never + activeDeadlineSeconds 로 hung job 방지.
+  # successfulJobsHistoryLimit / failedJobsHistoryLimit 는 운영자 디버깅용.
+  jobs: []
+  # - name: monthly-settlement
+  #   schedule: "0 2 1 * *"     # 매월 1일 02:00 UTC
+  #   jobName: monthlySettlementJob
+  #   activeDeadlineSeconds: 7200
+  #   resources:
+  #     requests: { cpu: "500m", memory: "1Gi" }
+  #     limits:   { cpu: "2",    memory: "2Gi" }
+
+# ── topology / scheduling ───────────────────────────────────────────────
+nodeSelector: {}
+tolerations: []
+# AZ 분산 — 기본은 soft (preferred). prod 에서 hard (required) 로 올림.
+topologySpreadConstraints: []
+affinity: {}

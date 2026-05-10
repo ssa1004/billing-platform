@@ -1,0 +1,209 @@
+# ─── billing-platform prod overrides ───────────────────────────────────────
+# values.yaml 위에 얹는 override. 운영 원칙:
+# - replicas 최소 3 (AZ 3개 분산 가정)
+# - HPA on, NetworkPolicy on, Ingress TLS 강제
+# - PG / Wallet / DB credential 은 *반드시* 외부 secret (existingSecret) 에서 주입
+# - Spring Batch 는 별도 CronJob (in-process scheduler 끄고)
+
+replicaCount: 3
+
+# ── HPA — burst 흡수 ────────────────────────────────────────────────────
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 65   # money 워크로드 — 보수적
+
+# ── Ingress — TLS 강제, path prefix 4종 ───────────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    # PG webhook 은 외부 PG 가 콜백을 IP allow-list 로 보내는 경우가 있어
+    # source IP 보존이 필요. forward-for / real-ip annotation 추가.
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    # webhook 은 외부 PG 의 retry 정책에 맞춰 timeout 넉넉히 (default 60s 가
+    # 짧을 수 있음 — PG 가 30s timeout 이라면 우리도 60s 로 충분, 단 PG 의
+    # retry-after 헤더 존중).
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: billing.example.com
+      paths:
+        - path: /api/v1/payments
+          pathType: Prefix
+        - path: /api/v1/invoices
+          pathType: Prefix
+        - path: /api/v1/admin
+          pathType: Prefix
+        - path: /webhooks
+          pathType: Prefix
+  tls:
+    - hosts:
+        - billing.example.com
+      secretName: billing-platform-tls
+
+# ── Secret 외부화 — existingSecret 만 (chart 가 Secret 만들지 않게) ────
+postgres:
+  host: billing-pg-rw.billing.svc.cluster.local
+  replica:
+    host: billing-pg-ro.billing.svc.cluster.local
+  credentials:
+    existingSecret: billing-platform-db
+    usernameKey: db.user
+    passwordKey: db.password
+
+redis:
+  host: billing-redis-master.billing.svc.cluster.local
+  credentials:
+    existingSecret: billing-platform-redis
+    passwordKey: redis.password
+
+kafka:
+  bootstrapServers: kafka-bootstrap.kafka.svc.cluster.local:9092
+
+pg:
+  baseUrl: https://pg.example.com
+  credentials:
+    # PG / Wallet 결제 secret — 외부 KMS / sealed-secrets 가 미리 만들어 둔 것을 참조.
+    # chart 가 절대 직접 만들지 않음.
+    existingSecret: billing-platform-pg
+    apiKeyKey: pg.apiKey
+    webhookSecretKey: pg.webhookSecret
+
+oauth:
+  issuerUri: https://auth.example.com/realms/billing
+
+otel:
+  endpoint: http://tempo.observability.svc.cluster.local:4318
+
+# ── NetworkPolicy — 제한적 통신 ───────────────────────────────────────
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    # ingress-nginx 에서만 HTTP traffic 받음
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    # observability namespace 의 prometheus 가 metrics scrape
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: observability
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+  egressTo:
+    # cluster DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Postgres / Redis / Kafka — 동일 namespace
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+    # 외부 PG — egress 는 IP/CIDR 또는 그냥 0.0.0.0/0 + DNS 위임. 본 chart 는
+    # 가장 흔한 패턴인 "all egress with explicit deny later" 가 아니라
+    # 명시 allow 모델이라, 아래 entry 가 PG 앞단 NAT egress 를 허용함. 운영에서는
+    # 실제 PG 의 IP allow-list 로 좁혀야 함.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+
+# ── Pod 분산 — AZ 3개 hard requirement ────────────────────────────────
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: billing-platform
+
+# ── ServiceAccount IRSA (예시) ────────────────────────────────────────
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/billing-platform
+
+# ── Spring Batch CronJob — monthly settlement / overdue scan ──────────
+# in-process @Scheduled 가 아니라 K8s CronJob 으로 분리. 이유:
+# - 정산 batch 는 무거우니 web Pod 의 CPU 와 격리 (별도 resources)
+# - "이 시각에 한 번만" 보장이 더 단순 — concurrencyPolicy=Forbid
+# - 배치 실패 격리 — web Pod 의 OOM 사고로 다음 배치까지 중단되는 일 없음
+#
+# 주의: application.yml 의 spring.batch.job.enabled=false (이미 그 상태) 가
+# 유지되어야 함. 그래야 같은 image 가 web 으로도 cronjob 으로도 돌면서 자동 실행
+# 사고가 안 남. CronJob 은 SPRING_BATCH_JOB_NAMES env 로 단일 job 만 트리거.
+batchCronJobs:
+  enabled: true
+  jobs:
+    # 월간 정산 — 매월 1일 02:00 UTC. KST 11시.
+    - name: monthly-settlement
+      schedule: "0 2 1 * *"
+      jobName: monthlySettlementJob
+      activeDeadlineSeconds: 7200      # 2h hard limit
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2"
+          memory: "2Gi"
+    # 연체 스캔 — 매일 03:00 UTC. KST 12시.
+    - name: overdue-scan
+      schedule: "0 3 * * *"
+      jobName: settlementOverdueScanJob
+      activeDeadlineSeconds: 1800      # 30m
+      resources:
+        requests:
+          cpu: "300m"
+          memory: "512Mi"
+        limits:
+          cpu: "1"
+          memory: "1Gi"
+    # Outbox cleanup — 매일 04:00 UTC. published=true 인 row archival.
+    - name: outbox-cleanup
+      schedule: "0 4 * * *"
+      jobName: outboxCleanupJob
+      activeDeadlineSeconds: 600
+      resources:
+        requests:
+          cpu: "200m"
+          memory: "256Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"

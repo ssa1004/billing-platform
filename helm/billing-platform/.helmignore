@@ -1,0 +1,17 @@
+# Helm package 에 포함시키지 않을 파일들 — chart 자체와 무관한 dev 파일들.
+.DS_Store
+.git/
+.gitignore
+.idea/
+*.tgz
+*.tmp
+*.bak
+*.orig
+*~
+# IDE / OS
+.vscode/
+.project
+.settings/
+.classpath
+# CI 산출물
+ci/

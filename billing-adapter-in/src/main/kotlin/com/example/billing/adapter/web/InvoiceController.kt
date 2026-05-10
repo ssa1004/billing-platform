@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
+import kotlin.jvm.optionals.getOrNull
 
 @RestController
 @RequestMapping("/api/v1/invoices")
@@ -27,9 +28,9 @@ class InvoiceController(
     @GetMapping("/{id}")
     @Operation(summary = "청구서 단건 조회")
     fun get(@PathVariable id: String): ResponseEntity<InvoiceResponse> {
-        return invoiceRepository.findById(UUID.fromString(id))
-            .map { ResponseEntity.ok(InvoiceResponse.from(it)) }
-            .orElse(ResponseEntity.notFound().build())
+        val invoice = invoiceRepository.findById(UUID.fromString(id)).getOrNull()
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(InvoiceResponse.from(invoice))
     }
 
     @GetMapping
@@ -45,8 +46,8 @@ class InvoiceController(
     @GetMapping("/{id}/pdf")
     @Operation(summary = "청구서 PDF 다운로드")
     fun downloadPdf(@PathVariable id: String): ResponseEntity<ByteArray> {
-        val invoice = invoiceRepository.findById(UUID.fromString(id))
-            .orElse(null) ?: return ResponseEntity.notFound().build()
+        val invoice = invoiceRepository.findById(UUID.fromString(id)).getOrNull()
+            ?: return ResponseEntity.notFound().build()
 
         val bytes = pdfRenderer.render(invoice)
         return ResponseEntity.ok()

@@ -220,6 +220,68 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
 - ThreadPool Bulkhead — PG / webhook / audit-export 도메인별 worker pool 격리 ([ADR-0026](docs/adr/0026-bulkhead-thread-pool-isolation.md))
 - Audit log — 도메인 변경 이벤트의 append-only 기록 ([ADR-0023](docs/adr/0023-audit-log.md))
 
+## Portfolio Set 통합
+
+본 레포는 단독으로도 돌아가지만, 8 개 레포로 구성된 포트폴리오 묶음의 한 조각이기도 합니다.
+다른 레포들이 발사한 사용량 이벤트를 받아 청구서로 만들고, 발행/결제/연체 알림을 알림
+허브로 흘려보내는 위치입니다. 묶음 전체 인덱스는 프로필 README
+[ssa1004/ssa1004](https://github.com/ssa1004/ssa1004) 에 있습니다.
+
+| 레포 | 역할 | 본 레포와의 관계 |
+|---|---|---|
+| [auth-service](https://github.com/ssa1004/auth-service) | OIDC / JWT 발급, JWK Set 노출 | `prod` 의 OAuth2 Resource Server 가 이 JWK Set 으로 토큰 검증 |
+| [security-log-search](https://github.com/ssa1004/security-log-search) | 보안 감사 로그 검색 | `audit` 도메인 append-only 로그를 SIEM 으로 export |
+| [notification-hub](https://github.com/ssa1004/notification-hub) | 알림 라우팅 / 템플릿 / 발송 | invoice.created / payment.completed / overdue.notice 를 Kafka 로 수신 |
+| [search-service](https://github.com/ssa1004/search-service) | 도메인 검색 (ES) | invoice 검색 인덱스의 source-of-truth 가 본 레포 |
+| **billing-platform** *(본 레포)* | **결제 / 청구 / 정산** | **두 종류 usage event 를 받아 invoice 발행, 결과를 알림으로 흘림** |
+| [resell-orderbook](https://github.com/ssa1004/resell-orderbook) | 리셀 거래 매칭 / 체결 | 거래 체결마다 usage event 를 본 레포로 발사 |
+| [gpu-job-orchestrator](https://github.com/ssa1004/gpu-job-orchestrator) | GPU job 스케줄러 | job 완료 시 GPU 사용 시간 usage event 를 본 레포로 발사 |
+| [mini-shop-observability](https://github.com/ssa1004/mini-shop-observability) | observability 플레이그라운드 | OpenTelemetry / Prometheus / Loki 셋업 참고 출처 |
+
+### 묶음 안에서의 데이터 흐름
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Auth as auth-service
+    participant Producer as resell-orderbook<br/>gpu-job-orchestrator
+    participant Bill as billing-platform<br/>(본 레포)
+    participant Notif as notification-hub
+    participant User as 고객
+
+    Note over Auth,User: 1) 사용량 → 청구서 발행 → 알림
+    Producer->>Auth: 토큰 요청
+    Auth-->>Producer: JWT (JWK 서명)
+    Producer->>Bill: POST /api/v1/usage (Bearer JWT)
+    Bill->>Auth: JWK Set 가져오기 (캐시)
+    Bill->>Bill: metering → aggregate → pricing → invoice 발행
+    Bill->>Notif: Kafka billing.invoice.created
+    Notif-->>User: 청구서 발행 알림 (메일/슬랙)
+
+    Note over Auth,User: 2) 결제 → 정산 → 알림
+    User->>Bill: POST /api/v1/payments (Bearer JWT)
+    Bill->>Bill: Idempotency-Key 점유 → PG 호출 → ledger append
+    Bill->>Notif: Kafka billing.payment.completed
+    Notif-->>User: 결제 완료 영수증
+
+    Note over Auth,User: 3) 연체 감시 → 알림
+    Bill->>Bill: SettlementOverdueScan (배치)
+    Bill->>Notif: Kafka billing.overdue.notice
+    Notif-->>User: 연체 안내
+```
+
+### 통합 데모
+
+`docker-compose.integration.yml` 이 본 레포 + auth/usage/notification stub 4종을 한
+번에 띄웁니다. `scripts/integration-demo.sh` 가 mock JWT 발급 → usage 발사 →
+invoice 발행 → 결제 → notification stub 수신을 한 번에 재현합니다.
+
+```bash
+docker compose -f infrastructure/docker-compose.integration.yml up -d --wait
+scripts/integration-demo.sh
+docker compose -f infrastructure/docker-compose.integration.yml down -v
+```
+
 ## 향후 개선 사항
 
 - 사용량 집계를 streaming aggregation으로 전환 (Kafka Streams) — 대용량 고객 대응

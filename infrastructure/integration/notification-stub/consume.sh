@@ -20,6 +20,8 @@ exec kafka-console-consumer.sh \
   --bootstrap-server "$BOOTSTRAP" \
   --include "$TOPIC_REGEX" \
   --from-beginning \
+  --consumer-property metadata.max.age.ms=5000  \
+  --consumer-property auto.offset.reset=earliest \
   --property print.timestamp=true \
   --property print.key=true \
   --property print.headers=false \

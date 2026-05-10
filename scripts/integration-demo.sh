@@ -1,24 +1,25 @@
 #!/usr/bin/env bash
 # Cross-repo 통합 시연.
 #
-# docker-compose.integration.yml 로 띄운 5종 컨테이너 (postgres / redis /
-# kafka / billing-platform / auth-stub / notification-stub) 위에서 portfolio
-# 묶음 다른 레포의 호출 패턴을 한 사이클 흉내낸다.
+# 사전 조건:
+#   1. docker compose -f infrastructure/docker-compose.integration.yml up -d --wait
+#      (kafka / auth-stub / notification-stub)
+#   2. 옆 터미널에서 billing-platform 을 outbox-relay on + kafka 연결로 띄움:
+#        BILLING_OUTBOX_RELAY_ENABLED=true \
+#        SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
+#        ./gradlew :billing-bootstrap:bootRun
 #
+# 이 스크립트가 하는 일:
 #   1. mock JWT 발급 — auth-service 가 발급할 모양의 RS256 토큰을 직접 서명.
 #      auth-stub 의 JWK Set 에도 같은 public key 를 주입해서 "billing-platform
 #      이 verify 하려고 한다면 통과" 하는 상태로 만든다 (실제 verify 는 dev
 #      프로필이라 skip 됨 — 시연은 인터페이스 모양 위주).
-#   2. usage event 발사 — resell-orderbook (TRADE_FILL) +
-#      gpu-job-orchestrator (GPU_SECONDS) 가 보낸 모양으로 5건씩.
-#   3. metering forecast → 정산 트리거 → invoice 발행. 발행 outbox 가 kafka
-#      로 흘러 notification-stub 가 받는다.
+#   2. usage event 발사 — resell-orderbook + gpu-job-orchestrator 가 보낸
+#      모양으로 5건씩 (도메인 ResourceType enum 에 매핑해서 전송).
+#   3. forecast → 정산 트리거 → invoice 발행. 발행 outbox 가 kafka 로 흘러
+#      notification-stub 가 받는다.
 #   4. 결제 (MockPgClient 자동 승인) → payment.completed outbox → 알림.
 #   5. notification-stub 의 stdout 을 dump 해서 실제로 흘러갔는지 확인.
-#
-# 실행:
-#   docker compose -f infrastructure/docker-compose.integration.yml up -d --wait
-#   scripts/integration-demo.sh
 #
 # 정리:
 #   docker compose -f infrastructure/docker-compose.integration.yml down -v
@@ -134,32 +135,36 @@ echo "$JWT" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | jq
 # 2. usage event — resell-orderbook + gpu-job-orchestrator
 #
 say "2. usage event 발사 (다른 두 레포가 보낸 모양)"
-note "resell-orderbook → TRADE_FILL × 5"
+# 본 레포 도메인 ResourceType enum 은 API_CALL / STORAGE_GB_HOUR /
+# ACTIVE_USER_SEAT / DATA_TRANSFER_GB 4종. 두 producer 의 실세계 단위를
+# 가장 가까운 enum 으로 매핑한다 — 시연 의도는 *서로 다른 두 외부 서비스가
+# 같은 ingest endpoint 를 친다* 이지 새 enum 도입이 아님.
+note "resell-orderbook → API_CALL × 5 (거래 1건 = 1 호출)"
 for i in 1 2 3 4 5; do
   curl -fsS -X POST "$BASE/api/v1/usage" \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer $JWT" \
     -d "{
-      \"eventId\":\"resell-int-$(date +%s)-$i\",
+      \"eventId\":\"$(uuidgen)\",
       \"customerId\":\"$CUSTOMER\",
-      \"resourceType\":\"TRADE_FILL\",
+      \"resourceType\":\"API_CALL\",
       \"quantity\":1,
       \"occurredAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
-    }" | jq -c '{eventId, status: (.status // "accepted")}'
+    }" | jq -c '{eventId, accepted}'
 done
 
-note "gpu-job-orchestrator → GPU_SECONDS × 5 (각 1시간 = 3600s)"
+note "gpu-job-orchestrator → STORAGE_GB_HOUR × 5 (GPU 1시간 = 1 GB·hour 로 환산)"
 for i in 1 2 3 4 5; do
   curl -fsS -X POST "$BASE/api/v1/usage" \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer $JWT" \
     -d "{
-      \"eventId\":\"gpu-int-$(date +%s)-$i\",
+      \"eventId\":\"$(uuidgen)\",
       \"customerId\":\"$CUSTOMER\",
-      \"resourceType\":\"GPU_SECONDS\",
-      \"quantity\":3600,
+      \"resourceType\":\"STORAGE_GB_HOUR\",
+      \"quantity\":1,
       \"occurredAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
-    }" | jq -c '{eventId, status: (.status // "accepted")}'
+    }" | jq -c '{eventId, accepted}'
 done
 
 #
@@ -218,8 +223,8 @@ note "billing.invoice.* / billing.payment.* / billing.outbox 카운트"
 $COMPOSE logs notification-stub 2>/dev/null \
   | grep -oE 'billing\.[a-z_]+\.[a-z_]+' \
   | sort | uniq -c \
-  || echo "  (notification-stub 가 아직 메시지를 못 받았다면 outbox-relay 로그 확인:"
-$COMPOSE logs --tail=20 billing-platform 2>/dev/null | grep -i "outbox\|kafka" | tail -10 | sed 's/^/    /' || true
+  || echo "  (notification-stub 가 아직 메시지를 못 받았다면 옆 터미널의 bootRun 로그에서"
+echo "   'outbox' / 'OutboxRelay' 검색해 outbox-relay 가 활성화됐는지 확인)"
 
 echo
 echo "통합 데모 완료."

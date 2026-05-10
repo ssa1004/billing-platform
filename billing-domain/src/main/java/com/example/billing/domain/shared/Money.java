@@ -20,6 +20,17 @@ import java.util.Objects;
  *       필요하기 때문. 입금은 +amount, 출금은 -amount 식으로 한 컬럼에 부호로 구분.</li>
  * </ul>
  *
+ * <p><b>반올림 정책 (rounding contract)</b>: 모든 산술 결과는 생성자에서
+ * {@link RoundingMode#HALF_UP} 으로 통화의 minor unit scale 에 맞춰 즉시 정규화됩니다.
+ * HALF_UP 은 절댓값 기준 반올림 (away from zero) 이라 결제 0.5 → 1, 환불 -0.5 → -1 처럼
+ * 부호 대칭으로 동작합니다.</p>
+ *
+ * <p>주의 — {@link #add}/{@link #subtract} 는 같은 currency scale 끼리의 연산이라 정밀도
+ * 손실이 없지만, {@link #multiply} 의 factor 가 fractional 이면 결과가 currency scale 로
+ * 반올림 되어 line 별 round → sum 과 sum → round 결과가 달라질 수 있습니다. 다중 line 에
+ * fractional rate (예: 8.875% sales tax) 를 적용할 때는 line 별 곱하기보다 전체 합산 후 한
+ * 번에 곱하는 쪽을 권장합니다.</p>
+ *
  * <p><b>Wallet balance 의 "음수 금지" 는 어디서?</b> Money 자체가 음수를 허용해도 잔액
  * 무결성은 {@link com.example.billing.domain.wallet.Wallet} 가 보장합니다 — Money 는 *산술
  * 단위* 일 뿐, 도메인 invariant 는 그 단위를 사용하는 애그리거트의 책임입니다.</p>

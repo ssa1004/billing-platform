@@ -3,6 +3,7 @@ package com.example.billing.adapter.web
 import com.example.billing.adapter.web.auth.Caller
 import com.example.billing.adapter.web.dto.OrderResponse
 import com.example.billing.adapter.web.dto.PlaceOrderRequest
+import com.example.billing.adapter.web.dto.toResponse
 import com.example.billing.application.port.`in`.PlaceOrderUseCase
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -34,6 +35,6 @@ class OrderController(
         val order = placeOrder.place(req.toCommand(idempotencyKey, caller.owner))
         return ResponseEntity
             .created(URI.create("/api/v1/orders/${order.id()}"))
-            .body(OrderResponse.from(order))
+            .body(order.toResponse())
     }
 }

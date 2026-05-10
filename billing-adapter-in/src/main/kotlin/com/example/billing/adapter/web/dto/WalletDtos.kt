@@ -13,19 +13,17 @@ data class WalletResponse(
     val blocked: BigDecimal,
     val available: BigDecimal,
     val updatedAt: Instant,
-) {
-    companion object {
-        fun from(w: Wallet): WalletResponse = WalletResponse(
-            id = w.id().toString(),
-            ownerId = w.ownerId(),
-            currency = w.currency().currencyCode,
-            balance = w.balance().amount(),
-            blocked = w.blocked().amount(),
-            available = w.available().amount(),
-            updatedAt = w.updatedAt(),
-        )
-    }
-}
+)
+
+fun Wallet.toResponse(): WalletResponse = WalletResponse(
+    id = id().toString(),
+    ownerId = ownerId(),
+    currency = currency().currencyCode,
+    balance = balance().amount(),
+    blocked = blocked().amount(),
+    available = available().amount(),
+    updatedAt = updatedAt(),
+)
 
 data class TransactionResponse(
     val entryType: String,
@@ -35,16 +33,14 @@ data class TransactionResponse(
     val referenceId: String?,
     val traceId: String?,
     val occurredAt: Instant,
-) {
-    companion object {
-        fun from(l: LedgerEntry): TransactionResponse = TransactionResponse(
-            entryType = l.entryType().name,
-            amount = l.amount().amount(),
-            balanceAfter = l.balanceAfter().amount(),
-            referenceType = l.reference()?.type()?.name,
-            referenceId = l.reference()?.id(),
-            traceId = l.traceId(),
-            occurredAt = l.occurredAt(),
-        )
-    }
-}
+)
+
+fun LedgerEntry.toResponse(): TransactionResponse = TransactionResponse(
+    entryType = entryType().name,
+    amount = amount().amount(),
+    balanceAfter = balanceAfter().amount(),
+    referenceType = reference()?.type()?.name,
+    referenceId = reference()?.id(),
+    traceId = traceId(),
+    occurredAt = occurredAt(),
+)

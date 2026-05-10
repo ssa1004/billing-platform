@@ -26,18 +26,16 @@ data class RefundResponse(
     val pgRefundId: String?,
     val requestedAt: Instant,
     val completedAt: Instant?,
-) {
-    companion object {
-        fun from(r: Refund): RefundResponse = RefundResponse(
-            id = r.id().toString(),
-            paymentId = r.paymentId().toString(),
-            amount = r.amount().amount(),
-            currency = r.amount().currency().currencyCode,
-            reason = r.reason(),
-            status = r.status().name,
-            pgRefundId = r.pgRefundId(),
-            requestedAt = r.requestedAt(),
-            completedAt = r.completedAt(),
-        )
-    }
-}
+)
+
+fun Refund.toResponse(): RefundResponse = RefundResponse(
+    id = id().toString(),
+    paymentId = paymentId().toString(),
+    amount = amount().amount(),
+    currency = amount().currency().currencyCode,
+    reason = reason(),
+    status = status().name,
+    pgRefundId = pgRefundId(),
+    requestedAt = requestedAt(),
+    completedAt = completedAt(),
+)

@@ -1,0 +1,92 @@
+{{- if .Values.batchCronJobs.enabled }}
+{{- $root := . }}
+{{- range .Values.batchCronJobs.jobs }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "billing-platform.fullname" $root }}-{{ .name }}
+  labels:
+    {{- include "billing-platform.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: batch
+    billing.platform/job: {{ .name }}
+spec:
+  schedule: {{ .schedule | quote }}
+  # Forbid — 같은 batch 가 두 번 동시에 돌면 정산 / outbox cleanup 에서
+  # 동시성 사고가 발생함. 이전 실행이 안 끝났으면 새 트리거를 *건너뜀*.
+  concurrencyPolicy: Forbid
+  # startingDeadline — node down 등으로 늦게 트리거됐을 때 어디까지 봐줄지.
+  # 너무 길면 한꺼번에 누적된 trigger 가 한번에 폭발 (concurrencyPolicy=Forbid 라
+  # 한 번만 돌긴 함). 1h 가 일반적인 양보 한계.
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      # backoffLimit — Job 자체 재시도. Batch 내부의 retry 와 별개로 Pod 가
+      # OOMKilled / Evicted 됐을 때 Job 이 새 Pod 띄우는 횟수.
+      backoffLimit: 2
+      activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
+      # ttlSecondsAfterFinished — 완료된 Job 기록을 24h 후 자동 삭제. 운영에서
+      # CronJob history 가 무한히 누적되어 etcd 압박이 되는 사고 방지.
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            {{- include "billing-platform.selectorLabels" $root | nindent 12 }}
+            app.kubernetes.io/component: batch
+            billing.platform/job: {{ .name }}
+        spec:
+          serviceAccountName: {{ include "billing-platform.serviceAccountName" $root }}
+          restartPolicy: Never
+          {{- with $root.Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            {{- toYaml $root.Values.podSecurityContext | nindent 12 }}
+          # Batch 가 끝나려면 Spring Boot 가 정상 종료해야 — server.shutdown=graceful
+          # 와 동일 패턴. Batch job 은 보통 server 가 떠있지 않지만, 같은 image 라
+          # 동일 timeout 적용.
+          terminationGracePeriodSeconds: {{ $root.Values.gracefulShutdown.terminationGracePeriodSeconds }}
+          containers:
+            - name: {{ $root.Chart.Name }}-batch
+              image: {{ include "billing-platform.image" $root }}
+              imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+              env:
+                {{- include "billing-platform.commonEnv" $root | nindent 16 }}
+                # Spring Batch 의 핵심 — 이 job 만 실행하고 끝. application.yml 의
+                # spring.batch.job.enabled=false 와 결합해, web Pod 에서는 자동
+                # 실행 안 됨 + cronjob 에서는 명시 실행.
+                - name: SPRING_BATCH_JOB_ENABLED
+                  value: "true"
+                - name: SPRING_BATCH_JOB_NAMES
+                  value: {{ .jobName | quote }}
+                # web 모드의 actuator 포트와 충돌 방지 — batch Pod 는 server
+                # 안 띄움. spring.main.web-application-type=none 으로 강제.
+                - name: SPRING_MAIN_WEB_APPLICATION_TYPE
+                  value: "none"
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                {{- toYaml .resources | nindent 16 }}
+              securityContext:
+                {{- toYaml $root.Values.containerSecurityContext | nindent 16 }}
+          volumes:
+            - name: tmp
+              emptyDir: {}
+          {{- with $root.Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $root.Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $root.Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}

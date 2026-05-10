@@ -1,0 +1,35 @@
+apiVersion: v2
+name: billing-platform
+description: |
+  B2B SaaS billing / payment / settlement platform.
+
+  돈을 다루는 서비스라 Pod restart 시 in-flight 트랜잭션이 절단나면 부분 결제 /
+  미정산이 발생함. 그래서 graceful shutdown 을 50s 까지 받고
+  terminationGracePeriodSeconds 도 60s 로 잡음 (preStop sleep + Spring graceful
+  shutdown + reaper margin).
+type: application
+# Chart 자체 버전 (templates 변경 시 bump). 앱 버전과 분리 — 운영 입장에서
+# "어떤 chart 가 어떤 image 를 띄웠는가" 를 따로 추적할 수 있어야 함.
+version: 0.1.0
+# 기본 app 버전 — values.image.tag 미지정 시 fallback. 실제 배포에서는 CI 가 commit
+# SHA 또는 semver 로 image.tag 를 override 함.
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+home: https://github.com/ssa1004/billing-platform
+sources:
+  - https://github.com/ssa1004/billing-platform
+keywords:
+  - billing
+  - payment
+  - settlement
+  - spring-boot
+  - kotlin
+maintainers:
+  - name: ssa1004
+    url: https://github.com/ssa1004
+annotations:
+  # ArgoCD / Flux 에서 chart upgrade 의 의미 분류. money 관련은 "Changed" 로
+  # 사람이 review 하게 강제.
+  artifacthub.io/changes: |
+    - kind: added
+      description: Initial Helm chart packaging of the billing-platform

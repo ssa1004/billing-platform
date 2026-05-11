@@ -46,13 +46,13 @@ RoutingDataSource (extends AbstractRoutingDataSource)
 ### LazyConnectionDataSourceProxy 의 역할
 
 Spring 의 `PlatformTransactionManager` 는 트랜잭션 시작 시점에 DataSource 에서 connection 을
-*즉시* 잡습니다. `RoutingDataSource` 가 readOnly flag 를 보려면 connection 획득이
-*트랜잭션 동기화 셋업 이후* 로 늦춰져야 합니다.
+즉시 잡습니다. `RoutingDataSource` 가 readOnly flag 를 보려면 connection 획득이 트랜잭션
+동기화 셋업 이후로 늦춰져야 합니다.
 
-`LazyConnectionDataSourceProxy` 는 connection 획득을 *첫 SQL 호출 시점* 까지 지연시킵니다.
+`LazyConnectionDataSourceProxy` 는 connection 획득을 첫 SQL 호출 시점까지 지연시킵니다.
 이 시점엔 readOnly flag 가 이미 set 되어 있어 routing 이 정상 동작.
 
-이 트릭 없이 RoutingDataSource 만 쓰면 *모든 트랜잭션이 master* 로 가는 흔한 함정이 있고
+이 트릭 없이 RoutingDataSource 만 쓰면 모든 트랜잭션이 master 로 가는 흔한 함정이 있고
 (Spring 진영 cookbook 에서 공통적으로 지적), 본 구현은 표준 패턴을 그대로 따릅니다.
 
 ### 환경별 전략

@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 
 /**
- * AuditLogger 의 기본 구현 — 호출자 트랜잭션에 *참여* (Propagation.REQUIRED, 새 트랜잭션을
+ * AuditLogger 의 기본 구현 — 호출자 트랜잭션에 참여 (Propagation.REQUIRED, 새 트랜잭션을
  * 만들지 않고 호출자의 것을 그대로 사용) 해서 도메인 변경과 audit 가 같이 commit / 같이
  * rollback 됩니다.
  *

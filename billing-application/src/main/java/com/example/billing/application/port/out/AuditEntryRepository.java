@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * Audit entry 저장 / 조회.
  *
- * <p><b>save 만</b> 있고 update / delete 는 *의도적으로 없음* — append-only.
+ * <p><b>save 만</b> 있고 update / delete 는 의도적으로 없음 — append-only.
  * 누군가 잘못된 entry 를 정정하려면 새 entry 를 INSERT 해야 한다 (timeline 에 두 row 다 남음).</p>
  */
 public interface AuditEntryRepository {

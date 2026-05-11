@@ -13,7 +13,7 @@ import java.util.List;
  * <p><b>왜 이 방식</b>: yaml 의 {@code resilience4j.thread-pool-bulkhead.instances.*} 설정은 그대로
  * 두고 (pool size / queue capacity 등 운영 변수), context propagator 만 코드로 합쳐 넣음.
  * Resilience4j Spring Boot autoconfigure 가 ThreadPoolBulkheadRegistry 빈을 만들 때 발견된 모든
- * {@link ThreadPoolBulkheadConfigCustomizer} 를 *이름 매칭으로* 적용 — 우리는 인스턴스별로 빈을 한 개씩
+ * {@link ThreadPoolBulkheadConfigCustomizer} 를 이름 매칭으로 적용 — 우리는 인스턴스별로 빈을 한 개씩
  * 등록.</p>
  *
  * <p><b>왜 인스턴스별로 따로 빈을 만드나</b>: {@link ThreadPoolBulkheadConfigCustomizer#name()} 이

@@ -10,8 +10,8 @@ import java.util.UUID;
  * <p><b>왜 audit log 가 필요한가</b>:
  * <ul>
  *   <li><b>회계 감사 (SOX, 미국 상장 기업 회계 책임법 / 한국 회계기준)</b> — "이 invoice 가
- *       왜 cancel 됐나" 같은 질문에 *몇 년 뒤* 답할 수 있어야 함. 트랜잭션 로그 / DB 변경
- *       이력만으론 부족 — *누가*, *왜* (사유) 가 도메인 모델에 안 박혀 있을 때 audit 가 그
+ *       왜 cancel 됐나" 같은 질문에 몇 년 뒤 답할 수 있어야 함. 트랜잭션 로그 / DB 변경
+ *       이력만으론 부족 — 누가, 왜 (사유) 가 도메인 모델에 안 박혀 있을 때 audit 가 그
  *       빈 곳을 채워줍니다.</li>
  *   <li><b>PCI-DSS (카드 정보 보안 표준) / 정보보호</b> — 결제 / 카드 정보 접근 기록 전부.
  *       정보 유출 사고 (data breach) 시 forensic (사고 후 원인 추적) 의 1순위 자료.</li>
@@ -19,15 +19,15 @@ import java.util.UUID;
  *       actor + ipAddress + traceId 가 답해줍니다.</li>
  * </ul>
  *
- * <p><b>append-only 의 의미</b>: 한 번 INSERT 된 row 는 *절대* UPDATE / DELETE 하지 않습니다.
- * 도메인 메서드에도 setter 가 없습니다. 잘못 기록된 항목은 *새 row* (정정 entry, correction
+ * <p><b>append-only 의 의미</b>: 한 번 INSERT 된 row 는 절대 UPDATE / DELETE 하지 않습니다.
+ * 도메인 메서드에도 setter 가 없습니다. 잘못 기록된 항목은 새 row (정정 entry, correction
  * entry) 로 정정합니다. 정정 history 도 다시 audit 되어 두 row 가 timeline 에 같이 남습니다
- * — 그 timeline 전체가 *진실의 전체 모습*.</p>
+ * — 그 timeline 전체가 진실의 전체 모습.</p>
  *
  * <p><b>왜 before/after 를 JSON 으로?</b> 한 audit 테이블이 Invoice / Refund / Credit / Wallet
  * 등 여러 도메인의 변경을 다 담아야 하는데, 도메인마다 컬럼 구조가 달라 일반 (generic) 표현이
- * 필요합니다. JSON 으로 dump 하면 어떤 도메인이든 같은 형식으로 적을 수 있음. 단점은 *특정
- * 필드의 변화만 골라 검색* 하기 어렵다는 것 — JSON 안을 SQL 로 풀어보려면 운영 DB 의
+ * 필요합니다. JSON 으로 dump 하면 어떤 도메인이든 같은 형식으로 적을 수 있음. 단점은 특정
+ * 필드의 변화만 골라 검색하기 어렵다는 것 — JSON 안을 SQL 로 풀어보려면 운영 DB 의
  * jsonb 연산자가 필요해 비용이 큼. 자주 검색되는 필드 (target_type, target_id, action) 는
  * 별도 컬럼으로 빼서 인덱스를 직접 걸었습니다 (V9 migration 의 idx_audit_* 4종).</p>
  */

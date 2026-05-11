@@ -47,7 +47,7 @@ public interface InvoiceRepository {
 
     /**
      * 운영자 화면 전용. {@code deleted_at} 이 set 된 row 까지 포함해 조회. 일반 도메인 흐름은
-     * 절대 사용 금지 — 활성 row 만 본다는 *기본 가정* 을 깸.
+     * 절대 사용 금지 — 활성 row 만 본다는 기본 가정 을 깸.
      */
     Optional<Invoice> findByIdIncludingDeleted(UUID id);
 }

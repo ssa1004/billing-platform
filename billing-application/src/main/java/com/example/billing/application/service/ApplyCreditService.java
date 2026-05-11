@@ -35,7 +35,7 @@ import java.util.List;
  * </ol>
  *
  * <p><b>낙관적 락 자동 재시도</b>: Credit/Invoice 의 {@code @Version} 충돌 (만료 batch / 동시
- * 결제 등) 은 {@link OptimisticLockRetry} 로 *짧은 budget* 안에서 자동 재시도. 충돌이 budget
+ * 결제 등) 은 {@link OptimisticLockRetry} 로 짧은 budget 안에서 자동 재시도. 충돌이 budget
  * 을 넘기면 {@link org.springframework.dao.OptimisticLockingFailureException} 그대로 throw —
  * 호출자가 후속 처리. Idempotency-Key 는 rollback 훅이 매 시도마다 release 해 주므로
  * 재시도 가능.</p>

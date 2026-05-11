@@ -25,7 +25,7 @@ import java.util.List;
  * </ol>
  *
  * <p><b>왜 동기적으로 생성하나</b>: 도메인 이벤트 발생 트랜잭션 안에서 delivery row 까지 같이
- * INSERT → 외부에서 보면 *이벤트 발생 = 알림 큐에 들어감* 이 원자적. 실제 HTTP 발송은
+ * INSERT → 외부에서 보면 이벤트 발생 = 알림 큐에 들어감 이 원자적. 실제 HTTP 발송은
  * 별도 worker 가 처리.</p>
  */
 @Service

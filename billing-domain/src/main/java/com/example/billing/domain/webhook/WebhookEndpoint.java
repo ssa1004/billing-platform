@@ -16,14 +16,14 @@ import java.util.Set;
  * Customer 가 등록한 webhook 수신 endpoint.
  *
  * <p><b>전체 그림</b>: 외부 PG 사 (결제 게이트웨이) 가 가맹점에게 결제 결과를 push 통보하는
- * 그 매커니즘의 우리 버전. 여기선 *우리가 발신자, customer 가 수신자* 입니다. customer 가
+ * 그 매커니즘의 우리 버전. 여기선 우리가 발신자, customer 가 수신자입니다. customer 가
  * 자기 서버 URL 을 등록해두면 invoice / payment / refund 같은 도메인 이벤트가 발생할 때 그
  * URL 로 HTTP POST 가 갑니다.
  *
  * <p><b>secret 이 endpoint 단위로 있는 이유 (HMAC 서명 검증)</b>: customer 서버가 "이 요청이
  * 우리 billing 시스템에서 온 게 맞나" 를 검증하기 위해 필요. 동작은:
  * <ol>
- *   <li>등록 시 우리가 256-bit 무작위 secret 을 생성 — 응답에 *한 번만 평문으로* 노출.
+ *   <li>등록 시 우리가 256-bit 무작위 secret 을 생성 — 응답에 한 번만 평문으로 노출.
  *       customer 는 자기 서버에 그 secret 을 보관.</li>
  *   <li>매 webhook 발송 시 우리는 (body + timestamp) 를 secret 으로 HMAC (Hash-based Message
  *       Authentication Code, 비밀 키와 메시지로 만든 위조 방지 서명) 서명해 헤더에 실음.</li>
@@ -34,18 +34,18 @@ import java.util.Set;
  * <p><b>Secret rotation + grace window (ADR-0029)</b>: 분실 / 노출 / 정기 갱신 시
  * {@link #rotateSecret} 으로 새 secret 발급. webhook 발신 SaaS 의 표준 흐름:
  * <ul>
- *   <li>새 secret 을 *current secret* 으로 활성.</li>
- *   <li>이전 secret 을 *previousSecret* 으로 demote — 24h grace window 동안 *함께 유효*.</li>
- *   <li>매 webhook 발송 시 *두 secret 으로 각각 서명* 한 두 값을 같은 헤더에 같이 보냄
+ *   <li>새 secret 을 current secret 으로 활성.</li>
+ *   <li>이전 secret 을 previousSecret 으로 demote — 24h grace window 동안 함께 유효.</li>
+ *   <li>매 webhook 발송 시 두 secret 으로 각각 서명한 두 값을 같은 헤더에 같이 보냄
  *       — customer 가 자기 측 secret 으로 어느 하나라도 일치하면 검증 통과.</li>
  *   <li>24h 후 previousSecret 은 자동 expire — 그 시점에 customer 는 새 secret 으로 업데이트
  *       되어 있어야 함 (grace 안에서 갱신).</li>
  * </ul>
  * 이전 ADR (rotate 즉시 invalidate) 의 단점: customer 가 새 secret 을 반영할 짧은 시간 동안
- * 모든 webhook 이 검증 실패로 떨어짐. grace window 가 *deployment overlap* 을 자연스럽게 흡수.
+ * 모든 webhook 이 검증 실패로 떨어짐. grace window 가 deployment overlap 을 자연스럽게 흡수.
  *
  * <p><b>subscribedEventTypes 의 default 가 "모든 이벤트"</b>: customer 가 특정 타입만 받고
- * 싶을 때 (예: refund 알림만) 명시. 비어 있으면 *모든 이벤트 구독* 으로 간주 — "기본은 다
+ * 싶을 때 (예: refund 알림만) 명시. 비어 있으면 모든 이벤트 구독으로 간주 — "기본은 다
  * 받음, 관심 없는 것만 명시적으로 제외" 가 default 여서 온보딩 마찰이 적음.
  *
  * <p><b>도메인 invariant</b>:
@@ -54,7 +54,7 @@ import java.util.Set;
  *       중간자 공격 (man-in-the-middle) 에 secret 이 그대로 노출됨. localhost 만 dev 편의로
  *       예외.</li>
  *   <li>secret 은 32바이트 (256bit) 무작위 값 — HMAC-SHA256 의 권장 키 길이. SecureRandom 사용.</li>
- *   <li>previousSecret 은 (있다면) previousSecretValidUntil 과 *항상 짝* — 둘 중 하나만 있으면 invariant 깨짐.</li>
+ *   <li>previousSecret 은 (있다면) previousSecretValidUntil 과 항상 짝 — 둘 중 하나만 있으면 invariant 깨짐.</li>
  * </ul>
  */
 public final class WebhookEndpoint {
@@ -166,21 +166,21 @@ public final class WebhookEndpoint {
      *   <li>previousSecretValidUntil 을 now + 24h 로 set.</li>
      *   <li>새 secret 생성, 현재 secret 으로 활성.</li>
      * </ol>
-     * 이 시점부터 24h 동안 우리 발신 측은 *두 secret 모두로 서명* 한 두 값을 헤더에 같이 보냄.
+     * 이 시점부터 24h 동안 우리 발신 측은 두 secret 모두로 서명한 두 값을 헤더에 같이 보냄.
      * customer 는 자기 측 (이미 갖고 있던 secret 또는 응답으로 받은 새 secret) 으로 어느 한 쪽이라도
      * 일치하면 검증 통과. 24h 후 grace 만료 시점에 customer 는 새 secret 으로 업데이트되어 있어야 함.
      *
-     * <p><b>grace 안에서 또 rotate 하면</b>: 앞선 previousSecret 은 *덮어씀* — chain 으로 keeping
+     * <p><b>grace 안에서 또 rotate 하면</b>: 앞선 previousSecret 은 덮어씀 — chain 으로 keeping
      * 하지 않습니다. (3개 이상 secret 동시 활성은 운영 복잡도만 키우고 의미 없음.) 단기 사이에
-     * 두 번 rotate 했다면 customer 는 가운데 secret 을 영영 못 보게 되지만, *공격자도 그 secret
-     * 을 못 씀* 이라 보안적으로는 문제없음. 운영 대시보드에 알람만 띄움.
+     * 두 번 rotate 했다면 customer 는 가운데 secret 을 영영 못 보게 되지만, 공격자도 그 secret
+     * 을 못 쓰니 보안적으로는 문제없음. 운영 대시보드에 알람만 띄움.
      */
     public void rotateSecret(Clock clock) {
         rotateSecret(clock, DEFAULT_ROTATION_GRACE);
     }
 
     /**
-     * grace 길이를 명시 — 테스트 / 운영 긴급 (예: secret 이 *이미* 누출되어 짧은 grace 만 허용)
+     * grace 길이를 명시 — 테스트 / 운영 긴급 (예: secret 이 이미 누출되어 짧은 grace 만 허용)
      * 케이스용. 일반 운영은 {@link #rotateSecret(Clock)} 의 24h 기본값.
      */
     public void rotateSecret(Clock clock, Duration graceWindow) {
@@ -197,7 +197,7 @@ public final class WebhookEndpoint {
 
     /**
      * grace window 가 만료된 previousSecret 을 정리. cron / 운영 작업에서 호출 — 또는 다음 rotation
-     * 직전에 자연스럽게 처리. lazy cleanup 패턴이라 *호출 안 해도* 보안적 위험 없음 (검증 시
+     * 직전에 자연스럽게 처리. lazy cleanup 패턴이라 호출 안 해도 보안적 위험 없음 (검증 시
      * {@link #activeSecrets} 가 만료된 previousSecret 을 자동 제외).
      *
      * @return previousSecret 이 정리되었으면 true.
@@ -247,7 +247,7 @@ public final class WebhookEndpoint {
     }
 
     /**
-     * 발신 측이 webhook 서명 시 사용할 *활성 secret 목록* — clock 기준으로 grace 안의 previousSecret
+     * 발신 측이 webhook 서명 시 사용할 활성 secret 목록 — clock 기준으로 grace 안의 previousSecret
      * 도 포함.
      *
      * <p>리스트 순서: 현재 secret 이 항상 첫 번째, previousSecret 은 두 번째 (있을 때). webhook

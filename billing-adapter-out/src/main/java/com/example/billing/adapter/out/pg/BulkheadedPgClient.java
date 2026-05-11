@@ -19,8 +19,8 @@ import java.util.function.Supplier;
  * PG 호출용 ThreadPool Bulkhead (격리 풀) 데코레이터.
  *
  * <p><b>왜 필요</b>: 현재 PG 호출은 servlet thread (가상 스레드 포함) 위에서 직접 실행됩니다.
- * PG 가 슬로우다운되면 servlet thread pool 이 PG 응답 대기로 점유되어 *다른 endpoint
- * (wallet 조회, invoice 발급, audit 조회 등) 까지 stall* 됩니다. 분산 시스템의 고전적
+ * PG 가 슬로우다운되면 servlet thread pool 이 PG 응답 대기로 점유되어 다른 endpoint
+ * (wallet 조회, invoice 발급, audit 조회 등) 까지 stall 됩니다. 분산 시스템의 고전적
  * cascade failure (한 종속이 느려져 caller 까지 함께 무너지는 현상) — 도메인별 ThreadPool
  * 격리 (bulkhead 패턴) 가 표준 처방입니다.</p>
  *
@@ -38,9 +38,9 @@ import java.util.function.Supplier;
  *   외부 PG HTTP
  * </pre>
  *
- * <p><b>왜 ThreadPool 격리가 Semaphore 보다 좋은가</b>: Semaphore 는 *호출 스레드 자체* 의
+ * <p><b>왜 ThreadPool 격리가 Semaphore 보다 좋은가</b>: Semaphore 는 호출 스레드 자체 의
  * 동시성만 제한 — slow call 자체는 막지 않음 (스레드는 여전히 PG 응답 대기로 묶임).
- * ThreadPool 은 *별도 worker* 가 호출을 실행 → caller 는 future 만 받고 짧은 timeout 으로 wait,
+ * ThreadPool 은 별도 worker 가 호출을 실행 → caller 는 future 만 받고 짧은 timeout 으로 wait,
  * worker 가 막혀도 caller 자체는 풀림. 따라서 도메인 간 장애 전파에 강함.</p>
  *
  * <p><b>호출 인터페이스는 동기 그대로 유지</b>: 가상 스레드 (Java 21 Virtual Threads) 환경에선

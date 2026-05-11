@@ -29,7 +29,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Webhook 발신 측 contract test — secret rotation grace 동안 *두 secret 으로 서명한 두 값* 을
+ * Webhook 발신 측 contract test — secret rotation grace 동안 두 secret 으로 서명한 두 값 을
  * 같은 헤더에 콤마로 결합해 보내는지 (ADR-0029).
  *
  * <p>검증 포인트:</p>

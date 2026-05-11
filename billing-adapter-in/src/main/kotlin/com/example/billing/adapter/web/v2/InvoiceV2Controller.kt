@@ -19,7 +19,7 @@ import kotlin.jvm.optionals.getOrNull
 /**
  * 청구서 조회 v2 (ADR-0031).
  *
- * v1 ([com.example.billing.adapter.web.InvoiceController]) 와 *별도 controller* — v1 은
+ * v1 ([com.example.billing.adapter.web.InvoiceController]) 와 별도 controller — v1 은
  * unchanged 로 유지. 같은 도메인 객체를 v2 DTO 로 매핑해 반환.
  *
  * v2 추가 항목:
@@ -27,7 +27,7 @@ import kotlin.jvm.optionals.getOrNull
  *  - line 의 화폐를 `MoneyV2 { amount, currency }` 객체로 표준화 (v1 은 두 필드 분리)
  *  - currencyFilter query 파라미터 (옵션) — 특정 통화 invoice 만 조회
  *
- * v1 → v2 마이그레이션 grace 6개월. 실제 v1 → v2 cutover 는 *운영 metric* 으로 v1 사용량이
+ * v1 → v2 마이그레이션 grace 6개월. 실제 v1 → v2 cutover 는 운영 metric 으로 v1 사용량이
  * 충분히 떨어진 시점에 결정 (ADR-0031 의 "ApiVersionMetricsFilter" 참조).
  */
 @RestController

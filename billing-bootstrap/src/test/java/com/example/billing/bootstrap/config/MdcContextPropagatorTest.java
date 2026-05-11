@@ -82,7 +82,7 @@ class MdcContextPropagatorTest {
 
     @Test
     void copy_emptyOptional_doesNotTouchMdc() {
-        // worker thread 의 기존 MDC (예: 평소 비어있음) 가 빈 snapshot 으로 *오염되지 않아야* 함.
+        // worker thread 의 기존 MDC (예: 평소 비어있음) 가 빈 snapshot 으로 오염되지 않아야 함.
         MDC.put("workerExisting", "preserved");
         propagator.copy().accept(Optional.empty());
 
@@ -157,7 +157,7 @@ class MdcContextPropagatorTest {
     }
 
     /**
-     * Thread reuse 시 이전 작업의 MDC 가 다음 작업으로 *새지 않아야* 함.
+     * Thread reuse 시 이전 작업의 MDC 가 다음 작업으로 새지 않아야 함.
      */
     @Test
     void integration_workerMdcCleanedBetweenJobs() throws ExecutionException, InterruptedException {
@@ -183,7 +183,7 @@ class MdcContextPropagatorTest {
             MDC.clear();
 
             // 작업 2: caller MDC 비어있음 (Optional.empty).
-            //          worker thread 가 *작업 1 의 traceId* 를 그대로 들고 있으면 새는 것 — clear 가 막아야 함.
+            //          worker thread 가 작업 1 의 traceId 를 그대로 들고 있으면 새는 것 — clear 가 막아야 함.
             AtomicReference<String> threadName2 = new AtomicReference<>();
             AtomicReference<Map<String, String>> mdcInJob2 = new AtomicReference<>();
             bulkhead.executeRunnable(() -> {
@@ -193,7 +193,7 @@ class MdcContextPropagatorTest {
             }).toCompletableFuture().get();
 
             assertThat(traceJob1.get()).isEqualTo("job-1");
-            // 핵심: 작업 2 의 worker MDC 에 작업 1 의 traceId 가 *없어야* 함.
+            // 핵심: 작업 2 의 worker MDC 에 작업 1 의 traceId 가 없어야 함.
             assertThat(mdcInJob2.get()).doesNotContainKey("traceId");
             // 같은 worker thread 에서 재사용된 게 맞다 (keepAlive + maxPool=1).
             assertThat(threadName2.get()).isEqualTo(threadName1.get());

@@ -18,7 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter
  *
  * v1 deprecation cutover 시점 결정에 사용 — v1 카운터가 충분히 떨어지면 운영 공지 + 코드 제거.
  *
- * Path 추출은 *prefix only* (resource level) — id 마다 cardinality 가 폭발하지 않게. id 는
+ * Path 추출은 prefix only (resource level) — id 마다 cardinality 가 폭발하지 않게. id 는
  * 라벨에서 빠짐.
  */
 @Component

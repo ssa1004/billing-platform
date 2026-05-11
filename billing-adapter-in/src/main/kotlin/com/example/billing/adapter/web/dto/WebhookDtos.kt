@@ -16,7 +16,7 @@ data class RegisterWebhookEndpointRequest(
 )
 
 /**
- * 등록 직후 응답 — 평문 secret 이 *이 응답 1번* 만 노출. customer 는 이 값을 자기 검증
+ * 등록 직후 응답 — 평문 secret 이 이 응답 1번 만 노출. customer 는 이 값을 자기 검증
  * 코드에 즉시 반영해야. 분실 시 rotate-secret 으로 갱신.
  */
 data class RegisterWebhookEndpointResponse(
@@ -28,7 +28,7 @@ data class RegisterWebhookEndpointResponse(
     val status: String,
 )
 
-/** 이후 조회 응답 — secret 은 *반환 안 함*. */
+/** 이후 조회 응답 — secret 은 반환 안 함. */
 data class WebhookEndpointView(
     val id: String,
     val customerId: String,

@@ -6,7 +6,7 @@ import java.math.BigDecimal
 import java.time.Instant
 
 /**
- * v2 응답 — v1 의 InvoiceResponse 와 *별도 클래스* (ADR-0031).
+ * v2 응답 — v1 의 InvoiceResponse 와 별도 클래스 (ADR-0031).
  *
  * v1 대비 추가:
  *  - `appliedCredit`  — 이 invoice 에 적용된 credit 누적
@@ -14,7 +14,7 @@ import java.time.Instant
  *  - `currencyCode`   — ISO-4217 코드 (v1 은 line 안에만 노출됨)
  *
  * line 안의 화폐 정보도 변경 — v1 의 `currency` 필드는 v2 에서 line 의 amount 가 객체
- * (`amount` + `currency`) 로 풀어 표현되도록 통일. *읽는 쪽 변환 코드 줄임*.
+ * (`amount` + `currency`) 로 풀어 표현되도록 통일. 읽는 쪽 변환 코드 줄임.
  *
  * v1 → v2 마이그레이션은 6개월 grace — v1 controller 는 unchanged 그대로 유지.
  */

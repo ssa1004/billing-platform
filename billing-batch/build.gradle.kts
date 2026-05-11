@@ -11,8 +11,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 
     // ShedLock — multi-instance 환경에서 @Scheduled 가 한 인스턴스에서만 실행되도록
-    implementation("net.javacrumbs.shedlock:shedlock-spring:5.13.0")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:5.13.0")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:5.16.0")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:5.16.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.batch:spring-batch-test")

@@ -1,5 +1,5 @@
 # ─── billing-platform default values ───────────────────────────────────────
-# 이 파일은 *dev / staging 의 안전한 기본값* 이라고 보면 됨. prod 는 values-prod.yaml
+# 이 파일은 dev / staging 의 안전한 기본값 이라고 보면 됨. prod 는 values-prod.yaml
 # 에서 override (replicaCount/HPA/ingress TLS/network policy/secret 외부화 등).
 #
 # 운영 원칙:
@@ -166,7 +166,7 @@ networkPolicy:
   egressTo: []
 
 # ── 의존성 / 외부 시스템 ─────────────────────────────────────────────────
-# 본 chart 는 Postgres / Redis / Kafka 를 *띄우지 않음* (운영 환경마다 다른
+# 본 chart 는 Postgres / Redis / Kafka 를 띄우지 않음 (운영 환경마다 다른
 # manage 방식 — RDS / ElastiCache / MSK / 자체 cluster 등). 단순히 endpoint /
 # credential 만 받아 ConfigMap / Secret 으로 흘림.
 

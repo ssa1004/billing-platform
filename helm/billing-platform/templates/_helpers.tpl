@@ -39,7 +39,7 @@ app.kubernetes.io/part-of: billing-platform
 {{- end -}}
 
 {{/*
-selector labels 는 *변하면 안 됨* — Deployment.spec.selector.matchLabels 는 immutable.
+selector labels 는 변하면 안 됨 — Deployment.spec.selector.matchLabels 는 immutable.
 그래서 version / chart 같은 변하는 label 은 selectorLabels 에 넣지 않음.
 */}}
 {{- define "billing-platform.selectorLabels" -}}

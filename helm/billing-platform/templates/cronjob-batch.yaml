@@ -13,7 +13,7 @@ metadata:
 spec:
   schedule: {{ .schedule | quote }}
   # Forbid — 같은 batch 가 두 번 동시에 돌면 정산 / outbox cleanup 에서
-  # 동시성 사고가 발생함. 이전 실행이 안 끝났으면 새 트리거를 *건너뜀*.
+  # 동시성 사고가 발생함. 이전 실행이 안 끝났으면 새 트리거를 건너뜀.
   concurrencyPolicy: Forbid
   # startingDeadline — node down 등으로 늦게 트리거됐을 때 어디까지 봐줄지.
   # 너무 길면 한꺼번에 누적된 trigger 가 한번에 폭발 (concurrencyPolicy=Forbid 라

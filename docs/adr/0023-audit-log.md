@@ -5,13 +5,13 @@
 
 ## 배경
 
-결제 / 청구 / 환불 / 크레딧 발급 같은 *돈이 움직이는* 도메인에서는 "누가 / 언제 / 무엇을 / 왜"
+결제 / 청구 / 환불 / 크레딧 발급 같은 돈이 움직이는 도메인에서는 "누가 / 언제 / 무엇을 / 왜"
 의 영구 기록이 회계 / 보안 / 컴플라이언스 측 요구사항으로 정해져 있습니다.
 
 ### 유스케이스 (실제 시나리오)
 
-1. **회계 감사 / 국세청 검증**: "이 invoice 가 왜 cancel 됐냐" 라는 질문에 *몇 년 뒤* 답할
-   수 있어야 함. 트랜잭션 로그 / DB 변경 이력만으론 부족 — *누가 / 왜* 가 도메인에 안 박혀
+1. **회계 감사 / 국세청 검증**: "이 invoice 가 왜 cancel 됐냐" 라는 질문에 몇 년 뒤 답할
+   수 있어야 함. 트랜잭션 로그 / DB 변경 이력만으론 부족 — 누가 / 왜 가 도메인에 안 박혀
    있어 audit 가 그 빈 곳을 채워줌.
 
 2. **PCI-DSS** (Payment Card Industry Data Security Standard, 카드 정보를 다루는 시스템에
@@ -61,20 +61,20 @@ AuditEntry (append-only — 절대 UPDATE/DELETE 안 함)
 ### Append-only (한 번 적으면 수정/삭제 안 함, 추가만) 의 의미
 
 핵심 규칙:
-- 한 번 INSERT 된 row 는 *절대* UPDATE / DELETE 하지 않습니다.
+- 한 번 INSERT 된 row 는 절대 UPDATE / DELETE 하지 않습니다.
 - 도메인 객체에도 setter 가 없습니다 — 변경 자체가 코드에서 표현 불가.
-- 잘못 기록된 항목은 *새 row (정정 entry)* 로 표현. timeline 에 원본 + 정정 두 row 가 같이
-  남는 것이 *진실의 전체 모습*.
+- 잘못 기록된 항목은 새 row (정정 entry) 로 표현. timeline 에 원본 + 정정 두 row 가 같이
+  남는 것이 진실의 전체 모습.
 - "누군가 audit 를 지웠다" 자체가 사고 추적 (forensic) 의 신호이므로 삭제 자체를 막아야 함.
 
 데이터 보관 정책과 archival (장기 보관 이전) 은 별도:
 - 법정 보관 기간 (예: 7년) 이 지난 row 만 cold storage (자주 접근 안 하는 저렴한 장기 보관용
-  저장소) 로 *이동*.
-- 이동도 *복사 → 원본 그대로 남김* 또는 *논리 archival flag* 식으로. 운영 DB 에서 줄어든다고
+  저장소) 로 이동.
+- 이동도 복사 → 원본 그대로 남김 또는 논리 archival flag 식으로. 운영 DB 에서 줄어든다고
   진실이 사라지면 안 됨.
-- *수정 / 삭제* 는 어떤 경로로도 하지 않습니다.
+- 수정 / 삭제 는 어떤 경로로도 하지 않습니다.
 
-### Application 통합 — *명시적 호출*
+### Application 통합 — 명시적 호출
 
 ```java
 @Service
@@ -90,19 +90,19 @@ class GrantCreditService {
 ```
 
 도메인 작업 직후 `audit.log(...)` 명시적 호출. 같은 트랜잭션 (`@Transactional(REQUIRED)`)
-이라 도메인 변경과 audit 가 같이 commit / 같이 rollback. *audit 누락 데이터 정합 사고* 회피.
+이라 도메인 변경과 audit 가 같이 commit / 같이 rollback. audit 누락 데이터 정합 사고 회피.
 
 ### 왜 AOP / Spring Event listener 가 아닌가
 
 가능한 대안: `@After("...credit.grant(..)")` aspect (AOP, 메서드 호출을 가로채 부가 동작을
 자동 삽입) 로 자동 audit 기록. 거부.
 
-- *왜* (사유) 를 잃음 — aspect 는 메서드 시그니처에서 reason 을 읽을 수 없음
+- 왜 (사유) 를 잃음 — aspect 는 메서드 시그니처에서 reason 을 읽을 수 없음
 - 어떤 메서드가 audit 대상인지 하나하나 어노테이션을 붙여야 함 — 결국 명시적 호출과 같은 양
 - 디버깅 어려움 — "왜 audit 가 안 찍혔지" 가 AOP 매칭 룰 추적으로 변함
 - 트랜잭션 경계 / propagation 제어가 명시적이지 않음
 
-명시적 호출은 코드량은 약간 늘지만 *이해 / 수정 / 디버깅* 모두 명확합니다.
+명시적 호출은 코드량은 약간 늘지만 이해 / 수정 / 디버깅 모두 명확합니다.
 
 ### traceId 자동 추출
 
@@ -113,25 +113,25 @@ MDC 가 비활성인 환경 (테스트 등) 에서는 null — audit 자체는 �
 
 ### 실패 모드
 
-audit INSERT 가 실패하면 호출자 트랜잭션 *전체를 rollback* 합니다. *audit 누락 = 정합 사고*
+audit INSERT 가 실패하면 호출자 트랜잭션 전체를 rollback 합니다. audit 누락 = 정합 사고
 라는 입장:
 
 - 도메인 변경은 commit 됐는데 audit 가 누락된 row 가 영구히 남으면 "이 변경의 사유 / 행위자"
   가 영영 사라짐 — 사후 회계 감사 / forensic 에서 답할 수 없는 row 가 운영 DB 에 박힘.
-- audit 자체의 내구성 / 가용성을 높이는 것보다 (이중화 / 비동기 publish 등), *audit 가 안
-  적히면 도메인 변경도 안 함* 이 정합 측면에서 가장 단순.
+- audit 자체의 내구성 / 가용성을 높이는 것보다 (이중화 / 비동기 publish 등), audit 가 안
+  적히면 도메인 변경도 안 함 이 정합 측면에서 가장 단순.
 - audit 저장이 일시적으로 못 되는 상황 (DB 장애 등) 은 도메인 작업도 막혀야 한다는 뜻 — 결제
   자체를 멈추는 것이 audit 누락보다 운영상 더 안전하다는 판단.
 
 ## 대안 검토
 
 - **DB CDC (Debezium) 로 row 변경 캡처** — DB 변경 로그를 외부 audit log 시스템으로 stream.
-  DB 레벨 정합과 무누락은 좋지만 *왜 / 누가* 가 빠짐. 사용자/운영자 같은 도메인 의도를 DB
-  row 만 보고 추론할 수 없음. → audit log 와는 *별개 채널* 로 두는 것이 맞고, 둘 다 유효.
-- **CloudWatch / Splunk / Datadog 에 push** — audit 를 *외부 SaaS* 로. 비용과 vendor
+  DB 레벨 정합과 무누락은 좋지만 왜 / 누가 가 빠짐. 사용자/운영자 같은 도메인 의도를 DB
+  row 만 보고 추론할 수 없음. → audit log 와는 별개 채널 로 두는 것이 맞고, 둘 다 유효.
+- **CloudWatch / Splunk / Datadog 에 push** — audit 를 외부 SaaS 로. 비용과 vendor
   lock-in (특정 벤더에 묶이는 위험). 자체 보유가 회계 감사 시 자료 제출에 더 단순.
 - **Outbox 채널 통합** — outbox 가 이미 이벤트 발행 중이니 거기에 audit 도 같이 흘려보내기.
-  거부. outbox 는 *비동기 publish* 가 본질이라 *동기 영속* 이 필요한 audit 와는 시점이
+  거부. outbox 는 비동기 publish 가 본질이라 동기 영속 이 필요한 audit 와는 시점이
   다름. outbox 컨슈머가 늦으면 audit 도 늦어지는 게 사고 시 치명적.
 - **Hibernate Envers** (JPA entity 의 변경 이력을 자동 보존하는 라이브러리) — entity 변경은
   자동 영속되지만 action / reason / actor 같은 비즈니스 의도가 없어 부족. 별도 audit log 를
@@ -139,7 +139,7 @@ audit INSERT 가 실패하면 호출자 트랜잭션 *전체를 rollback* 합니
 
 ## 결과
 
-- 결제 도메인의 *돈이 움직이는 모든 행위* 가 영구 기록 — 회계 감사 / forensic / 운영 분쟁 대응 base
+- 결제 도메인의 돈이 움직이는 모든 행위 가 영구 기록 — 회계 감사 / forensic / 운영 분쟁 대응 base
 - 4가지 query 패턴이 인덱스로 cover — 운영자 화면 / SIEM 연동 효율
 - 도메인 작업과 같은 트랜잭션 — 정합 사고 회피
 - traceId 자동 결합으로 분산 추적 join 자연스러움

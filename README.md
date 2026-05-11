@@ -1,5 +1,11 @@
 # Billing Platform
 
+[![CI](https://github.com/ssa1004/billing-platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ssa1004/billing-platform/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?logo=kotlin)](https://kotlinlang.org/)
+[![Spring Boot 3.4](https://img.shields.io/badge/Spring%20Boot-3.4-6DB33F.svg?logo=springboot)](https://spring.io/projects/spring-boot)
+
 B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 한 시스템에서 처리합니다.
 
 - **실시간 결제** — 사용자 지갑(Wallet) 잔액 차감, 외부 PG(결제대행사) 호출, 한 번 기록되면

@@ -2,7 +2,7 @@
 # values.yaml 위에 얹는 override. 운영 원칙:
 # - replicas 최소 3 (AZ 3개 분산 가정)
 # - HPA on, NetworkPolicy on, Ingress TLS 강제
-# - PG / Wallet / DB credential 은 *반드시* 외부 secret (existingSecret) 에서 주입
+# - PG / Wallet / DB credential 은 반드시 외부 secret (existingSecret) 에서 주입
 # - Spring Batch 는 별도 CronJob (in-process scheduler 끄고)
 
 replicaCount: 3

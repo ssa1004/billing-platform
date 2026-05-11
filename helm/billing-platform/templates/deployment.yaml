@@ -7,7 +7,7 @@ metadata:
 spec:
   # HPA 가 켜졌으면 replicas 는 HPA 가 관리 — Helm 이 매 upgrade 마다 replicas
   # 를 desired 값으로 덮어쓰면 HPA 와 충돌해 진동이 생김. 그래서 HPA on 일 때는
-  # spec.replicas 를 *아예 안 보냄* (기존 값 유지).
+  # spec.replicas 를 아예 안 보냄 (기존 값 유지).
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}

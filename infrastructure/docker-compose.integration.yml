@@ -48,7 +48,7 @@ services:
 
   # auth-service stub. JWK Set 만 정적으로 노출. 실제 auth-service 는 발급 흐름이
   # 더 풍부하지만, 여기서는 "다른 서비스가 이 issuer 의 토큰으로 본 레포를 호출한다"
-  # 라는 *그림* 만 보여주면 됨. demo script 는 auth-stub 와 같은 키로 JWT 를 직접
+  # 라는 그림 만 보여주면 됨. demo script 는 auth-stub 와 같은 키로 JWT 를 직접
   # 서명해서 시연.
   auth-stub:
     image: wiremock/wiremock:3.10.0   # alpine 변종은 arm64 manifest 가 없음

@@ -35,7 +35,7 @@ import kotlin.jvm.optionals.getOrNull
  *   <li>요청에 {@code Idempotency-Key} 헤더 있고 critical endpoint (POST /api/v1/payments,
  *       /api/v1/refunds) 이면 활성.</li>
  *   <li>request body 의 SHA-256 fingerprint 계산.</li>
- *   <li>저장된 fingerprint 가 있고 *다른 값* 이면 422 INCOMPATIBLE_PARAMS — client bug 검출
+ *   <li>저장된 fingerprint 가 있고 다른 값 이면 422 INCOMPATIBLE_PARAMS — client bug 검출
  *       (같은 멱등 키로 다른 body, 잠재적 결제 사고).</li>
  *   <li>캐시 hit → 그 응답 (status + body) 그대로 client 에 reply, chain 차단.</li>
  *   <li>캐시 miss → fingerprint 박고 정상 처리. 응답을 wrapper 로 캡처 → 처리 성공 시 캐시.</li>
@@ -89,8 +89,8 @@ class IdempotencyResponseCacheFilter(
         }
         val k = key!!
 
-        // request body 를 두 번 읽기 위해 자체 wrapper. ContentCachingRequestWrapper 는 *chain
-        // downstream* 의 read 만 캡처 — 우리는 chain 전에 fingerprint 가 필요해서 직접 buffer 한 뒤
+        // request body 를 두 번 읽기 위해 자체 wrapper. ContentCachingRequestWrapper 는 chain
+        // downstream 의 read 만 캡처 — 우리는 chain 전에 fingerprint 가 필요해서 직접 buffer 한 뒤
         // controller 에는 같은 byte[] 를 다시 노출하는 wrapper 를 넘김.
         val bodyBytes = req.inputStream.use { it.readAllBytes() }
         val fingerprint = if (bodyBytes.size > IdempotencyKeyStore.MAX_FINGERPRINT_BODY_BYTES) {
@@ -102,7 +102,7 @@ class IdempotencyResponseCacheFilter(
             RequestBodyFingerprint.compute(bodyBytes)
         }
 
-        // 1. 같은 키로 *다른 body* 가 들어왔는지 검출 — 422 INCOMPATIBLE_PARAMS.
+        // 1. 같은 키로 다른 body 가 들어왔는지 검출 — 422 INCOMPATIBLE_PARAMS.
         if (fingerprint != null) {
             val existing = store.findRequestFingerprint(k).getOrNull()
             if (existing != null && !RequestBodyFingerprint.matches(existing, fingerprint)) {
@@ -122,7 +122,7 @@ class IdempotencyResponseCacheFilter(
             return
         }
 
-        // 3. 첫 처리 — fingerprint 박음. (응답 cache 가 박히기 전에라도 같은 키로 *다른 body* 가
+        // 3. 첫 처리 — fingerprint 박음. (응답 cache 가 박히기 전에라도 같은 키로 다른 body 가
         //    오면 422 가 떨어지도록.)
         if (fingerprint != null) {
             store.recordRequestFingerprint(k, fingerprint)
@@ -137,7 +137,7 @@ class IdempotencyResponseCacheFilter(
             ok = true
         } finally {
             // 5. 성공 응답 (2xx, 201) 만 캐시. 4xx / 5xx 는 client 가 retry 할 수 있어야 함.
-            //    예외 발생 시 wrapper.copyBodyToResponse() 는 finally 에서 *반드시* 호출 — 본문 누락 방지.
+            //    예외 발생 시 wrapper.copyBodyToResponse() 는 finally 에서 반드시 호출 — 본문 누락 방지.
             try {
                 if (ok && isSuccess(resWrapper.status)) {
                     val body = resWrapper.contentAsByteArray

@@ -42,7 +42,7 @@ class RequestBodyFingerprintTest {
     @Test
     fun `whitespace difference produces different fingerprint`() {
         // JSON 의 공백도 raw byte 비교 — 같은 의미 다른 byte 면 다른 fingerprint.
-        // 이건 의도된 동작: client 가 같은 키로 *완전히 동일한 byte 의 body* 를 보내야 같은 처리.
+        // 이건 의도된 동작: client 가 같은 키로 완전히 동일한 byte 의 body 를 보내야 같은 처리.
         // 의미적 동등성 (semantic equality) 까지 검증하려면 body 정규화가 필요한데, 결제 API
         // 표준도 raw byte 비교만 함.
         val a = RequestBodyFingerprint.compute("""{"a":1}""".toByteArray())

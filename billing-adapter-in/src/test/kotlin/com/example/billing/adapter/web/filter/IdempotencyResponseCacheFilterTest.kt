@@ -243,7 +243,7 @@ class IdempotencyResponseCacheFilterTest {
     @Test
     fun `controller can re-read body after fingerprint computation`() {
         // 핵심 — fingerprint 계산을 위해 우리가 inputStream 을 한 번 읽었으니, controller 가 다시
-        // 읽었을 때도 *같은 body* 가 보여야 함.
+        // 읽었을 때도 같은 body 가 보여야 함.
         val req = MockHttpServletRequest("POST", "/api/v1/payments")
         req.addHeader("Idempotency-Key", "k-fp-4")
         val originalBody = """{"orderId":"o-99","amount":4500}"""

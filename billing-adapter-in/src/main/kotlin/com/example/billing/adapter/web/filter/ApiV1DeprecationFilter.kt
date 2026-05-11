@@ -14,7 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter
  *
  * - **`Deprecation`** (RFC 9745): "이 endpoint 는 deprecated 되었음" 시그널. 표준은 boolean
  *   문자열 또는 deprecated 시점의 HTTP-date. 우리는 boolean true 사용 — 시점은 공지로 별도.
- * - **`Sunset`** (RFC 8594): "이 endpoint 가 *제거될* 시점" 의 HTTP-date. client 는 이 시점을
+ * - **`Sunset`** (RFC 8594): "이 endpoint 가 제거될 시점" 의 HTTP-date. client 는 이 시점을
  *   기준으로 v2 마이그레이션 일정 잡음.
  * - **`Link`** with `rel="successor-version"`: 다음 버전 endpoint 가리킴.
  *

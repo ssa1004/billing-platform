@@ -121,7 +121,7 @@ class WebhookEndpointTest {
         Clock laterClock = Clock.fixed(CLOCK.instant().plus(Duration.ofMinutes(10)), ZoneOffset.UTC);
         e.rotateSecret(laterClock);
 
-        // previous 는 *방금 직전* secret 이어야 함 — 첫 번째 secret 은 사라짐.
+        // previous 는 방금 직전 secret 이어야 함 — 첫 번째 secret 은 사라짐.
         assertThat(e.previousSecret()).contains(middleSecret);
     }
 

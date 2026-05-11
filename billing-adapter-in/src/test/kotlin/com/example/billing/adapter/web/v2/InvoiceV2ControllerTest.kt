@@ -25,7 +25,7 @@ import java.util.UUID
 /**
  * InvoiceV2Controller 단위 테스트 (ADR-0031).
  *
- * v1 과 동일한 도메인 객체에서 *추가 필드* 가 정확히 전달되는지 검증.
+ * v1 과 동일한 도메인 객체에서 추가 필드 가 정확히 전달되는지 검증.
  */
 class InvoiceV2ControllerTest {
 

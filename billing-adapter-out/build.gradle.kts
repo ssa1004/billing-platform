@@ -18,7 +18,7 @@ dependencies {
     // PG client
     implementation("org.springframework:spring-web")
     implementation("org.springframework.boot:spring-boot-starter-aop")
-    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.3.0")
 
     // Cache / KV
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
@@ -34,8 +34,8 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.kafka:spring-kafka-test")
-    testImplementation("org.wiremock:wiremock-standalone:3.10.0")
+    testImplementation("org.wiremock:wiremock-standalone:3.13.1")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("com.redis:testcontainers-redis:2.2.2")
+    testImplementation("com.redis:testcontainers-redis:2.2.4")
 }

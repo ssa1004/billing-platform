@@ -16,7 +16,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * <p><b>이 helper 가 푸는 문제</b>: {@link IdempotencyKeyStore#acquireOrThrow} 만 단독으로
  * 호출하면 점유는 Redis 에 즉시 박히는데, 그 직후 도메인 검증이 실패해 트랜잭션이 rollback
  * 되어도 Redis 의 점유는 그대로 남습니다. 같은 키로 다시 시도하면 24h 동안
- * {@code DuplicateRequestException} 만 떨어져 — 정상 재시도가 막히는 *self-DoS* 상황이
+ * {@code DuplicateRequestException} 만 떨어져 — 정상 재시도가 막히는 self-DoS 상황이
  * 됩니다.</p>
  *
  * <p><b>해결 방법</b>: 점유 직후 {@link TransactionSynchronizationManager} 에 후처리 훅을

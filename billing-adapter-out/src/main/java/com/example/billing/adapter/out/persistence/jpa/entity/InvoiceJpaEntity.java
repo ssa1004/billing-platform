@@ -16,7 +16,7 @@ import java.util.UUID;
  * Invoice persistence row — soft delete 적용 (ADR-0030).
  *
  * <p><b>{@link SQLRestriction}</b>: 모든 read query 에 자동으로 {@code deleted_at IS NULL} 을
- * AND 로 끼워줍니다. 활성 row 만 보이는 게 *기본*. 삭제된 row 까지 봐야 하는 운영자용 화면은
+ * AND 로 끼워줍니다. 활성 row 만 보이는 게 기본. 삭제된 row 까지 봐야 하는 운영자용 화면은
  * 이 엔티티를 거치지 않고 NativeQuery 로 풀어야 합니다 (의도적으로 어렵게).</p>
  *
  * <p><b>{@link SQLDelete}</b>: {@code repository.delete(entity)} 호출 시 실제로는 UPDATE 실행 —

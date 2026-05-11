@@ -31,14 +31,14 @@ import java.util.UUID;
  *   <li>SOFT_DELETED audit 발행 (before=row JSON, after=null, reason=호출자 사유)</li>
  * </ol>
  *
- * <p><b>왜 row 조회를 먼저?</b> audit 의 beforeJson 에 *삭제 시점의 row 스냅샷* 을 박아넣기 위해.
+ * <p><b>왜 row 조회를 먼저?</b> audit 의 beforeJson 에 삭제 시점의 row 스냅샷 을 박아넣기 위해.
  * 조회 → 삭제 사이에 다른 트랜잭션이 같은 row 를 또 삭제할 수는 없습니다 (UPDATE 가 멱등 — 두 번째 호출은 0행 영향).
  * 트랜잭션 격리 수준 (READ COMMITTED / REPEATABLE READ) 에 상관없이 SOFT_DELETED audit 가
  * 두 번 발행되지 않도록 {@code softDelete} 가 boolean 으로 "이미 삭제됐는지" 알려줍니다.</p>
  *
  * <p><b>왜 propagation REQUIRED?</b> 호출자 (운영자 화면 컨트롤러) 가 자기 트랜잭션을 갖고 있을
  * 수 있는데, 그 안에서 우리 작업이 부분 commit 되면 곤란. 호출자 트랜잭션이 rollback 되면 우리
- * 마킹도 rollback 되어야 *대응되는 audit entry 도 같이* 사라집니다.</p>
+ * 마킹도 rollback 되어야 대응되는 audit entry 도 같이 사라집니다.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -100,7 +100,7 @@ public class SoftDeleteService implements SoftDeleteUseCase {
     }
 
     // ── before-snapshot 직렬화 ──
-    // 운영 표준은 Jackson + 도메인별 DTO 지만, audit 의 before/after 는 *디버깅 / forensic 용*
+    // 운영 표준은 Jackson + 도메인별 DTO 지만, audit 의 before/after 는 디버깅 / forensic 용
     // 이라 아주 상세할 필요는 없음. 핵심 식별자 + 상태 + 금액만 toString 으로 압축.
 
     private static String summarize(Invoice i) {

@@ -28,7 +28,7 @@ import java.util.Objects;
  * advisory lock 으로 직렬화 보강 가능 (ADR-0007).</p>
  *
  * <p><b>이벤트 발행 패턴</b>: 모든 잔액 변경 메서드는 변경 결과를 표현하는
- * {@link WalletEvents} 의 record 를 *반환* 만 합니다. 발행 자체는 도메인이 안 함 — 호출자
+ * {@link WalletEvents} 의 record 를 반환 만 합니다. 발행 자체는 도메인이 안 함 — 호출자
  * (application service) 가 받은 이벤트를 Outbox 에 INSERT (Kafka 발행 + Ledger 기록은 그 뒤
  * 단계). 도메인이 인프라 (DB / 메시지 브로커) 를 모르게 하기 위한 분리.</p>
  */

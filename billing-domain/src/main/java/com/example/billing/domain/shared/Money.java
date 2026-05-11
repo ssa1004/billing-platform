@@ -32,8 +32,8 @@ import java.util.Objects;
  * 번에 곱하는 쪽을 권장합니다.</p>
  *
  * <p><b>Wallet balance 의 "음수 금지" 는 어디서?</b> Money 자체가 음수를 허용해도 잔액
- * 무결성은 {@link com.example.billing.domain.wallet.Wallet} 가 보장합니다 — Money 는 *산술
- * 단위* 일 뿐, 도메인 invariant 는 그 단위를 사용하는 애그리거트의 책임입니다.</p>
+ * 무결성은 {@link com.example.billing.domain.wallet.Wallet} 가 보장합니다 — Money 는 산술
+ * 단위일 뿐, 도메인 invariant 는 그 단위를 사용하는 애그리거트의 책임입니다.</p>
  */
 public final class Money implements Comparable<Money> {
 

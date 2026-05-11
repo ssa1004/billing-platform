@@ -15,7 +15,7 @@ import java.util.UUID;
 
 /**
  * Payment persistence row — soft delete 적용 (ADR-0030). PG 트랜잭션 ID 가 박힌 row 라
- * 물리 삭제는 *절대* 금지. PG 측엔 살아있는데 우리 DB 에서 사라진 row 가 정합 깨짐 사고의
+ * 물리 삭제는 절대 금지. PG 측엔 살아있는데 우리 DB 에서 사라진 row 가 정합 깨짐 사고의
  * 가장 흔한 원인.
  */
 @Entity

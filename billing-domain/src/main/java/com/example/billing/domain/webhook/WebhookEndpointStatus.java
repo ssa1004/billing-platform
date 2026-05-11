@@ -5,7 +5,7 @@ package com.example.billing.domain.webhook;
  *
  * <ul>
  *   <li>{@link #ACTIVE} — 새 이벤트가 발생하면 이 endpoint 로 delivery 가 생성된다.</li>
- *   <li>{@link #PAUSED} — 운영자/customer 가 잠시 끔. 새 delivery 가 *생성 자체* 안 됨.
+ *   <li>{@link #PAUSED} — 운영자/customer 가 잠시 끔. 새 delivery 가 생성 자체 안 됨.
  *       이미 큐에 들어가 있는 delivery 는 그대로 처리 (혹은 별도 정책으로 같이 멈출 수도).</li>
  * </ul>
  *

@@ -15,10 +15,10 @@ import java.util.Objects;
  * <p><b>Wallet 과 무엇이 다른가</b> (별도 도메인으로 둔 이유):
  * <ul>
  *   <li>{@code Wallet} 은 거래 잔액 (입금 / 출금 / 블록). 사용자가 충전한 돈이라 환불 대상.</li>
- *   <li>{@code Credit} 은 *발급된* 잔액 (PROMO 쿠폰 / 보상 / 프로모션 등). 환불 불가, 만료
+ *   <li>{@code Credit} 은 발급된 잔액 (PROMO 쿠폰 / 보상 / 프로모션 등). 환불 불가, 만료
  *       가능, 청구서 결제 시 자동 차감.</li>
  * </ul>
- * 회계상 두 잔액의 *수익 인식 (revenue recognition) 시점이 다름* — Wallet 은 충전 시점에
+ * 회계상 두 잔액의 수익 인식 (revenue recognition) 시점이 다름 — Wallet 은 충전 시점에
  * 부채로 잡고 사용 시점에 수익 전환, Credit 은 발급 시점에 마케팅 비용 / 보상 비용으로 잡힘.
  * 같은 테이블로 합치면 회계 기간말 마감에서 분리 비용이 더 큽니다.
  *
@@ -39,7 +39,7 @@ import java.util.Objects;
  * ({@link com.example.billing.application.service.OptimisticLockRetry}).</p>
  *
  * <p><b>이벤트 발행 패턴</b>: 모든 상태 변경 메서드는 {@link CreditEvents} 의 record 를
- * *반환* 합니다. 도메인이 직접 발행하지 않고 application service 가 받은 이벤트를 Outbox 에
+ * 반환 합니다. 도메인이 직접 발행하지 않고 application service 가 받은 이벤트를 Outbox 에
  * INSERT — 도메인이 인프라 (DB / Kafka) 를 모르게 하기 위한 분리.</p>
  */
 public final class Credit {

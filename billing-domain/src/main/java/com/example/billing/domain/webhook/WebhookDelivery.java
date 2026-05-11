@@ -8,13 +8,13 @@ import java.util.Objects;
 /**
  * Webhook 한 건의 전송 시도 기록 (aggregate).
  *
- * <p>한 도메인 이벤트 (예: InvoiceIssued) 가 발생하면, 구독한 endpoint 마다 *Delivery 1개씩*
+ * <p>한 도메인 이벤트 (예: InvoiceIssued) 가 발생하면, 구독한 endpoint 마다 Delivery 1개씩
  * 만들어집니다. 각 Delivery 는 자체 retry 라이프사이클을 가집니다.
  *
  * <p><b>retry 분기를 호출자가 결정</b>: customer 서버가 잠깐 다운되었을 수 있고 (이 경우 잠시
  * 후 다시 시도하면 됨), 영구적으로 잘못된 URL 일 수 있고 (4xx — 다시 시도해도 소용없음), 우리
  * 쪽 timeout 일 수 있습니다 (네트워크 일시 장애 — 재시도해야 함). HTTP 응답 코드만으로 모든
- * 걸 판단할 수 없기에 *재시도냐 dead 냐* 결정을 호출자 (HTTP 클라이언트) 가 내려서 도메인에
+ * 걸 판단할 수 없기에 재시도냐 dead 냐 결정을 호출자 (HTTP 클라이언트) 가 내려서 도메인에
  * 알려줍니다.
  *
  * <p><b>왜 exponential backoff (간격을 점점 늘리는 재시도)</b>: customer 서버가 다운된 동안
@@ -117,7 +117,7 @@ public final class WebhookDelivery {
 
     /**
      * Worker 가 픽업 시 호출 — IN_FLIGHT (보내는 중) 로 전이. attemptCount 1 증가.
-     * (attemptCount 는 *시도 번호* 라 픽업 시점에 올립니다. 결과가 어떻든 시도는 한 셈이니까.)
+     * (attemptCount 는 시도 번호 라 픽업 시점에 올립니다. 결과가 어떻든 시도는 한 셈이니까.)
      */
     public void beginAttempt(Clock clock) {
         if (status != WebhookDeliveryStatus.PENDING) {
@@ -188,7 +188,7 @@ public final class WebhookDelivery {
     }
 
     /**
-     * 운영자가 수동으로 다시 큐에 넣음. attemptCount 는 *유지* 합니다 (이 delivery 의 누적
+     * 운영자가 수동으로 다시 큐에 넣음. attemptCount 는 유지 합니다 (이 delivery 의 누적
      * 시도 횟수). "다시 시도해도 또 실패할 가능성이 크지만 운영자가 의도적으로 다시
      * 시도하는 것" — 의도가 분명한 동작.
      */

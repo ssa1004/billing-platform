@@ -13,7 +13,7 @@ import java.util.Objects;
  *   <li>{@code EXTERNAL} — webhook callback / 3rd party API 등 외부 진입점 호출.</li>
  * </ul>
  *
- * <p>{@code ipAddress / userAgent} 는 *알 수 있을 때만* 채움 (HTTP 진입점에선 채우고 SYSTEM
+ * <p>{@code ipAddress / userAgent} 는 알 수 있을 때만 채움 (HTTP 진입점에선 채우고 SYSTEM
  * 에선 null). 이 둘 만으로도 비정상 접근 패턴 분석 가능.</p>
  */
 public record AuditActor(

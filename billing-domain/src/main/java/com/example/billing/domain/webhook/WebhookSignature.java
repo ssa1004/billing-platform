@@ -10,8 +10,8 @@ import java.util.HexFormat;
 /**
  * Webhook 본문 HMAC-SHA256 서명 — customer 가 진위 검증할 수 있게.
  *
- * <p><b>왜 timestamp 를 같이 묶나</b>: 공격자가 과거 webhook 본문을 그대로 다시 보내는 *replay
- * 공격* 방지. customer 는 timestamp 가 너무 오래된 (예: 5분 이상) 요청은 거절하면 됨.
+ * <p><b>왜 timestamp 를 같이 묶나</b>: 공격자가 과거 webhook 본문을 그대로 다시 보내는 replay
+ * 공격 방지. customer 는 timestamp 가 너무 오래된 (예: 5분 이상) 요청은 거절하면 됨.
  *
  * <p><b>서명 알고리즘</b>: {@code HMAC-SHA256(secret, "{timestamp}.{body}")}
  * webhook 발신 SaaS 가 보편적으로 채택한 형식. customer side 검증 코드도 짧게 끝남.

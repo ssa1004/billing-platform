@@ -53,7 +53,7 @@ public interface SpringDataInvoiceRepository extends JpaRepository<InvoiceJpaEnt
 
     /**
      * 운영자 화면 전용. SQLRestriction 우회를 위한 NativeQuery.
-     * 일반 도메인 흐름에서 호출 금지 — 활성 row 만 본다는 *기본 가정* 을 깸.
+     * 일반 도메인 흐름에서 호출 금지 — 활성 row 만 본다는 기본 가정 을 깸.
      */
     @Query(value = "SELECT * FROM invoices WHERE id = :id", nativeQuery = true)
     Optional<InvoiceJpaEntity> findByIdIncludingDeleted(@Param("id") UUID id);

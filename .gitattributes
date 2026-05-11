@@ -1,0 +1,53 @@
+# Git attributes — 줄바꿈 / diff / linguist 통계 정리.
+# Windows 환경에서 clone 해도 LF 유지하도록 강제.
+
+# 기본은 git 자동 판단 + LF 정규화.
+* text=auto eol=lf
+
+# 소스 코드 — 명시적 LF.
+*.java       text eol=lf
+*.kt         text eol=lf
+*.kts        text eol=lf
+*.gradle     text eol=lf
+*.properties text eol=lf
+*.xml        text eol=lf
+*.sh         text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+*.json       text eol=lf
+*.md         text eol=lf
+*.sql        text eol=lf
+*.toml       text eol=lf
+*.conf       text eol=lf
+
+# Windows 전용은 CRLF 유지.
+*.bat        text eol=crlf
+*.cmd        text eol=crlf
+
+# Gradle wrapper — 실행 가능한 텍스트 + LF.
+gradlew      text eol=lf
+gradlew.bat  text eol=crlf
+
+# Wrapper jar 는 binary.
+*.jar        binary
+*.war        binary
+*.class      binary
+*.png        binary
+*.jpg        binary
+*.jpeg       binary
+*.gif        binary
+*.ico        binary
+*.pdf        binary
+*.zip        binary
+*.tar        binary
+*.tar.gz     binary
+*.tgz        binary
+
+# GitHub linguist — 자동 생성물 / 벤더 코드는 통계에서 제외.
+gradle/wrapper/* linguist-vendored
+gradlew          linguist-generated
+gradlew.bat      linguist-generated
+**/build/**      linguist-generated
+
+# Diff 시 markdown / yaml 은 default diff 가 적합.
+*.md   diff=markdown

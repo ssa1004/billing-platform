@@ -35,7 +35,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Compile
         run: ./gradlew --no-daemon compileJava compileKotlin compileTestJava
@@ -65,7 +65,7 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Run e2e Testcontainers
         run: ./gradlew --no-daemon :e2e-tests:test
@@ -91,13 +91,13 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Build (no test)
         run: ./gradlew --no-daemon assemble -x test
 
       - name: OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@main
+        uses: dependency-check/Dependency-Check_Action@1.1.0
         with:
           project: billing-platform
           path: .
@@ -152,7 +152,7 @@ jobs:
           provenance: true
 
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/billing-platform:${{ steps.meta.outputs.tag }}
           severity: HIGH,CRITICAL

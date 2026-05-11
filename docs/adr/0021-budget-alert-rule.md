@@ -73,7 +73,7 @@ Spring Batch tasklet + `BillingJobScheduler.runEvaluateBudgetAlerts()`:
 ```
 
 `overshootRatio` (1.5 = 임계의 1.5배, 즉 50% 초과) 와 `periodProgressRatio` 를 같이 넘겨
-*알림 본문* 에서 "5월 50% 진행, 예상 150만 — 임계 100만 의 1.5배" 같은 컨텍스트를 전달
+알림 본문에서 "5월 50% 진행, 예상 150만 — 임계 100만 의 1.5배" 같은 컨텍스트를 전달
 가능합니다.
 
 ## 대안 검토

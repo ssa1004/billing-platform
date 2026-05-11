@@ -46,7 +46,7 @@ IdempotencyResponseCacheFilter
 billing.idempotency.cached-paths: /api/v1/payments,/api/v1/refunds
 ```
 
-*돈이 움직이는* 행위만 cache. 조회 / 운영 endpoint 는 멱등이 자체 의미라 cache 불필요.
+돈이 움직이는 행위만 cache. 조회 / 운영 endpoint 는 멱등이 자체 의미라 cache 불필요.
 GraphQL / 다른 도메인 추가는 별도 검토.
 
 ### 16KB cap

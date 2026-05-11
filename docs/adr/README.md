@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-각 결정의 *배경 → 결정 → 장단점* 을 짧게 기록 ([Michael Nygard 형식](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions) 참고).
+각 결정의 배경 → 결정 → 장단점을 짧게 기록 ([Michael Nygard 형식](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions) 참고).
 
 | # | 제목 | 상태 |
 |---|---|---|

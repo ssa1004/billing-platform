@@ -105,9 +105,9 @@ WebhookDelivery   ─┘  한 이벤트 × 한 endpoint 의 전송 시도 (retry
 
 ### 통합 통로 (이번 ADR 의 경계 밖)
 
-`ScheduleWebhookUseCase` 가 *진입점* 입니다. 도메인 이벤트가 발생하는 곳에서 (또는 outbox
+`ScheduleWebhookUseCase` 가 진입점입니다. 도메인 이벤트가 발생하는 곳에서 (또는 outbox
 listener 가) 호출하면 customer 의 ACTIVE endpoint 들로 delivery 가 INSERT 됩니다. 본 ADR 은
-*발송 시스템 자체* 의 설계만 다루며, outbox → schedule 연결은 후속 (Spring Modulith
+발송 시스템 자체의 설계만 다루며, outbox → schedule 연결은 후속 (Spring Modulith
 `@ApplicationModuleListener` 등) 으로 둡니다.
 
 ## 대안 검토

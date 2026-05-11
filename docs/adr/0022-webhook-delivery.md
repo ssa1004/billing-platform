@@ -6,7 +6,7 @@
 ## 배경
 
 B2B SaaS 빌링 시스템의 외부 통합 통로입니다. customer 가 우리 이벤트 (invoice 발행 /
-payment 성공 / refund 처리 등) 를 *자기 서버에서 즉시 알고 싶을 때* 쓰는 방식이 webhook
+payment 성공 / refund 처리 등) 를 자기 서버에서 즉시 알고 싶을 때 쓰는 방식이 webhook
 (우리가 customer 서버 URL 로 HTTP POST 를 쏴서 알리는 push 통신) 입니다. PG 가 가맹점에
 결제 결과를 알리는 그 매커니즘과 본질적으로 같습니다 — 우리는 발신자, customer 가 수신자.
 
@@ -28,7 +28,7 @@ WebhookEndpoint   ─┐  customer 의 등록 정보 (URL, secret, 구독 이벤
 WebhookDelivery   ─┘  한 이벤트 × 한 endpoint 의 전송 시도 (retry 라이프사이클)
 ```
 
-한 이벤트가 발생하면, 구독한 endpoint 마다 *Delivery 1개씩* 만들어집니다. 각 delivery 는
+한 이벤트가 발생하면, 구독한 endpoint 마다 Delivery 1개씩 만들어집니다. 각 delivery 는
 독립적인 라이프사이클을 가집니다. 한 customer 의 endpoint A 가 다운돼도 endpoint B 로의
 알림은 영향이 없습니다.
 
@@ -45,7 +45,7 @@ WebhookDelivery   ─┘  한 이벤트 × 한 endpoint 의 전송 시도 (retry
 - **timestamp 를 같이 묶는 이유 (replay 공격 방어)**: 공격자가 과거의 정상 요청을 그대로
   복사해서 다시 우리 customer 에게 보내는 시나리오를 차단.
     - 헤더에 timestamp 도 따로 같이 실어 customer 가 검증 시 같은 값을 사용
-    - customer 는 *너무 오래된 timestamp* (예: 5분 이상 차이) 는 거절 — 정상 webhook 전송
+    - customer 는 너무 오래된 timestamp (예: 5분 이상 차이) 는 거절 — 정상 webhook 전송
       시간은 보통 수 초 이내라 5분 정도면 정상 트래픽은 문제없고 replay 는 못 들어옴
     - 5분 = clock skew (양쪽 서버 시계 차이) 허용치. 너무 좁으면 시계 오차로 정상 요청도 거절,
       너무 넓으면 replay 창이 길어짐 → 타협값.
@@ -71,7 +71,7 @@ WebhookDelivery   ─┘  한 이벤트 × 한 endpoint 의 전송 시도 (retry
 
 ### Dead letter (영구 실패 메시지 격리) + Replay (재발송)
 
-5번 다 실패해도 row 는 DEAD_LETTERED 상태로 남습니다. 운영자 화면에서 보고 *수동 replay*
+5번 다 실패해도 row 는 DEAD_LETTERED 상태로 남습니다. 운영자 화면에서 보고 수동 replay
 버튼으로 다시 보냅니다. 도메인의 `WebhookDelivery.replay()` 가 attemptCount 를 한도 미만으로
 낮춰 추가 시도 1번을 보장합니다.
 
@@ -127,7 +127,7 @@ listener 가) 호출하면 customer 의 ACTIVE endpoint 들로 delivery 가 INSE
 - HMAC 서명으로 진위 검증 가능
 - retry + dead letter 로 일시 장애 자동 복구 + 영구 실패 가시화
 - (단점) 도메인 이벤트 → schedule 연결이 별도 — outbox listener 를 따로 작성해야 함
-- (단점) customer 측이 *멱등 처리 (같은 메시지를 두 번 받아도 결과가 같게 처리)* 를 못 하면
+- (단점) customer 측이 멱등 처리 (같은 메시지를 두 번 받아도 결과가 같게 처리) 를 못 하면
   retry 시 중복 처리 위험 — `Idempotency-Key` 헤더로 가이드를 주지만 customer 코드 품질에
   의존
 
@@ -135,6 +135,6 @@ listener 가) 호출하면 customer 의 ACTIVE endpoint 들로 delivery 가 INSE
 
 - Outbox `@ApplicationModuleListener` 로 도메인 이벤트 → ScheduleWebhook 자동 연결
 - IN_FLIGHT timeout 복구 batch (워커 비정상 종료 대비)
-- Endpoint 별 *circuit breaker* — 한 customer URL 이 계속 실패하면 일정 시간 호출 중지
+- Endpoint 별 circuit breaker — 한 customer URL 이 계속 실패하면 일정 시간 호출 중지
 - Webhook 전용 metrics (성공률 / p99 latency / dead letter 발생률) Prometheus 노출
 - Replay 시 attempt 한도 customer 가 정할 수 있게 (운영 화면 UX)

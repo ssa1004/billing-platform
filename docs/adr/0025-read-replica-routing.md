@@ -5,16 +5,16 @@
 
 ## 배경
 
-billing 시스템의 읽기 부하는 *쓰기 부하보다 한 자릿수 이상 큼*. 청구서 조회, dashboard,
-SIEM export, audit timeline 조회 같은 무거운 query 가 *master* 한 곳을 같이 쓰면 OLTP (결제
+billing 시스템의 읽기 부하는 쓰기 부하보다 한 자릿수 이상 큼. 청구서 조회, dashboard,
+SIEM export, audit timeline 조회 같은 무거운 query 가 master 한 곳을 같이 쓰면 OLTP (결제
 / 환불 / 크레딧 적용) 트랜잭션이 같은 connection pool 을 두고 경쟁합니다.
 
 ### 실제 시나리오
 
-- 운영자 dashboard 가 *모든 customer* 의 최근 24h audit timeline 을 조회 (수만 row scan).
+- 운영자 dashboard 가 모든 customer 의 최근 24h audit timeline 을 조회 (수만 row scan).
 - 같은 시점에 결제 트래픽이 평소처럼 들어옴 — connection 이 dashboard 에 잡혀 결제 트랜잭션이
   pool wait 에 걸림 → 결제 latency 가 P99 에서 초 단위로 튐.
-- 회계 리포트 batch 가 월말에 *invoice 수개월치* 를 한꺼번에 SELECT — 같은 효과.
+- 회계 리포트 batch 가 월말에 invoice 수개월치 를 한꺼번에 SELECT — 같은 효과.
 
 읽기 부하가 큰 OLTP 시스템의 표준 처방은 master / replica 분리 — write 는 master, read 는
 replica. Spring 진영의 표준 패턴은 `AbstractRoutingDataSource` 로 `@Transactional(readOnly =
@@ -73,8 +73,8 @@ billing.datasource.replica.url:
   jdbc:postgresql://${DB_REPLICA_HOST:${DB_HOST:postgres}}:${DB_REPLICA_PORT:${DB_PORT:5432}}/${DB_NAME:billing}
 ```
 
-`DB_REPLICA_HOST` 가 미설정이면 master 와 같은 호스트. *replica 가 인프라 단에 아직 없을
-수도 있는 환경* (k8s 클러스터 단계별 적용) 에서 같은 master 로 fallback. 라우팅 코드는
+`DB_REPLICA_HOST` 가 미설정이면 master 와 같은 호스트. replica 가 인프라 단에 아직 없을
+수도 있는 환경 (k8s 클러스터 단계별 적용) 에서 같은 master 로 fallback. 라우팅 코드는
 그대로 동작하지만 실질 효과는 master 한 곳. 인프라 준비되면 환경변수만 바꾸면 됨.
 
 ### Connection pool 분리
@@ -90,7 +90,7 @@ read pool 이 두드러지게 큰 이유는 dashboard / SIEM 류 무거운 read 
 
 ### Replication lag 처리
 
-Postgres streaming replication 은 보통 < 100ms 이지만 *초 단위까지 늦어질 수 있음*. write 직후
+Postgres streaming replication 은 보통 < 100ms 이지만 초 단위까지 늦어질 수 있음. write 직후
 같은 row 를 read 하는 흐름에서 lag 가 보이면 stale data 를 읽음.
 
 대응:
@@ -101,7 +101,7 @@ Postgres streaming replication 은 보통 < 100ms 이지만 *초 단위까지 �
 3. **read-after-write 강제 옵션**: 필요한 경우 `@Transactional` (write) 안에서 read — master
    강제. 또는 향후 `@MasterRequired` aspect 도입 검토 (후속).
 
-`@Transactional` 없는 read 는 *보수적으로 master* 로 보내는 정책 (`determineCurrentLookupKey`
+`@Transactional` 없는 read 는 보수적으로 master 로 보내는 정책 (`determineCurrentLookupKey`
 의 default). 호출자가 lag 영향을 인지하지 않은 read 는 안전한 master 쪽으로.
 
 ### 적용 대상 (현재 readOnly 명시)
@@ -113,8 +113,8 @@ Postgres streaming replication 은 보통 < 100ms 이지만 *초 단위까지 �
 - `CustomerCreditQueryService`
 - `UsageForecastService`
 
-이들이 자동으로 replica 로 라우팅됨. 별도 코드 변경 없음 — *annotation 한 줄로 라우팅이
-바뀌는* 게 본 패턴의 큰 장점.
+이들이 자동으로 replica 로 라우팅됨. 별도 코드 변경 없음 — annotation 한 줄로 라우팅이
+바뀌는 게 본 패턴의 큰 장점.
 
 ## 대안 검토
 
@@ -123,7 +123,7 @@ Postgres streaming replication 은 보통 < 100ms 이지만 *초 단위까지 �
 - **Application 레벨 두 EntityManager (write/read)**: JPA 컨텍스트 두 개 관리 부담. 코드에 두
   EM 을 의식적으로 사용해야 — annotation 한 줄로 분리되는 routing 보다 침투적.
 - **CQRS 로 read 모델 별도 구축**: 큰 변환. 현재 시스템은 read 모델이 도메인과 거의 동일이라
-  과한 변경. 일부 무거운 read 만 별도 read model 로 가는 *부분 CQRS* 는 ADR-0004 에서 채택
+  과한 변경. 일부 무거운 read 만 별도 read model 로 가는 부분 CQRS 는 ADR-0004 에서 채택
   중이고, 본 ADR 와는 직교.
 - **Reader / Writer 패턴 (별도 service)**: 읽기 service 와 쓰기 service 를 코드상 분리 + 다른
   EntityManagerFactory. 표현력은 좋으나 반복 코드 (대부분의 read 는 단순 조회). routing 이
@@ -141,7 +141,7 @@ Postgres streaming replication 은 보통 < 100ms 이지만 *초 단위까지 �
 - (단점) Replication lag 인지 없이 readOnly 트랜잭션을 만들면 stale data. 코드 리뷰 시 의식
   필요.
 - (단점) Master 장애 시 라우팅 자체는 무력 — 다른 layer (DB failover, k8s readiness probe) 가
-  필요. routing 은 *부하 분산* 이지 *고가용성* 이 아님.
+  필요. routing 은 부하 분산 이지 고가용성 이 아님.
 - (단점) Spring 의 `LazyConnectionDataSourceProxy` 트릭이 처음엔 이해하기 어려움 — 주석으로
   의도 강하게 명시.
 

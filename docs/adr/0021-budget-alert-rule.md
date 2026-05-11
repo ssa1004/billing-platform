@@ -50,7 +50,7 @@ EvaluateBudgetAlertsService.evaluateAll()
           rules.save(rule)   // lastEvaluatedAt 갱신 보장
 ```
 
-- *customer 단위* 트랜잭션 — 한 customer 의 forecast 가 `PricingPlanNotFoundException`
+- customer 단위 트랜잭션 — 한 customer 의 forecast 가 `PricingPlanNotFoundException`
   으로 실패해도 다른 customer 평가는 계속 진행
 - 통화가 맞지 않으면 (mismatch) skip — 다중 통화 분기는 후속 (현재는 단일 통화 가정)
 

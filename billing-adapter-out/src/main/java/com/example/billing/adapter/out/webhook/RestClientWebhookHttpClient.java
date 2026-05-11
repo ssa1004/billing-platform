@@ -20,8 +20,8 @@ import java.time.Duration;
  * <p><b>왜 timeout 짧게</b>: customer 서버가 응답이 늦으면 worker 가 묶여 다음 delivery 처리가
  * 밀린다. 5초 connect / 10초 read 면 정상 customer 는 충분, 느린 customer 는 빠르게 retry 큐로.
  *
- * <p><b>왜 라이브러리 retry 안 쓰나</b>: webhook 의 retry 는 *delivery 단위 영속화* + *backoff
- * 정책* 이라 도메인이 책임. 라이브러리 retry (Resilience4j Retry) 는 단일 메서드 호출 안에서
+ * <p><b>왜 라이브러리 retry 안 쓰나</b>: webhook 의 retry 는 delivery 단위 영속화 + backoff
+ * 정책이라 도메인이 책임. 라이브러리 retry (Resilience4j Retry) 는 단일 메서드 호출 안에서
  * 즉시 재시도라 우리 모델 (1분 → 5분 → 30분) 과 안 맞음.
  *
  * <p><b>HTTP status → Outcome 매핑</b>:

@@ -26,8 +26,8 @@ import java.time.Clock;
  * <p><b>왜 3단계로 쪼개나 (외부 호출을 트랜잭션 밖으로 빼는 이유)</b>: 외부 PG 호출은 응답까지
  * 수초가 걸릴 수 있는데, 그 동안 DB 트랜잭션을 열어둔 채 기다리면 그 트랜잭션이 점유한
  * connection 이 pool 에서 빠지지 않습니다. 트래픽이 몰리는 시점에 PG 가 슬로우다운되면 결제
- * 트랜잭션들이 connection 을 다 차지해 *다른 도메인 (Wallet, Invoice 등) 의 트랜잭션까지 같이
- * 멈추는 cascade* 가 됩니다. 이를 막기 위해 흐름을 셋으로 쪼갭니다:</p>
+ * 트랜잭션들이 connection 을 다 차지해 다른 도메인 (Wallet, Invoice 등) 의 트랜잭션까지 같이
+ * 멈추는 cascade 가 됩니다. 이를 막기 위해 흐름을 셋으로 쪼갭니다:</p>
  * <ol>
  *   <li><b>Phase 1 (DB tx, 짧음)</b>: Idempotency-Key 점유 + Order 로드 + PENDING 상태 Payment
  *       row INSERT → commit. 외부 호출 없으니 connection 을 길게 잡지 않음.</li>
@@ -38,16 +38,16 @@ import java.time.Clock;
  * </ol>
  *
  * <p><b>왜 Idempotency-Key 가 Phase 1 commit 이후엔 안 풀리는가 (의도)</b>: Phase 1 이 commit
- * 된 시점부터 PG 호출이 *이미 시작* 됐을 수 있습니다. 같은 키로 또 호출이 들어오면 PG 에 결제가
- * 두 번 박힐 위험이 있어 키 점유를 그대로 유지 (TTL ~24h). 호출자는 *같은 idempotencyKey 로
- * 결과를 GET* 해서 상태를 조회하는 패턴 (REST 표준 idempotency 패턴과 동일).</p>
+ * 된 시점부터 PG 호출이 이미 시작 됐을 수 있습니다. 같은 키로 또 호출이 들어오면 PG 에 결제가
+ * 두 번 박힐 위험이 있어 키 점유를 그대로 유지 (TTL ~24h). 호출자는 같은 idempotencyKey 로
+ * 결과를 GET 해서 상태를 조회하는 패턴 (REST 표준 idempotency 패턴과 동일).</p>
  *
  * <p><b>실패 시나리오</b>:
  * <ul>
  *   <li>Phase 1 실패 — 예: {@link OrderNotFoundException}. tx rollback 으로 Idempotency-Key
- *       자동 release → 호출자가 *같은 키로* 재시도 가능 (PG 호출은 아직 안 일어남).</li>
+ *       자동 release → 호출자가 같은 키로 재시도 가능 (PG 호출은 아직 안 일어남).</li>
  *   <li>Phase 2 실패 — Payment 가 PENDING 으로 남고 PG 는 이미 처리한 상태가 될 수 있음.
- *       이 case 는 별도 reconciler 가 PG 에 같은 idempotencyKey 로 *조회 (lookup)* 해서 상태를
+ *       이 case 는 별도 reconciler 가 PG 에 같은 idempotencyKey 로 조회 (lookup) 해서 상태를
  *       동기화 (운영 보강 영역, 본 코드 범위 외).</li>
  * </ul>
  */

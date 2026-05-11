@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 동적 IN clause 의 collection size 를 *고정 단계* 로 padding 해 Hibernate / PG 의 query plan
+ * 동적 IN clause 의 collection size 를 고정 단계 로 padding 해 Hibernate / PG 의 query plan
  * cache miss 를 줄이기 위한 도구 (ADR-0032).
  *
  * <p>운영 환경에서 IN clause 의 항목 수가 매번 달라지면 (3개, 7개, 12개, 20개...) 각 size 가
@@ -20,7 +20,7 @@ import java.util.List;
  * jpaQuery.setParameter("ids", padded);   // size 가 1/2/4/8/.../128 중 하나로 고정됨
  * }</pre>
  *
- * <p>Padding 값은 *마지막 원소 반복* — 실 의미는 그대로 유지하면서 SQL 의 *parameter 개수* 만
+ * <p>Padding 값은 마지막 원소 반복 — 실 의미는 그대로 유지하면서 SQL 의 parameter 개수 만
  * 고정. duplicate 가 IN 의 결과에 영향 없음 (IN 은 set-membership).</p>
  */
 public final class InClauseSizes {
@@ -32,7 +32,7 @@ public final class InClauseSizes {
 
     /**
      * 입력 list 를 가장 작은 bucket 으로 올림 padding. 마지막 원소를 반복해 채움.
-     * 입력 size 가 가장 큰 bucket (128) 보다 크면 *그대로 반환* — 그 정도 큰 IN 은 도메인
+     * 입력 size 가 가장 큰 bucket (128) 보다 크면 그대로 반환 — 그 정도 큰 IN 은 도메인
      * 자체를 다시 봐야 하는 신호 (chunking / batch processing 으로 분리).
      */
     public static <T> List<T> padPow2(List<T> input, T padValue) {

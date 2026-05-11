@@ -125,7 +125,7 @@ public class ReconcilePgFailuresService implements ReconcilePgFailuresUseCase {
     }
 
     private boolean reconcilePayment(String idempotencyKey) {
-        // PG lookup 은 트랜잭션 *밖* — 외부 호출이 DB connection 점유 안 하도록.
+        // PG lookup 은 트랜잭션 밖 — 외부 호출이 DB connection 점유 안 하도록.
         PgClient.LookupResult lookup = pgClient.lookup(idempotencyKey);
         if (lookup.status() == PgClient.LookupStatus.IN_PROGRESS) {
             // PG 가 아직 결과를 결정 못 함. 다음 사이클에 다시 시도.

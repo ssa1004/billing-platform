@@ -25,7 +25,7 @@ import java.util.UUID;
  * 변경과 "발행 의도" 가 원자적으로 묶입니다 (ADR-0005).</p>
  *
  * <p><b>{@code Propagation.MANDATORY} 가 강제하는 것</b>: 호출자가 트랜잭션을 열어둔 상태에서만
- * publish 가 호출되도록 *런타임에 강제* 합니다. 만약 호출자가 깜빡하고 {@code @Transactional}
+ * publish 가 호출되도록 런타임에 강제 합니다. 만약 호출자가 깜빡하고 {@code @Transactional}
  * 없이 publish 만 부르면 즉시 예외가 떨어져, "도메인 변경은 commit 됐는데 outbox INSERT 는
  * 별도 트랜잭션이라 시점이 어긋남" 같은 정합 사고를 사전 차단합니다. 컴파일타임 검증은 아니지만
  * 첫 호출에서 바로 fail-fast.</p>
@@ -59,7 +59,7 @@ public class OutboxEventPublisher implements EventPublisher {
 
     private String inferAggregateType(DomainEvent event) {
         // 이벤트 클래스의 패키지로 aggregate 타입 추론 (예: WalletEvents$WalletDeposited → Wallet).
-        // 새 도메인을 추가하면 여기에 등록 — 누락 시 Kafka topic 이 billing.unknown.* 로 잘못
+        // 새 도메인을 추가하면 여기에 등록 — 누락 시 Kafka topic 이 billing.unknown. 로 잘못
         // 라우팅됩니다. 누락이 디버깅에서 빨리 보이도록 IllegalStateException 으로 fail-fast.
         String fqn = event.getClass().getName();
         if (fqn.contains(".wallet.")) return "Wallet";

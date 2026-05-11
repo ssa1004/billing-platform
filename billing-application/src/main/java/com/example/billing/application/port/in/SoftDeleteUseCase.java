@@ -9,11 +9,11 @@ import java.util.UUID;
 /**
  * 회계 도메인 row 의 논리 삭제 (soft delete) 진입점 (ADR-0030).
  *
- * <p>호출자는 *운영자* (operator) — 일반 사용자 흐름에는 절대 노출되지 않습니다. 운영자 화면이
+ * <p>호출자는 운영자 (operator) — 일반 사용자 흐름에는 절대 노출되지 않습니다. 운영자 화면이
  * "삭제" 버튼을 눌렀을 때 호출되며, 실제 행위는:
  * <ol>
  *   <li>row 의 deleted_at / deleted_by 마킹 (UPDATE 1번)</li>
- *   <li>같은 트랜잭션 안에서 SOFT_DELETED audit entry 발행 — *누가 / 왜* 의 영구 기록</li>
+ *   <li>같은 트랜잭션 안에서 SOFT_DELETED audit entry 발행 — 누가 / 왜 의 영구 기록</li>
  * </ol>
  *
  * <p>둘 중 하나라도 실패하면 둘 다 rollback. "row 는 마킹됐는데 audit 는 누락" 같은 정합 깨짐
@@ -32,7 +32,7 @@ public interface SoftDeleteUseCase {
      */
     boolean softDeleteInvoice(UUID invoiceId, AuditActor actor, String reason);
 
-    /** Payment 논리 삭제. PG 매칭 row 라 *주의* 가 더 필요한 작업. */
+    /** Payment 논리 삭제. PG 매칭 row 라 주의 가 더 필요한 작업. */
     boolean softDeletePayment(PaymentId paymentId, AuditActor actor, String reason);
 
     /** Refund 논리 삭제. */

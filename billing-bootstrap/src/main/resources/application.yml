@@ -16,7 +16,7 @@ spring:
       hibernate:
         jdbc.time_zone: UTC
         # ── ORM query 컴파일 캐시 (ADR-0032) ──
-        # JPQL / HQL 한 줄을 SQL 로 *번역* 하는 비용은 한 요청당 보통 수십 us ~ ms. 같은 JPQL 을
+        # JPQL / HQL 한 줄을 SQL 로 번역 하는 비용은 한 요청당 보통 수십 us ~ ms. 같은 JPQL 을
         # 매번 다시 번역하지 않도록 plan + parameter metadata 를 메모리에 보관. default (2048) 는
         # 큰 도메인에서 부족 — 한번 cache full 이 되면 LRU eviction 으로 hot path 가 plan miss 의
         # 늪에 빠짐.
@@ -206,7 +206,7 @@ billing:
         maximum-pool-size: 30
         pool-name: master-pool
         # ── PG prepared statement / TCP 튜닝 (ADR-0032) ──
-        # PG 의 *server-side* prepared statement: client 가 같은 SQL 을 prepareThreshold 회 보내면
+        # PG 의 server-side prepared statement: client 가 같은 SQL 을 prepareThreshold 회 보내면
         # PG 가 그 connection 에서 해당 SQL 의 plan 을 캐시. 이후 호출은 plan 재사용 → planning
         # 시간 절약. JDBC default (5) 그대로 가되 명시. tcpKeepAlive 는 NAT / LB 환경에서 idle
         # connection 이 silent drop 되는 사고 방지.

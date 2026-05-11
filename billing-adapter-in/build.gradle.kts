@@ -18,13 +18,13 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // Bulkhead full → 503 매핑용. 호출 자체는 adapter-out 의 BulkheadedPgClient 에서.
-    implementation("io.github.resilience4j:resilience4j-bulkhead:2.2.0")
+    implementation("io.github.resilience4j:resilience4j-bulkhead:2.3.0")
 
     // Kafka consumers
     implementation("org.springframework.kafka:spring-kafka")
 
     // OpenAPI
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
 
     // Tracing
     implementation("io.micrometer:micrometer-tracing")

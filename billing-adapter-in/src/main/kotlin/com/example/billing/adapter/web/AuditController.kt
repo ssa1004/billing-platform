@@ -75,17 +75,17 @@ class AuditController(
     }
 
     private fun toView(e: AuditEntry): AuditEntryView = AuditEntryView(
-        id = e.id().toString(),
-        actorType = e.actor().type().name,
-        actorId = e.actor().id(),
-        actorIp = e.actor().ipAddress(),
-        action = e.action().name,
-        targetType = e.targetType(),
-        targetId = e.targetId(),
-        beforeJson = e.beforeJson(),
-        afterJson = e.afterJson(),
-        reason = e.reason(),
-        traceId = e.traceId(),
-        occurredAt = e.occurredAt().toString(),
+        id = e.id.toString(),
+        actorType = e.actor.type.name,
+        actorId = e.actor.id,
+        actorIp = e.actor.ipAddress,
+        action = e.action.name,
+        targetType = e.targetType,
+        targetId = e.targetId,
+        beforeJson = e.beforeJson,
+        afterJson = e.afterJson,
+        reason = e.reason,
+        traceId = e.traceId,
+        occurredAt = e.occurredAt.toString(),
     )
 }

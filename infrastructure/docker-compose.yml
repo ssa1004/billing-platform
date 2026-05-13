@@ -76,5 +76,29 @@ services:
       kafka: { condition: service_healthy }
       wiremock: { condition: service_started }
 
+  # k6 부하 시나리오 — docker compose --profile load run --rm k6 run /scripts/scenarios/<name>.js.
+  # 컨테이너 안에서 호스트의 BASE_URL 을 보려면 host.docker.internal 사용.
+  # 본 service 는 단발성 실행 (default command 는 -h 라 그 자체로 종료) —
+  # `docker compose --profile load run --rm k6 run /scripts/scenarios/usage-event-ingest.js` 형태로 띄움.
+  k6:
+    profiles: [load]
+    image: grafana/k6:0.50.0
+    volumes:
+      - ../load/k6:/scripts:ro
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:8080}
+      K6_TOKEN: ${K6_TOKEN:-}
+      K6_CUSTOMERS: ${K6_CUSTOMERS:-}
+      K6_SETTLEMENT_CUSTOMERS: ${K6_SETTLEMENT_CUSTOMERS:-}
+      K6_PERIOD: ${K6_PERIOD:-}
+      K6_PERIODS: ${K6_PERIODS:-}
+      K6_CURRENCIES: ${K6_CURRENCIES:-}
+      K6_ORDER_IDS: ${K6_ORDER_IDS:-}
+      K6_AGED_AS_OF: ${K6_AGED_AS_OF:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint: ["k6"]
+    command: ["-h"]
+
 volumes:
   pg-data:

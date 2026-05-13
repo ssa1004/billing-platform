@@ -69,12 +69,12 @@ class WebhookController(
         val endpoint = registerEndpoint.register(cmd)
         return ResponseEntity.ok(
             RegisterWebhookEndpointResponse(
-                id = endpoint.id().toString(),
-                customerId = endpoint.customerId().value(),
-                url = endpoint.url(),
-                secret = endpoint.secret(),
+                id = endpoint.id.toString(),
+                customerId = endpoint.customerId.value(),
+                url = endpoint.url,
+                secret = endpoint.secret,
                 subscribedEventTypes = endpoint.subscribedEventTypes(),
-                status = endpoint.status().name,
+                status = endpoint.status.name,
             )
         )
     }
@@ -134,24 +134,24 @@ class WebhookController(
     // ─── DTO 변환 ─────────────────────────────────────────────
 
     private fun toEndpointView(e: WebhookEndpoint): WebhookEndpointView = WebhookEndpointView(
-        id = e.id().toString(),
-        customerId = e.customerId().value(),
-        url = e.url(),
+        id = e.id.toString(),
+        customerId = e.customerId.value(),
+        url = e.url,
         subscribedEventTypes = e.subscribedEventTypes(),
-        status = e.status().name,
-        createdAt = e.createdAt().toString(),
+        status = e.status.name,
+        createdAt = e.createdAt.toString(),
     )
 
     private fun toDeliveryView(d: WebhookDelivery): WebhookDeliveryView = WebhookDeliveryView(
-        id = d.id().toString(),
-        endpointId = d.endpointId().toString(),
-        eventType = d.eventType(),
-        status = d.status().name,
-        attemptCount = d.attemptCount(),
-        nextAttemptAt = d.nextAttemptAt()?.toString(),
-        lastResponseStatus = d.lastResponseStatus(),
-        lastError = d.lastError(),
-        createdAt = d.createdAt().toString(),
-        deliveredAt = d.deliveredAt()?.toString(),
+        id = d.id.toString(),
+        endpointId = d.endpointId.toString(),
+        eventType = d.eventType,
+        status = d.status.name,
+        attemptCount = d.attemptCount,
+        nextAttemptAt = d.nextAttemptAt?.toString(),
+        lastResponseStatus = d.lastResponseStatus,
+        lastError = d.lastError,
+        createdAt = d.createdAt.toString(),
+        deliveredAt = d.deliveredAt?.toString(),
     )
 }

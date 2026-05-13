@@ -211,6 +211,40 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
 ./gradlew :billing-bootstrap:test       # Modulith verify
 ```
 
+## Load test
+
+결제 / 청구 / 정산 endpoint 의 k6 부하 시나리오 5종이 [`load/`](load/) 에 있습니다.
+단순 RPS / latency 측정뿐 아니라 본 플랫폼 특유의 invariant — `Idempotency-Key`
+24h 응답 캐시 hit, advisory lock 직렬화, multi-currency 분리 집계 — 가 부하 상황에서도
+동작하는지를 함께 가드합니다.
+
+| 시나리오 | endpoint | 모델 | 핵심 측정 |
+|---|---|---|---|
+| usage-event-ingest | POST `/api/v1/usage` | constant 500 req/s | metering throughput, p95 < 50ms |
+| invoice-issue | POST `/api/v1/settlement/run` | ramping 0→100 VU | advisory lock 대기 분포, p95 < 500ms |
+| invoice-query | GET `/api/v1/invoices` (v1 + v2) | constant 300 req/s | 첫 페이지 latency, p95 < 100ms |
+| payment-charge | POST `/api/v1/payments` | constant 100 req/s | Idempotency-Key 24h 응답 캐시 hit ratio > 80% |
+| aged-receivables | GET `/api/v1/aged-receivables` | constant 50 req/s | multi-currency 분리 집계, p95 < 300ms |
+
+```bash
+# 1) 본 앱이 떠 있는 상태에서 (단독 bootRun 또는 prod compose)
+./gradlew :billing-bootstrap:bootRun
+
+# 2) 단일 시나리오
+k6 run load/k6/scenarios/usage-event-ingest.js
+
+# 3) 5종 일괄 — build/k6-reports/*.json 에 결과 떨굼
+./scripts/run-load.sh
+
+# 4) docker compose profile 로 실행 (k6 service 가 --profile load 로 묶임)
+docker compose -f infrastructure/docker-compose.yml --profile load run --rm k6 \
+  run /scripts/scenarios/usage-event-ingest.js
+```
+
+`load/README.md` 에 시나리오별 thresholds, seed 의존성 (orderId / customer pool /
+period), billing 특유 측정 항목 (`metering_lag` / `idempotency_cache_hit_ratio` /
+`saga_compensation_count` / `advisory_lock_wait_ms`) 의 해석법이 정리되어 있습니다.
+
 ## 운영 프로필 (`prod`)
 
 `SPRING_PROFILES_ACTIVE=prod` 일 때 활성화되는 항목입니다.

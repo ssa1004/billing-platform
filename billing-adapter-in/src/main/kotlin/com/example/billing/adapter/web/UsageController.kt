@@ -67,7 +67,7 @@ class UsageController(
         val f = forecast.forecastCurrentPeriod(CustomerId.of(customerId))
         return ResponseEntity.ok(
             UsageForecastResponse(
-                customerId = f.customerId.value(),
+                customerId = f.customerId.value,
                 period = f.period.toKey(),
                 asOf = f.asOf.toString(),
                 periodProgressRatio = f.periodProgressRatio,
@@ -76,12 +76,12 @@ class UsageController(
                         resourceType = r.resourceType.name,
                         mtdQuantity = r.mtdQuantity,
                         projectedQuantity = r.projectedQuantity,
-                        mtdCost = r.mtdCost.amount(),
-                        projectedCost = r.projectedCost.amount(),
+                        mtdCost = r.mtdCost.amount,
+                        projectedCost = r.projectedCost.amount,
                     )
                 },
-                projectedTotalCost = f.projectedTotalCost.amount(),
-                currency = f.projectedTotalCost.currency().currencyCode,
+                projectedTotalCost = f.projectedTotalCost.amount,
+                currency = f.projectedTotalCost.currency.currencyCode,
             )
         )
     }

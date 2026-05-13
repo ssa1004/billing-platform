@@ -85,7 +85,7 @@ class WebhookController(
         return ResponseEntity.ok(
             RegisterWebhookEndpointResponse(
                 id = endpoint.id.toString(),
-                customerId = endpoint.customerId.value(),
+                customerId = endpoint.customerId.value,
                 url = endpoint.url,
                 secret = endpoint.secret,
                 subscribedEventTypes = endpoint.subscribedEventTypes(),
@@ -188,12 +188,12 @@ class WebhookController(
     private fun authorizeEndpoint(id: String, jwt: Jwt?) {
         val endpoint = endpoints.findById(WebhookEndpointId.of(id)).getOrNull()
             ?: throw WebhookEndpointNotFoundException(WebhookEndpointId.of(id))
-        Caller.from(jwt).requireOwnerOrAdmin(endpoint.customerId.value())
+        Caller.from(jwt).requireOwnerOrAdmin(endpoint.customerId.value)
     }
 
     private fun toEndpointView(e: WebhookEndpoint): WebhookEndpointView = WebhookEndpointView(
         id = e.id.toString(),
-        customerId = e.customerId.value(),
+        customerId = e.customerId.value,
         url = e.url,
         subscribedEventTypes = e.subscribedEventTypes(),
         status = e.status.name,

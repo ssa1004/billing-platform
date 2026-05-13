@@ -1,7 +1,7 @@
 # Cross-repo 통합 시연용 docker-compose.
 #
 # 같은 portfolio 묶음의 다른 레포 (auth-service / notification-hub /
-# resell-orderbook / gpu-job-orchestrator) 가 본 레포 양쪽 끝에 매달려 있는
+# bid-ask-marketplace / gpu-job-orchestrator) 가 본 레포 양쪽 끝에 매달려 있는
 # 그림을 mock 으로 재현한다. mock 이지만 인터페이스 (HTTP / Kafka topic /
 # JWT 모양) 는 실제 레포의 것과 같다.
 #
@@ -11,7 +11,7 @@
 #                                 + /.well-known/jwks.json 노출
 #   - notification-stub         → notification-hub 흉내. billing.* 토픽을 구독해
 #                                 stdout 으로 dump (kafka-console-consumer)
-#   - usage-producer            → resell-orderbook + gpu-job-orchestrator 의
+#   - usage-producer            → bid-ask-marketplace + gpu-job-orchestrator 의
 #                                 usage 발사 흉내. demo script 가 단발성으로 부른다
 #
 # billing-platform 본체는 옆 터미널에서 `./gradlew :billing-bootstrap:bootRun`
@@ -75,7 +75,7 @@ services:
     depends_on:
       kafka: { condition: service_healthy }
 
-  # resell-orderbook + gpu-job-orchestrator 가 발사하는 사용량 이벤트 흉내.
+  # bid-ask-marketplace + gpu-job-orchestrator 가 발사하는 사용량 이벤트 흉내.
   # `--profile producer` 로만 뜸 — 평소엔 멱등성이 깨지니 demo script 가 단발성으로 부른다.
   usage-producer:
     profiles: [producer]

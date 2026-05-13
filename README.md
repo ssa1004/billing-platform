@@ -322,7 +322,7 @@ helm upgrade --install billing-platform helm/billing-platform/ \
 | [notification-hub](https://github.com/ssa1004/notification-hub) | 알림 라우팅 / 템플릿 / 발송 | invoice.created / payment.completed / overdue.notice 를 Kafka 로 수신 |
 | [search-service](https://github.com/ssa1004/search-service) | 도메인 검색 (ES) | invoice 검색 인덱스의 source-of-truth 가 본 레포 |
 | **billing-platform** *(본 레포)* | **결제 / 청구 / 정산** | **두 종류 usage event 를 받아 invoice 발행, 결과를 알림으로 흘림** |
-| [resell-orderbook](https://github.com/ssa1004/resell-orderbook) | 리셀 거래 매칭 / 체결 | 거래 체결마다 usage event 를 본 레포로 발사 |
+| [bid-ask-marketplace](https://github.com/ssa1004/bid-ask-marketplace) | 리셀 거래 매칭 / 체결 | 거래 체결마다 usage event 를 본 레포로 발사 |
 | [gpu-job-orchestrator](https://github.com/ssa1004/gpu-job-orchestrator) | GPU job 스케줄러 | job 완료 시 GPU 사용 시간 usage event 를 본 레포로 발사 |
 | [commerce-ops](https://github.com/ssa1004/commerce-ops) | observability 플레이그라운드 | OpenTelemetry / Prometheus / Loki 셋업 참고 출처 |
 
@@ -332,7 +332,7 @@ helm upgrade --install billing-platform helm/billing-platform/ \
 sequenceDiagram
     autonumber
     participant Auth as auth-service
-    participant Producer as resell-orderbook<br/>gpu-job-orchestrator
+    participant Producer as bid-ask-marketplace<br/>gpu-job-orchestrator
     participant Bill as billing-platform<br/>(본 레포)
     participant Notif as notification-hub
     participant User as 고객

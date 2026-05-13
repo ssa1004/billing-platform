@@ -324,7 +324,7 @@ helm upgrade --install billing-platform helm/billing-platform/ \
 | **billing-platform** *(본 레포)* | **결제 / 청구 / 정산** | **두 종류 usage event 를 받아 invoice 발행, 결과를 알림으로 흘림** |
 | [resell-orderbook](https://github.com/ssa1004/resell-orderbook) | 리셀 거래 매칭 / 체결 | 거래 체결마다 usage event 를 본 레포로 발사 |
 | [gpu-job-orchestrator](https://github.com/ssa1004/gpu-job-orchestrator) | GPU job 스케줄러 | job 완료 시 GPU 사용 시간 usage event 를 본 레포로 발사 |
-| [mini-shop-observability](https://github.com/ssa1004/mini-shop-observability) | observability 플레이그라운드 | OpenTelemetry / Prometheus / Loki 셋업 참고 출처 |
+| [commerce-ops](https://github.com/ssa1004/commerce-ops) | observability 플레이그라운드 | OpenTelemetry / Prometheus / Loki 셋업 참고 출처 |
 
 ### 묶음 안에서의 데이터 흐름
 

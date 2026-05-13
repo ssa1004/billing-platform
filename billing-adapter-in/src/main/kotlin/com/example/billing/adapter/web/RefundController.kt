@@ -50,8 +50,8 @@ class RefundController(
         val paymentId = PaymentId.of(req.paymentId)
         val payment = payments.findById(paymentId).getOrNull()
             ?: throw PaymentNotFoundException(paymentId)
-        val order = orders.findById(payment.orderId()).getOrNull()
-            ?: throw OrderNotFoundException(payment.orderId())
+        val order = orders.findById(payment.orderId).getOrNull()
+            ?: throw OrderNotFoundException(payment.orderId)
         Caller.from(jwt).requireOwnerOrAdmin(order.buyerId())
 
         val refund = refundUseCase.refund(req.toCommand(idempotencyKey))

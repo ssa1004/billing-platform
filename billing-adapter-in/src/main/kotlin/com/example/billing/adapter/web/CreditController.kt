@@ -66,14 +66,14 @@ class CreditController(
         val credit = grantCredit.grant(cmd)
         return ResponseEntity.ok(
             GrantCreditResponse(
-                creditId = credit.id().toString(),
-                customerId = credit.customerId().value(),
-                type = credit.type().name,
-                grantedAmount = credit.grantedAmount().amount(),
-                currency = credit.currency().currencyCode,
-                validFrom = credit.validFrom().toString(),
-                validUntil = credit.validUntil()?.toString(),
-                status = credit.status().name,
+                creditId = credit.id.toString(),
+                customerId = credit.customerId.value(),
+                type = credit.type.name,
+                grantedAmount = credit.grantedAmount.amount(),
+                currency = credit.currency.currencyCode,
+                validFrom = credit.validFrom.toString(),
+                validUntil = credit.validUntil?.toString(),
+                status = credit.status.name,
             )
         )
     }
@@ -138,15 +138,15 @@ class CreditController(
     }
 
     private fun toView(c: Credit): CreditView = CreditView(
-        id = c.id().toString(),
-        customerId = c.customerId().value(),
-        type = c.type().name,
-        currency = c.currency().currencyCode,
-        grantedAmount = c.grantedAmount().amount(),
-        balance = c.balance().amount(),
-        validFrom = c.validFrom().toString(),
-        validUntil = c.validUntil()?.toString(),
-        status = c.status().name,
-        reason = c.reason(),
+        id = c.id.toString(),
+        customerId = c.customerId.value(),
+        type = c.type.name,
+        currency = c.currency.currencyCode,
+        grantedAmount = c.grantedAmount.amount(),
+        balance = c.balance.amount(),
+        validFrom = c.validFrom.toString(),
+        validUntil = c.validUntil?.toString(),
+        status = c.status.name,
+        reason = c.reason,
     )
 }

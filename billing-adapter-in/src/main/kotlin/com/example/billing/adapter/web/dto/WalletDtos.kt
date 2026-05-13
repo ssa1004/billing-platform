@@ -16,13 +16,13 @@ data class WalletResponse(
 )
 
 fun Wallet.toResponse(): WalletResponse = WalletResponse(
-    id = id().toString(),
-    ownerId = ownerId(),
-    currency = currency().currencyCode,
-    balance = balance().amount,
-    blocked = blocked().amount,
+    id = id.toString(),
+    ownerId = ownerId,
+    currency = currency.currencyCode,
+    balance = balance.amount,
+    blocked = blocked.amount,
     available = available().amount,
-    updatedAt = updatedAt(),
+    updatedAt = updatedAt,
 )
 
 data class TransactionResponse(

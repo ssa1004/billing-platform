@@ -36,11 +36,11 @@ data class TransactionResponse(
 )
 
 fun LedgerEntry.toResponse(): TransactionResponse = TransactionResponse(
-    entryType = entryType().name,
-    amount = amount().amount(),
-    balanceAfter = balanceAfter().amount(),
-    referenceType = reference()?.type()?.name,
-    referenceId = reference()?.id(),
-    traceId = traceId(),
-    occurredAt = occurredAt(),
+    entryType = entryType.name,
+    amount = amount.amount(),
+    balanceAfter = balanceAfter.amount(),
+    referenceType = reference?.type()?.name,
+    referenceId = reference?.id(),
+    traceId = traceId,
+    occurredAt = occurredAt,
 )

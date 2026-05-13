@@ -1,5 +1,6 @@
 package com.example.billing.adapter.web.v2
 
+import com.example.billing.adapter.web.auth.Caller
 import com.example.billing.adapter.web.dto.v2.InvoiceV2Response
 import com.example.billing.adapter.web.dto.v2.toV2Response
 import com.example.billing.application.port.out.InvoiceRepository
@@ -8,6 +9,8 @@ import com.example.billing.domain.shared.CustomerId
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -39,9 +42,14 @@ class InvoiceV2Controller(
 
     @GetMapping("/{id}")
     @Operation(summary = "청구서 단건 조회 v2")
-    fun get(@PathVariable id: String): ResponseEntity<InvoiceV2Response> {
+    fun get(
+        @PathVariable id: String,
+        @AuthenticationPrincipal jwt: Jwt? = null,
+    ): ResponseEntity<InvoiceV2Response> {
         val invoice = invoiceRepository.findById(UUID.fromString(id)).getOrNull()
             ?: return ResponseEntity.notFound().build()
+        // BOLA (OWASP API1) — v1 회귀 방지: v2 도 v1 과 동일한 owner 검사.
+        Caller.from(jwt).requireOwnerOrAdmin(invoice.customerId().value())
         return ResponseEntity.ok(invoice.toV2Response())
     }
 
@@ -50,10 +58,18 @@ class InvoiceV2Controller(
     fun listByCustomer(
         @RequestParam customerId: String,
         @RequestParam(defaultValue = "20") limit: Int,
-        @RequestParam(required = false) currency: String?,
-    ): List<InvoiceV2Response> = invoiceRepository.findByCustomer(CustomerId.of(customerId), limit)
-        .asSequence()
-        .filter { currency.isNullOrBlank() || it.total().currency().currencyCode == currency }
-        .map(Invoice::toV2Response)
-        .toList()
+        @RequestParam(required = false) currency: String? = null,
+        @AuthenticationPrincipal jwt: Jwt? = null,
+    ): List<InvoiceV2Response> {
+        Caller.from(jwt).requireOwnerOrAdmin(customerId)
+        return invoiceRepository.findByCustomer(CustomerId.of(customerId), limit.coerceIn(1, MAX_LIMIT))
+            .asSequence()
+            .filter { currency.isNullOrBlank() || it.total().currency().currencyCode == currency }
+            .map(Invoice::toV2Response)
+            .toList()
+    }
+
+    companion object {
+        private const val MAX_LIMIT = 200
+    }
 }

@@ -1,10 +1,14 @@
 package com.example.billing.adapter.web.exception
 
 import com.example.billing.adapter.web.dto.ErrorResponse
+import com.example.billing.application.exception.BudgetAlertRuleNotFoundException
+import com.example.billing.application.exception.InvoiceNotFoundException
 import com.example.billing.application.exception.OrderNotFoundException
 import com.example.billing.application.exception.PaymentNotFoundException
 import com.example.billing.application.exception.RefundNotFoundException
 import com.example.billing.application.exception.WalletNotFoundException
+import com.example.billing.application.exception.WebhookDeliveryNotFoundException
+import com.example.billing.application.exception.WebhookEndpointNotFoundException
 import com.example.billing.application.port.out.IdempotencyKeyStore
 import com.example.billing.domain.order.IllegalOrderTransitionException
 import com.example.billing.domain.wallet.InsufficientBalanceException
@@ -16,6 +20,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -32,6 +37,10 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
         PaymentNotFoundException::class,
         RefundNotFoundException::class,
         WalletNotFoundException::class,
+        InvoiceNotFoundException::class,
+        BudgetAlertRuleNotFoundException::class,
+        WebhookEndpointNotFoundException::class,
+        WebhookDeliveryNotFoundException::class,
     )
     fun handleNotFound(e: RuntimeException): ResponseEntity<ErrorResponse> =
         build(HttpStatus.NOT_FOUND, "NOT_FOUND", e.message ?: "not found")
@@ -39,6 +48,19 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
     @ExceptionHandler(IdempotencyKeyStore.DuplicateRequestException::class)
     fun handleDuplicate(e: IdempotencyKeyStore.DuplicateRequestException): ResponseEntity<ErrorResponse> =
         build(HttpStatus.CONFLICT, "DUPLICATE_REQUEST", e.message ?: "duplicate request")
+
+    /**
+     * BOLA (OWASP API1) / Function-level Auth (API5) 거절 — Spring Security 의 표준
+     * [AccessDeniedException]. `@PreAuthorize` 와 [Caller.requireOwnerOrAdmin] 양쪽에서 던짐.
+     *
+     * 응답에 reason 을 자세히 노출 하지 않음 — "어떤 customerId 가 다른 customerId 의 자원이다"
+     * 같은 정보를 그대로 흘리면 enumeration 에 단서를 줌. detail 은 서버 로그 / trace 로만.
+     */
+    @ExceptionHandler(AccessDeniedException::class)
+    fun handleAccessDenied(e: AccessDeniedException): ResponseEntity<ErrorResponse> {
+        log.warn("access denied: {}", e.message)
+        return build(HttpStatus.FORBIDDEN, "FORBIDDEN", "access denied")
+    }
 
     /**
      * 같은 idempotency 키로 다른 body 가 들어온 경우 — client bug. 422 로 즉시 알려서 같은 키

@@ -221,8 +221,15 @@ class WebhookEndpoint private constructor(
             require(url.isNotBlank()) { "url must not be blank" }
             // production 은 https 강제. 로컬 / 테스트 (http://localhost) 만 예외.
             // 호스트 경계까지 정확히 매칭 — "http://localhost.evil.com" 같은 prefix 우회 방어.
-            if (url.startsWith("https://")) return
             if (isLocalhostHttp(url)) return
+            if (url.startsWith("https://")) {
+                // OWASP API7 — Server-Side Request Forgery. https 가 있더라도 customer 가 등록한
+                // URL 의 host 가 우리 사설망 / cloud metadata IP 면 webhook 발송이 SSRF 채널이
+                // 된다 (서명 헤더와 함께 우리 내부망에 HTTP POST 가 박힘). 도메인 단계에서 host
+                // 를 검사해 차단.
+                rejectIfPrivateOrMetadataHost(url)
+                return
+            }
             throw IllegalArgumentException(
                 "url must be https (or http://localhost for dev): $url",
             )
@@ -231,18 +238,130 @@ class WebhookEndpoint private constructor(
         private fun isLocalhostHttp(url: String): Boolean {
             // host 부분만 추출해서 정확히 일치 여부를 확인.
             if (!url.startsWith("http://")) return false
-            val afterScheme = url.substring("http://".length)
-            // 호스트 종료 문자: ":" (port), "/" (path), "?" (query), "#" (fragment), 끝.
+            val host = hostOf(url, "http://".length)
+            return host == "localhost" || host == "127.0.0.1"
+        }
+
+        /**
+         * URL 의 host 부분을 추출. scheme 길이 (`http://` 7, `https://` 8) 이후부터 host 종료
+         * 문자 (":", "/", "?", "#") 직전까지.
+         *
+         * IPv6 리터럴은 `[fc00::1]` 처럼 대괄호로 묶이며 내부에 ":" 가 있으니, `[` 안에서는
+         * ":" 를 host 종료로 보지 않음. 닫는 `]` 까지가 host (port 가 있으면 `]:port`).
+         */
+        private fun hostOf(url: String, schemeLen: Int): String {
+            val afterScheme = url.substring(schemeLen)
             var hostEnd = afterScheme.length
+            var inBracket = false
             for (i in afterScheme.indices) {
                 val c = afterScheme[i]
+                if (c == '[') {
+                    inBracket = true
+                    continue
+                }
+                if (c == ']') {
+                    // bracket 포함해서 host 의 끝점 + 1 — substring 으로 정확히 `[...]` 만 잘림.
+                    hostEnd = i + 1
+                    break
+                }
+                if (inBracket) continue
                 if (c == ':' || c == '/' || c == '?' || c == '#') {
                     hostEnd = i
                     break
                 }
             }
-            val host = afterScheme.substring(0, hostEnd)
-            return host == "localhost" || host == "127.0.0.1"
+            return afterScheme.substring(0, hostEnd)
+        }
+
+        /**
+         * 사설 / loopback / link-local / cloud metadata host 거절. customer 등록 URL 이
+         * `https://169.254.169.254/...` 같은 형태이면 webhook 발송이 우리 또는 cloud 의 내부
+         * 서비스에 도달하는 SSRF 가 된다. 자세한 vector 는 docs/security/owasp-mapping.md API7.
+         */
+        private fun rejectIfPrivateOrMetadataHost(url: String) {
+            val host = hostOf(url, "https://".length)
+            if (host.isBlank()) {
+                throw IllegalArgumentException("url has no host: $url")
+            }
+            val lower = host.lowercase()
+            // 1) DNS 이름의 명시적 loopback / metadata FQDN. 실제 운영에서 사용 사례가 없는 host
+            // 이름들 (cloud provider 가 IMDS 진입점으로 쓰는 명칭).
+            if (lower == "localhost"
+                || lower.endsWith(".localhost")
+                || lower == "metadata.google.internal"
+                || lower == "metadata"
+                || lower == "instance-data"
+            ) {
+                throw IllegalArgumentException(
+                    "url host is not allowed (loopback/metadata): $host",
+                )
+            }
+            // 2) IPv4 리터럴 — host 가 `a.b.c.d` 형식이면 각 옥텟을 검사해 사설 / loopback /
+            // link-local / cloud metadata 대역 차단.
+            val v4 = parseIpv4(lower)
+            if (v4 != null && isBlockedIpv4(v4)) {
+                throw IllegalArgumentException(
+                    "url host is not allowed (private/metadata): $host",
+                )
+            }
+            // 3) IPv6 리터럴 — `[::1]` / `[fc00::...]` 등. `[` 으로 시작하면 brackets 안에서
+            // loopback / unique-local 빠르게 매칭.
+            if (lower.startsWith("[")) {
+                val end = lower.indexOf(']')
+                val v6 = if (end > 0) lower.substring(1, end) else lower.substring(1)
+                if (isBlockedIpv6(v6)) {
+                    throw IllegalArgumentException(
+                        "url host is not allowed (private/metadata): $host",
+                    )
+                }
+            }
+        }
+
+        private fun parseIpv4(host: String): IntArray? {
+            val parts = host.split('.')
+            if (parts.size != 4) return null
+            val octets = IntArray(4)
+            for (i in 0 until 4) {
+                val n = parts[i].toIntOrNull() ?: return null
+                if (n < 0 || n > 255) return null
+                octets[i] = n
+            }
+            return octets
+        }
+
+        private fun isBlockedIpv4(o: IntArray): Boolean {
+            val a = o[0]; val b = o[1]
+            // RFC 1122 loopback 127.0.0.0/8
+            if (a == 127) return true
+            // RFC 1918 private — 10/8, 172.16/12, 192.168/16
+            if (a == 10) return true
+            if (a == 172 && b in 16..31) return true
+            if (a == 192 && b == 168) return true
+            // RFC 3927 link-local 169.254/16 — AWS / GCP IMDS, Azure 도 같은 대역에서 metadata 노출
+            if (a == 169 && b == 254) return true
+            // RFC 6598 CGNAT 100.64/10
+            if (a == 100 && b in 64..127) return true
+            // RFC 5735 0.0.0.0/8 (this network) — 일부 OS 에서 localhost 로 해석
+            if (a == 0) return true
+            // RFC 5771 multicast 224/4
+            if (a in 224..239) return true
+            return false
+        }
+
+        private fun isBlockedIpv6(addr: String): Boolean {
+            // 정상 IPv6 parser 까지 도메인에 들이는 건 과함. 흔한 위협 형태만 빠르게 거른다.
+            val s = addr.lowercase()
+            if (s == "::1" || s == "0:0:0:0:0:0:0:1") return true            // loopback
+            if (s.startsWith("fc") || s.startsWith("fd")) return true        // unique-local fc00::/7
+            if (s.startsWith("fe80:")) return true                            // link-local fe80::/10
+            // IPv4-mapped (::ffff:10.0.0.1 같은 형태) — IPv4 옥텟이 끝에 있으면 v4 검사
+            val colon = s.lastIndexOf(':')
+            if (colon >= 0) {
+                val tail = s.substring(colon + 1)
+                val v4 = parseIpv4(tail)
+                if (v4 != null && isBlockedIpv4(v4)) return true
+            }
+            return false
         }
 
         /**

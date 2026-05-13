@@ -60,6 +60,59 @@ class WebhookEndpointTest {
     }
 
     @Test
+    void register_rejectsHttpsCloudMetadataAndPrivateRanges() {
+        // OWASP API7 — Server-Side Request Forgery. customer 가 https 만 쓰면 우회 가능하던
+        // private / metadata 대역. 도메인 검사가 host 단위로 차단.
+
+        // AWS / GCP / Azure IMDS — link-local 169.254.169.254
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://169.254.169.254/latest/meta-data/", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not allowed");
+
+        // GCP metadata DNS — instance scoped metadata 서버
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://metadata.google.internal/computeMetadata/v1/", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not allowed");
+
+        // RFC 1918 — 10/8, 172.16/12, 192.168/16
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://10.0.0.5/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://172.20.10.1/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://192.168.1.5/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        // loopback https — 자기 자신을 가리키는 https. http loopback 은 dev exception 으로 허용되지만
+        // https loopback 은 정상 운영에 의미가 없음.
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://127.0.0.1/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://localhost/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        // IPv6 — loopback / unique-local / link-local
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://[::1]/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://[fc00::1]/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() ->
+                WebhookEndpoint.register(ALICE, "https://[fe80::1]/hook", Set.of(), CLOCK))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        // 정상 public host 는 여전히 통과.
+        var ok = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
+        assertThat(ok.url()).isEqualTo("https://acme.example.com/hook");
+    }
+
+    @Test
     void subscribesTo_emptySet_meansAllEvents() {
         var e = WebhookEndpoint.register(ALICE, "https://acme.example.com/hook", Set.of(), CLOCK);
         assertThat(e.subscribesTo("InvoiceIssued")).isTrue();

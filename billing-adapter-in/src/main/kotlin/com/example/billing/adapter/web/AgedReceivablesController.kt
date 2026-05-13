@@ -3,6 +3,7 @@ package com.example.billing.adapter.web
 import com.example.billing.application.service.AgedReceivablesService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -11,10 +12,14 @@ import java.time.Instant
 
 /**
  * 운영 / 회계 화면용 미수금 조회 endpoint.
+ *
+ * <p><b>OWASP API5 Broken Function Level Auth</b>: 전체 customer 의 미수금 분포는 회계 / 운영
+ * 데이터 — 일반 사용자에게 노출 금지.</p>
  */
 @RestController
 @RequestMapping("/api/v1/aged-receivables")
 @Tag(name = "aged-receivables", description = "미수금 분석 (운영자 전용)")
+@PreAuthorize("hasRole('admin')")
 class AgedReceivablesController(
     private val agedReceivables: AgedReceivablesService,
 ) {

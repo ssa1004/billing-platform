@@ -9,6 +9,7 @@ import com.example.billing.domain.audit.AuditEntry
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 
 /**
- * 감사 로그 조회 — 운영자 / 감사관 / customer support 모두 사용.
+ * 감사 로그 조회 — 운영자 / 감사관 / customer support 가 사용.
  *
  * <p><b>4가지 query 패턴</b>:
  * <ul>
@@ -26,12 +27,15 @@ import java.time.Instant
  *   <li>{@code GET ?action=REFUND_APPROVED&from=...&to=...} — 특정 행위 시간 구간 (SIEM 연동)</li>
  * </ul>
  *
- * <p>운영 환경에서는 인증 / 권한이 필수 — controller 자체는 OPERATOR role 이 있어야 접근.
- * (현재는 demo — security config 는 별도.)</p>
+ * <p><b>OWASP API5 Broken Function Level Auth</b>: audit row 는 다른 customer 자원 (refundId,
+ * payment 금액, 운영자 이름 등) 을 그대로 포함한다. enumeration 으로 PII / 운영 데이터가
+ * 흘러나가는 사고를 막기 위해 controller 자체를 ADMIN 전용. customer 자기 자원만 보는 흐름은
+ * 도메인 별 read endpoint (Invoice / Payment / Refund 등) 가 따로 제공.</p>
  */
 @RestController
 @RequestMapping("/api/v1/audit")
 @Tag(name = "audit", description = "감사 로그 조회 (append-only)")
+@PreAuthorize("hasRole('admin')")
 class AuditController(
     private val auditQuery: AuditQueryUseCase,
 ) {
@@ -49,23 +53,24 @@ class AuditController(
         @RequestParam(required = false) to: String?,           // ISO-8601
         @RequestParam(defaultValue = "100") limit: Int,
     ): ResponseEntity<AuditEntryListResponse> {
+        val bounded = limit.coerceIn(1, MAX_LIMIT)
         val entries = when {
             // 1. trace 한 요청의 audit 모두
             traceId != null -> auditQuery.findByTrace(traceId)
 
             // 2. 객체 timeline
             targetType != null && targetId != null ->
-                auditQuery.findByTarget(targetType, targetId, limit)
+                auditQuery.findByTarget(targetType, targetId, bounded)
 
             // 3. actor 활동
             actorType != null && actorId != null ->
-                auditQuery.findByActor(AuditActor.Type.valueOf(actorType), actorId, limit)
+                auditQuery.findByActor(AuditActor.Type.valueOf(actorType), actorId, bounded)
 
             // 4. 특정 action 시간 구간
             action != null && from != null && to != null ->
                 auditQuery.findByAction(
                     AuditAction.valueOf(action),
-                    Instant.parse(from), Instant.parse(to), limit
+                    Instant.parse(from), Instant.parse(to), bounded
                 )
 
             // 어떤 query 도 매칭 안 되면 빈 응답 — 위험한 전체 스캔 회피
@@ -88,4 +93,9 @@ class AuditController(
         traceId = e.traceId,
         occurredAt = e.occurredAt.toString(),
     )
+
+    companion object {
+        /** OWASP API4 — Unrestricted Resource Consumption cap. */
+        private const val MAX_LIMIT = 500
+    }
 }

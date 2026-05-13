@@ -33,15 +33,15 @@ data class PaymentResponse(
 )
 
 fun Payment.toResponse(): PaymentResponse = PaymentResponse(
-    id = id().toString(),
-    orderId = orderId().toString(),
-    amount = amount().amount,
-    currency = amount().currency.currencyCode,
-    method = method().name,
-    status = status().name,
-    pgTransactionId = pgTransactionId(),
-    errorCode = errorCode(),
-    errorMessage = errorMessage(),
-    createdAt = createdAt(),
-    updatedAt = updatedAt(),
+    id = id.toString(),
+    orderId = orderId.toString(),
+    amount = amount.amount,
+    currency = amount.currency.currencyCode,
+    method = method.name,
+    status = status.name,
+    pgTransactionId = pgTransactionId,
+    errorCode = errorCode,
+    errorMessage = errorMessage,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
 )

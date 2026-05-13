@@ -26,7 +26,7 @@ data class PricingSnapshot(
     fun calculate(resourceType: ResourceType, quantity: Long): Money {
         val applicable = tiers.filter { it.resourceType == resourceType }
         if (applicable.isEmpty()) {
-            return Money.zero(tiers[0].unitPrice.currency())
+            return Money.zero(tiers[0].unitPrice.currency)
         }
         return TieredCalculator.calculate(applicable, quantity)
     }

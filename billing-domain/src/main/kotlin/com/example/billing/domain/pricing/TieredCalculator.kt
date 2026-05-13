@@ -16,7 +16,7 @@ import java.math.BigDecimal
 internal object TieredCalculator {
 
     fun calculate(tiers: List<Tier>, quantity: Long): Money {
-        val currency = tiers[0].unitPrice.currency()
+        val currency = tiers[0].unitPrice.currency
         if (quantity <= 0) {
             return Money.zero(currency)
         }

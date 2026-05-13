@@ -51,12 +51,12 @@ data class OrderItemResponse(val sku: String, val quantity: Int, val unitPrice: 
 fun Order.toResponse(): OrderResponse = OrderResponse(
     id = id().toString(),
     buyerId = buyerId(),
-    totalAmount = totalAmount().amount(),
+    totalAmount = totalAmount().amount,
     currency = currency().currencyCode,
     status = status().name,
     paymentId = paymentId(),
     refundId = refundId(),
-    items = items().map { OrderItemResponse(it.sku(), it.quantity(), it.unitPrice().amount()) },
+    items = items().map { OrderItemResponse(it.sku(), it.quantity(), it.unitPrice().amount) },
     createdAt = createdAt(),
     updatedAt = updatedAt(),
 )

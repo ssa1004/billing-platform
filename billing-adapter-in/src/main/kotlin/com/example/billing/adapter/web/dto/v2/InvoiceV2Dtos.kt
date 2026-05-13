@@ -45,11 +45,11 @@ data class InvoiceV2Response(
 )
 
 private fun com.example.billing.domain.shared.Money.toV2(): MoneyV2 =
-    MoneyV2(amount(), currency().currencyCode)
+    MoneyV2(amount, currency.currencyCode)
 
 fun Invoice.toV2Response(): InvoiceV2Response = InvoiceV2Response(
     id = id().toString(),
-    customerId = customerId().value(),
+    customerId = customerId().value,
     period = period().toKey(),
     status = status(),
     total = total().toV2(),

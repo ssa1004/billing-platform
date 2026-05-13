@@ -99,7 +99,7 @@ seed 를 미리 만들고 시작한다:
 
 ### 1) usage-event-ingest — 사용량 이벤트 수신 (metering throughput)
 
-다른 레포 (resell-orderbook / gpu-job-orchestrator) 가 발사한 usage event 가 모두 이
+다른 레포 (bid-ask-marketplace / gpu-job-orchestrator) 가 발사한 usage event 가 모두 이
 endpoint 로 모인다. `eventId` 가 PK 겸 UNIQUE 제약이라 INSERT + (있다면) UNIQUE check
 만의 가벼운 write path. 가장 hot 한 write 의 정상 path throughput.
 

@@ -19,9 +19,9 @@ fun Wallet.toResponse(): WalletResponse = WalletResponse(
     id = id().toString(),
     ownerId = ownerId(),
     currency = currency().currencyCode,
-    balance = balance().amount(),
-    blocked = blocked().amount(),
-    available = available().amount(),
+    balance = balance().amount,
+    blocked = blocked().amount,
+    available = available().amount,
     updatedAt = updatedAt(),
 )
 
@@ -37,10 +37,10 @@ data class TransactionResponse(
 
 fun LedgerEntry.toResponse(): TransactionResponse = TransactionResponse(
     entryType = entryType.name,
-    amount = amount.amount(),
-    balanceAfter = balanceAfter.amount(),
-    referenceType = reference?.type()?.name,
-    referenceId = reference?.id(),
+    amount = amount.amount,
+    balanceAfter = balanceAfter.amount,
+    referenceType = reference?.type?.name,
+    referenceId = reference?.id,
     traceId = traceId,
     occurredAt = occurredAt,
 )

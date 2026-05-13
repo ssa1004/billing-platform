@@ -79,9 +79,9 @@ class CreditController(
         return ResponseEntity.ok(
             GrantCreditResponse(
                 creditId = credit.id.toString(),
-                customerId = credit.customerId.value(),
+                customerId = credit.customerId.value,
                 type = credit.type.name,
-                grantedAmount = credit.grantedAmount.amount(),
+                grantedAmount = credit.grantedAmount.amount,
                 currency = credit.currency.currencyCode,
                 validFrom = credit.validFrom.toString(),
                 validUntil = credit.validUntil?.toString(),
@@ -110,8 +110,8 @@ class CreditController(
             ApplyCreditResponse(
                 invoiceId = req.invoiceId,
                 customerId = req.customerId,
-                appliedAmount = applied.amount(),
-                currency = applied.currency().currencyCode,
+                appliedAmount = applied.amount,
+                currency = applied.currency.currencyCode,
             )
         )
     }
@@ -128,7 +128,7 @@ class CreditController(
             CreditBalanceResponse(
                 customerId = customerId,
                 balances = sums.entries.map {
-                    CreditBalanceResponse.CurrencyBalance(it.key.currencyCode, it.value.amount())
+                    CreditBalanceResponse.CurrencyBalance(it.key.currencyCode, it.value.amount)
                 },
             )
         )
@@ -161,11 +161,11 @@ class CreditController(
 
     private fun toView(c: Credit): CreditView = CreditView(
         id = c.id.toString(),
-        customerId = c.customerId.value(),
+        customerId = c.customerId.value,
         type = c.type.name,
         currency = c.currency.currencyCode,
-        grantedAmount = c.grantedAmount.amount(),
-        balance = c.balance.amount(),
+        grantedAmount = c.grantedAmount.amount,
+        balance = c.balance.amount,
         validFrom = c.validFrom.toString(),
         validUntil = c.validUntil?.toString(),
         status = c.status.name,

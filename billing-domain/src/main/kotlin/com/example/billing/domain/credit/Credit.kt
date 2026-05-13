@@ -143,8 +143,8 @@ class Credit private constructor(
     }
 
     private fun ensureSameCurrency(amount: Money) {
-        require(amount.currency() == currency) {
-            "currency mismatch: credit=$currency amount=${amount.currency()}"
+        require(amount.currency == currency) {
+            "currency mismatch: credit=$currency amount=${amount.currency}"
         }
     }
 
@@ -183,7 +183,7 @@ class Credit private constructor(
                 id = CreditId.newId(),
                 customerId = customerId,
                 type = type,
-                currency = amount.currency(),
+                currency = amount.currency,
                 grantedAmount = amount,
                 balance = amount,
                 validFrom = validFrom,

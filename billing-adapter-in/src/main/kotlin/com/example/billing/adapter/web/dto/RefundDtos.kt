@@ -31,8 +31,8 @@ data class RefundResponse(
 fun Refund.toResponse(): RefundResponse = RefundResponse(
     id = id.toString(),
     paymentId = paymentId.toString(),
-    amount = amount.amount(),
-    currency = amount.currency().currencyCode,
+    amount = amount.amount,
+    currency = amount.currency.currencyCode,
     reason = reason,
     status = status.name,
     pgRefundId = pgRefundId,

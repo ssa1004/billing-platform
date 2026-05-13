@@ -1,5 +1,6 @@
 package com.example.billing.adapter.web
 
+import com.example.billing.adapter.web.auth.Caller
 import com.example.billing.adapter.web.dto.ApplyCreditRequest
 import com.example.billing.adapter.web.dto.ApplyCreditResponse
 import com.example.billing.adapter.web.dto.CreditBalanceResponse
@@ -20,6 +21,9 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -37,6 +41,13 @@ import java.util.UUID
  *
  * <p>발급은 단순 잔액 +X 가 아니라 사유와 유효기간을 함께 기록 — 회계/만료/회수에 영향.
  * 자세한 설계 의도는 ADR-0018.</p>
+ *
+ * <p><b>접근 제어 (OWASP API1 BOLA + API5)</b>:
+ * <ul>
+ *   <li>{@code POST /credits} (grant) — 운영자/마케팅이 customer 한테 발급. ADMIN 전용.</li>
+ *   <li>{@code POST /credits/apply} — 본인 invoice 거나 admin. customer 자신은 자기 invoice 에만 적용.</li>
+ *   <li>{@code GET /credits*} — 본인 자원 조회거나 admin.</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/v1/credits")
@@ -48,6 +59,7 @@ class CreditController(
 ) {
 
     @PostMapping
+    @PreAuthorize("hasRole('admin')")
     @Operation(summary = "크레딧 발급 (PROMO / PREPAID / COMPENSATION / REFUND_TO_CREDIT)")
     fun grant(
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
@@ -83,7 +95,9 @@ class CreditController(
     fun apply(
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @RequestBody req: ApplyCreditRequest,
+        @AuthenticationPrincipal jwt: Jwt? = null,
     ): ResponseEntity<ApplyCreditResponse> {
+        Caller.from(jwt).requireOwnerOrAdmin(req.customerId)
         val currency = Currency.getInstance(req.currency)
         val cmd = ApplyCreditCommand(
             idempotencyKey,
@@ -104,7 +118,11 @@ class CreditController(
 
     @GetMapping("/balance")
     @Operation(summary = "고객 단위 사용 가능 크레딧 잔액 (통화별)")
-    fun balance(@RequestParam customerId: String): ResponseEntity<CreditBalanceResponse> {
+    fun balance(
+        @RequestParam customerId: String,
+        @AuthenticationPrincipal jwt: Jwt? = null,
+    ): ResponseEntity<CreditBalanceResponse> {
+        Caller.from(jwt).requireOwnerOrAdmin(customerId)
         val sums = query.usableBalances(CustomerId.of(customerId))
         return ResponseEntity.ok(
             CreditBalanceResponse(
@@ -121,8 +139,10 @@ class CreditController(
     fun list(
         @RequestParam customerId: String,
         @RequestParam(defaultValue = "100") limit: Int,
+        @AuthenticationPrincipal jwt: Jwt? = null,
     ): ResponseEntity<CreditListResponse> {
-        val items = query.findAll(CustomerId.of(customerId), limit).map(::toView)
+        Caller.from(jwt).requireOwnerOrAdmin(customerId)
+        val items = query.findAll(CustomerId.of(customerId), limit.coerceIn(1, MAX_LIMIT)).map(::toView)
         return ResponseEntity.ok(CreditListResponse(items = items))
     }
 
@@ -131,8 +151,10 @@ class CreditController(
     fun expiring(
         @RequestParam customerId: String,
         @RequestParam(defaultValue = "7") withinDays: Long,
+        @AuthenticationPrincipal jwt: Jwt? = null,
     ): ResponseEntity<CreditListResponse> {
-        val items = query.findExpiringSoon(CustomerId.of(customerId), Duration.ofDays(withinDays))
+        Caller.from(jwt).requireOwnerOrAdmin(customerId)
+        val items = query.findExpiringSoon(CustomerId.of(customerId), Duration.ofDays(withinDays.coerceIn(1, MAX_WITHIN_DAYS)))
             .map(::toView)
         return ResponseEntity.ok(CreditListResponse(items = items))
     }
@@ -149,4 +171,10 @@ class CreditController(
         status = c.status.name,
         reason = c.reason,
     )
+
+    companion object {
+        /** OWASP API4 — Unrestricted Resource Consumption cap. */
+        private const val MAX_LIMIT = 200
+        private const val MAX_WITHIN_DAYS = 365L
+    }
 }

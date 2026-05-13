@@ -32,5 +32,11 @@ class WalletController(
         @AuthenticationPrincipal jwt: Jwt?,
         @RequestParam(defaultValue = "20") limit: Int,
     ): List<TransactionResponse> =
-        walletQuery.recentTransactions(Caller.from(jwt).owner, limit).map(LedgerEntry::toResponse)
+        walletQuery.recentTransactions(Caller.from(jwt).owner, limit.coerceIn(1, MAX_LIMIT))
+            .map(LedgerEntry::toResponse)
+
+    companion object {
+        /** OWASP API4 — Unrestricted Resource Consumption cap. */
+        private const val MAX_LIMIT = 200
+    }
 }

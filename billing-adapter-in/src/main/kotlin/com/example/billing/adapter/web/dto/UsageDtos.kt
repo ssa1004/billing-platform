@@ -1,5 +1,6 @@
 package com.example.billing.adapter.web.dto
 
+import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.PositiveOrZero
@@ -14,7 +15,9 @@ data class IngestUsageRequest(
 
     @field:NotBlank @field:Size(max = 32) val resourceType: String,
 
-    @field:PositiveOrZero val quantity: Long,
+    // OWASP API4 — 한 이벤트의 정상 quantity 는 분당 호출 수준 (수만). 1e15 같은 비현실적 값은
+    // forecast / billing 계산에서 BigDecimal overflow / 무리한 청구액으로 이어진다.
+    @field:PositiveOrZero @field:Max(1_000_000_000L) val quantity: Long,
 
     @field:NotBlank val occurredAt: String,  // ISO-8601 UTC
 )

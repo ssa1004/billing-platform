@@ -14,7 +14,9 @@ import java.util.Currency
 
 data class PlaceOrderRequest(
     @field:NotBlank @field:Size(min = 3, max = 3) val currency: String,
-    @field:NotEmpty @field:Valid val items: List<OrderItemRequest>,
+    // OWASP API4 — Unrestricted Resource Consumption: items 가 무한 길이면 한 요청이 DB / 메모리
+    // / 후속 결제 흐름을 통째로 흔들 수 있다. 운영 상한 100 — 단일 결제 라인 100개면 충분.
+    @field:NotEmpty @field:Valid @field:Size(max = 100) val items: List<OrderItemRequest>,
 ) {
     fun toCommand(idempotencyKey: String, buyerId: String): PlaceOrderCommand =
         PlaceOrderCommand(

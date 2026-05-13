@@ -33,13 +33,14 @@ class DlqAdminController(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @PostMapping("/replay")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('admin')")
     @Operation(summary = "DLT topic 의 모든 메시지를 원본 topic 으로 재발행")
     fun replay(
         @RequestParam dltTopic: String,
         @RequestParam(defaultValue = "100") max: Int,
     ): Map<String, Any> {
         require(dltTopic.endsWith(".DLT")) { "topic 은 .DLT suffix 가 있어야 함" }
+        val boundedMax = max.coerceIn(1, MAX_REPLAY)
         val originalTopic = dltTopic.removeSuffix(".DLT")
 
         val props = mapOf(
@@ -56,7 +57,7 @@ class DlqAdminController(
         KafkaConsumer<String, String>(props).use { consumer ->
             consumer.subscribe(listOf(dltTopic))
             val records = consumer.poll(Duration.ofSeconds(5))
-            records.take(max).forEach { record ->
+            records.take(boundedMax).forEach { record ->
                 // send 는 Future 반환 — get(timeout) 로 동기 확인. 실패한 메시지는 카운트만
                 // 분리하고 다음 record 진행. fire-and-forget 이면 broker 가 죽어도 200 OK 가
                 // 떨어져 운영자가 메시지 유실을 모름.
@@ -84,5 +85,7 @@ class DlqAdminController(
 
     companion object {
         private const val SEND_TIMEOUT_SECONDS = 10L
+        /** OWASP API4 — replay 한 번에 가져갈 수 있는 메시지 상한. */
+        private const val MAX_REPLAY = 1000
     }
 }

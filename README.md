@@ -19,7 +19,7 @@ B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 �
 
 ## 기술 스택
 
-- **Language**: Java 21, Kotlin (adapter-in 모듈)
+- **Language**: Kotlin (domain / adapter-in 모듈), Java 21 (application / adapter-out / batch)
 - **Framework**: Spring Boot 3.4, Spring Modulith, Spring Batch
 - **Database**: PostgreSQL 16, H2 (local/dev)
 - **Cache / KV**: Caffeine (local/dev), Redis (prod 캐시 + 멱등성 키)
@@ -118,7 +118,7 @@ Spring Modulith가 모듈 간 의존 방향을 빌드 시점에 검증합니다.
 graph LR
     in[billing-adapter-in<br/>REST 컨트롤러<br/>Kotlin]
     app[billing-application<br/>유스케이스 + 포트]
-    domain[billing-domain<br/>14개 도메인 sub-package + shared]
+    domain[billing-domain<br/>14개 도메인 sub-package + shared<br/>Kotlin]
     out[billing-adapter-out<br/>JPA + Outbox + PG + AdvisoryLock]
     batch[billing-batch<br/>Spring Batch]
     boot[billing-bootstrap<br/>Boot main + Flyway]

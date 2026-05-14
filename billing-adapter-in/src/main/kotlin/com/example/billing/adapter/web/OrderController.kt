@@ -34,7 +34,7 @@ class OrderController(
         val caller = Caller.from(jwt)
         val order = placeOrder.place(req.toCommand(idempotencyKey, caller.owner))
         return ResponseEntity
-            .created(URI.create("/api/v1/orders/${order.id()}"))
+            .created(URI.create("/api/v1/orders/${order.id}"))
             .body(order.toResponse())
     }
 }

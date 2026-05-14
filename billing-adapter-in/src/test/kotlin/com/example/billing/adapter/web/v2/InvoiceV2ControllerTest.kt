@@ -39,7 +39,7 @@ class InvoiceV2ControllerTest {
         val invoice = anInvoiceWithCredit(applied = BigDecimal("300"))
         whenever(repo.findById(any())).thenReturn(Optional.of(invoice))
 
-        val response = controller.get(invoice.id().toString())
+        val response = controller.get(invoice.id.toString())
 
         assertThat(response.statusCode.value()).isEqualTo(200)
         val body = response.body!!

@@ -39,7 +39,7 @@ class InvoiceController(
         val invoice = invoiceRepository.findById(UUID.fromString(id)).getOrNull()
             ?: return ResponseEntity.notFound().build()
         // BOLA (OWASP API1) — invoice 의 customer 가 caller 자신이거나 admin 일 때만 응답.
-        Caller.from(jwt).requireOwnerOrAdmin(invoice.customerId().value)
+        Caller.from(jwt).requireOwnerOrAdmin(invoice.customerId.value)
         return ResponseEntity.ok(invoice.toResponse())
     }
 
@@ -63,14 +63,14 @@ class InvoiceController(
     ): ResponseEntity<ByteArray> {
         val invoice = invoiceRepository.findById(UUID.fromString(id)).getOrNull()
             ?: return ResponseEntity.notFound().build()
-        Caller.from(jwt).requireOwnerOrAdmin(invoice.customerId().value)
+        Caller.from(jwt).requireOwnerOrAdmin(invoice.customerId.value)
 
         val bytes = pdfRenderer.render(invoice)
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
             .header(
                 HttpHeaders.CONTENT_DISPOSITION,
-                "attachment; filename=\"invoice-${invoice.period().toKey()}-${invoice.id()}.pdf\""
+                "attachment; filename=\"invoice-${invoice.period.toKey()}-${invoice.id}.pdf\""
             )
             .body(bytes)
     }

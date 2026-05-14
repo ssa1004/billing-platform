@@ -48,22 +48,22 @@ private fun com.example.billing.domain.shared.Money.toV2(): MoneyV2 =
     MoneyV2(amount, currency.currencyCode)
 
 fun Invoice.toV2Response(): InvoiceV2Response = InvoiceV2Response(
-    id = id().toString(),
-    customerId = customerId().value,
-    period = period().toKey(),
-    status = status(),
-    total = total().toV2(),
-    appliedCredit = appliedCredit().toV2(),
+    id = id.toString(),
+    customerId = customerId.value,
+    period = period.toKey(),
+    status = status,
+    total = total.toV2(),
+    appliedCredit = appliedCredit.toV2(),
     amountDue = amountDue().toV2(),
-    lines = lines().map {
+    lines = lines.map {
         InvoiceLineV2Response(
-            resourceType = it.resourceType().name,
-            quantity = it.quantity(),
-            lineTotal = it.lineTotal().toV2(),
-            description = it.unitPriceDescription(),
+            resourceType = it.resourceType.name,
+            quantity = it.quantity,
+            lineTotal = it.lineTotal.toV2(),
+            description = it.unitPriceDescription,
         )
     },
-    issuedAt = issuedAt(),
-    dueAt = dueAt(),
-    paidAt = paidAt(),
+    issuedAt = issuedAt,
+    dueAt = dueAt,
+    paidAt = paidAt,
 )

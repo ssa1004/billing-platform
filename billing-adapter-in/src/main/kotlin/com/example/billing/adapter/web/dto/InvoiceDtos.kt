@@ -27,19 +27,19 @@ data class InvoiceResponse(
 )
 
 fun Invoice.toResponse(): InvoiceResponse = InvoiceResponse(
-    id = id().toString(),
-    customerId = customerId().value,
-    period = period().toKey(),
-    status = status(),
-    total = total().amount,
-    currency = total().currency.currencyCode,
-    lines = lines().map {
+    id = id.toString(),
+    customerId = customerId.value,
+    period = period.toKey(),
+    status = status,
+    total = total.amount,
+    currency = total.currency.currencyCode,
+    lines = lines.map {
         InvoiceLineResponse(
-            it.resourceType().name, it.quantity(), it.lineTotal().amount,
-            it.lineTotal().currency.currencyCode, it.unitPriceDescription(),
+            it.resourceType.name, it.quantity, it.lineTotal.amount,
+            it.lineTotal.currency.currencyCode, it.unitPriceDescription,
         )
     },
-    issuedAt = issuedAt(),
-    dueAt = dueAt(),
-    paidAt = paidAt(),
+    issuedAt = issuedAt,
+    dueAt = dueAt,
+    paidAt = paidAt,
 )

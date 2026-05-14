@@ -49,7 +49,7 @@ class InvoiceV2Controller(
         val invoice = invoiceRepository.findById(UUID.fromString(id)).getOrNull()
             ?: return ResponseEntity.notFound().build()
         // BOLA (OWASP API1) — v1 회귀 방지: v2 도 v1 과 동일한 owner 검사.
-        Caller.from(jwt).requireOwnerOrAdmin(invoice.customerId().value)
+        Caller.from(jwt).requireOwnerOrAdmin(invoice.customerId.value)
         return ResponseEntity.ok(invoice.toV2Response())
     }
 
@@ -64,7 +64,7 @@ class InvoiceV2Controller(
         Caller.from(jwt).requireOwnerOrAdmin(customerId)
         return invoiceRepository.findByCustomer(CustomerId.of(customerId), limit.coerceIn(1, MAX_LIMIT))
             .asSequence()
-            .filter { currency.isNullOrBlank() || it.total().currency.currencyCode == currency }
+            .filter { currency.isNullOrBlank() || it.total.currency.currencyCode == currency }
             .map(Invoice::toV2Response)
             .toList()
     }

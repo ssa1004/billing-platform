@@ -138,33 +138,33 @@ class BudgetAlertController(
     private fun authorizeRule(ruleId: String, jwt: Jwt?) {
         val rule = rules.findById(BudgetAlertRuleId.of(ruleId)).getOrNull()
             ?: throw BudgetAlertRuleNotFoundException(BudgetAlertRuleId.of(ruleId))
-        Caller.from(jwt).requireOwnerOrAdmin(rule.customerId().value)
+        Caller.from(jwt).requireOwnerOrAdmin(rule.customerId.value)
     }
 
     private fun toHistoryView(h: BudgetAlertHistoryEntry): BudgetAlertHistoryView =
         BudgetAlertHistoryView(
-            id = h.id().toString(),
-            ruleId = h.ruleId().toString(),
-            customerId = h.customerId().value,
-            thresholdAtTrigger = h.thresholdAtTrigger().amount,
-            projectedCostAtTrigger = h.projectedCostAtTrigger().amount,
-            currency = h.thresholdAtTrigger().currency.currencyCode,
-            overshootRatio = h.overshootRatio(),
-            period = h.period().toKey(),
-            periodProgressRatioAtTrigger = h.periodProgressRatioAtTrigger(),
-            occurredAt = h.occurredAt().toString(),
+            id = h.id.toString(),
+            ruleId = h.ruleId.toString(),
+            customerId = h.customerId.value,
+            thresholdAtTrigger = h.thresholdAtTrigger.amount,
+            projectedCostAtTrigger = h.projectedCostAtTrigger.amount,
+            currency = h.thresholdAtTrigger.currency.currencyCode,
+            overshootRatio = h.overshootRatio,
+            period = h.period.toKey(),
+            periodProgressRatioAtTrigger = h.periodProgressRatioAtTrigger,
+            occurredAt = h.occurredAt.toString(),
         )
 
     private fun toView(r: BudgetAlertRule): BudgetAlertRuleView = BudgetAlertRuleView(
-        id = r.id().toString(),
-        customerId = r.customerId().value,
-        threshold = r.threshold().amount,
-        currency = r.threshold().currency.currencyCode,
-        cooldownSeconds = r.cooldown().seconds,
-        status = r.status().name,
-        lastEvaluatedAt = r.lastEvaluatedAt()?.toString(),
-        lastTriggeredAt = r.lastTriggeredAt()?.toString(),
-        createdAt = r.createdAt().toString(),
+        id = r.id.toString(),
+        customerId = r.customerId.value,
+        threshold = r.threshold.amount,
+        currency = r.threshold.currency.currencyCode,
+        cooldownSeconds = r.cooldown.seconds,
+        status = r.status.name,
+        lastEvaluatedAt = r.lastEvaluatedAt?.toString(),
+        lastTriggeredAt = r.lastTriggeredAt?.toString(),
+        createdAt = r.createdAt.toString(),
     )
 
     companion object {

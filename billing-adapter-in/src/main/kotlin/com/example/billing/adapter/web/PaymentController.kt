@@ -47,7 +47,7 @@ class PaymentController(
         val orderId = OrderId.of(req.orderId)
         val order = orders.findById(orderId).getOrNull()
             ?: throw OrderNotFoundException(orderId)
-        Caller.from(jwt).requireOwnerOrAdmin(order.buyerId())
+        Caller.from(jwt).requireOwnerOrAdmin(order.buyerId)
 
         val payment = processPayment.process(req.toCommand(idempotencyKey))
         return ResponseEntity.status(HttpStatus.CREATED).body(payment.toResponse())

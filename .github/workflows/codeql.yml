@@ -1,0 +1,57 @@
+name: CodeQL
+
+# Java/Kotlin SAST (static application security testing).
+# CodeQL 의 'java-kotlin' 언어 팩 하나가 JVM 소스 전체를 본다 — billing-domain /
+# billing-adapter-in 은 Kotlin, 나머지 모듈은 Java 라 단일 분석으로 양쪽을 커버한다.
+#
+# ci.yml 과 동일하게 포폴 단계 동안 push / PR 자동 trigger 는 OFF (수동 + 주간 스캔만).
+# 자동 trigger 복원 시 아래 push / pull_request 블록 주석 해제.
+on:
+  workflow_dispatch:
+  schedule:
+    # 매주 월요일 06:00 KST (= 일요일 21:00 UTC) — dependabot 주간 스캔과 같은 주기.
+    - cron: "0 21 * * 0"
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (java-kotlin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          # security-and-quality: 보안 + 코드 품질 쿼리까지. 기본 (security-extended)
+          # 보다 넓지만 포폴 코드 규모에선 분석 시간 부담이 적다.
+          queries: security-and-quality
+
+      # autobuild 대신 명시 빌드 — 멀티모듈 + Kotlin plugin 조합에서 autobuild 가
+      # 일부 모듈을 놓치는 경우가 있어 전체 컴파일을 직접 돌린다. 테스트는 제외 (SAST 는
+      # main 소스만 대상, CI 의 test job 과 역할 분리).
+      - name: Build (compile only, no tests)
+        run: ./gradlew --no-daemon compileJava compileKotlin -x test
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java-kotlin"

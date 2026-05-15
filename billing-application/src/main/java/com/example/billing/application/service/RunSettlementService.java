@@ -122,9 +122,12 @@ public class RunSettlementService implements RunSettlementUseCase {
                 "Invoice",
                 invoice.id().toString(),
                 null,
-                String.format("{\"customerId\":\"%s\",\"period\":\"%s\",\"total\":\"%s\",\"currency\":\"%s\"}",
-                        cmd.customerId().value(), cmd.period().toKey(),
-                        invoice.total().amount(), invoice.total().currency().getCurrencyCode()),
+                AuditPayloads.object()
+                        .put("customerId", cmd.customerId().value())
+                        .put("period", cmd.period().toKey())
+                        .put("total", invoice.total().amount())
+                        .put("currency", invoice.total().currency().getCurrencyCode())
+                        .build(),
                 null
         );
 
@@ -141,8 +144,10 @@ public class RunSettlementService implements RunSettlementUseCase {
                         "Invoice",
                         invoice.id().toString(),
                         null,
-                        String.format("{\"customerId\":\"%s\",\"amount\":\"%s\"}",
-                                cmd.customerId().value(), invoice.total().amount()),
+                        AuditPayloads.object()
+                                .put("customerId", cmd.customerId().value())
+                                .put("amount", invoice.total().amount())
+                                .build(),
                         null
                 );
             }

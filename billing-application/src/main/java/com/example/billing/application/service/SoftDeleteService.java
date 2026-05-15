@@ -101,31 +101,36 @@ public class SoftDeleteService implements SoftDeleteUseCase {
 
     // ── before-snapshot 직렬화 ──
     // 운영 표준은 Jackson + 도메인별 DTO 지만, audit 의 before/after 는 디버깅 / forensic 용
-    // 이라 아주 상세할 필요는 없음. 핵심 식별자 + 상태 + 금액만 toString 으로 압축.
+    // 이라 아주 상세할 필요는 없음. 핵심 식별자 + 상태 + 금액만 평면(flat) JSON 으로 압축.
+    // customerId / pgTransactionId / pgRefundId 는 외부 문자열이라 AuditPayloads 가 escape.
 
     private static String summarize(Invoice i) {
-        return String.format(
-                "{\"id\":\"%s\",\"customerId\":\"%s\",\"period\":\"%s\",\"status\":\"%s\","
-                        + "\"total\":\"%s %s\"}",
-                i.id(), i.customerId().value(), i.period().toKey(),
-                i.status(), i.total().amount(), i.total().currency().getCurrencyCode());
+        return AuditPayloads.object()
+                .put("id", i.id())
+                .put("customerId", i.customerId().value())
+                .put("period", i.period().toKey())
+                .put("status", i.status())
+                .put("total", i.total().amount() + " " + i.total().currency().getCurrencyCode())
+                .build();
     }
 
     private static String summarize(Payment p) {
-        return String.format(
-                "{\"id\":\"%s\",\"orderId\":\"%s\",\"amount\":\"%s %s\",\"status\":\"%s\","
-                        + "\"pgTransactionId\":\"%s\"}",
-                p.id().value(), p.orderId(), p.amount().amount(),
-                p.amount().currency().getCurrencyCode(),
-                p.status(), p.pgTransactionId() == null ? "" : p.pgTransactionId());
+        return AuditPayloads.object()
+                .put("id", p.id().value())
+                .put("orderId", p.orderId())
+                .put("amount", p.amount().amount() + " " + p.amount().currency().getCurrencyCode())
+                .put("status", p.status())
+                .put("pgTransactionId", p.pgTransactionId() == null ? "" : p.pgTransactionId())
+                .build();
     }
 
     private static String summarize(Refund r) {
-        return String.format(
-                "{\"id\":\"%s\",\"paymentId\":\"%s\",\"amount\":\"%s %s\",\"status\":\"%s\","
-                        + "\"pgRefundId\":\"%s\"}",
-                r.id().value(), r.paymentId().value(),
-                r.amount().amount(), r.amount().currency().getCurrencyCode(),
-                r.status(), r.pgRefundId() == null ? "" : r.pgRefundId());
+        return AuditPayloads.object()
+                .put("id", r.id().value())
+                .put("paymentId", r.paymentId().value())
+                .put("amount", r.amount().amount() + " " + r.amount().currency().getCurrencyCode())
+                .put("status", r.status())
+                .put("pgRefundId", r.pgRefundId() == null ? "" : r.pgRefundId())
+                .build();
     }
 }

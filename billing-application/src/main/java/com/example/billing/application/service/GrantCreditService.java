@@ -68,9 +68,12 @@ public class GrantCreditService implements GrantCreditUseCase {
                 "Credit",
                 credit.id().toString(),
                 null,                                              // before — 신규 발급이라 없음
-                "{\"amount\":\"%s\",\"type\":\"%s\",\"validUntil\":\"%s\"}".formatted(
-                        credit.grantedAmount(), credit.type(),
-                        credit.validUntil() != null ? credit.validUntil() : "null"),
+                AuditPayloads.object()
+                        .put("amount", credit.grantedAmount())
+                        .put("type", credit.type())
+                        // validUntil 이 null 이면 JSON null 리터럴 (기존엔 "null" 문자열이었음).
+                        .put("validUntil", credit.validUntil())
+                        .build(),
                 cmd.reason()
         );
 

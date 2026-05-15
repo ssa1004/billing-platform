@@ -137,8 +137,11 @@ public class RefundService implements RefundUseCase {
                     "Refund",
                     refund.id().toString(),
                     null,
-                    "{\"paymentId\":\"%s\",\"amount\":\"%s\",\"pgRefundId\":\"%s\"}".formatted(
-                            ctx.paymentId(), refund.amount(), pgResult.pgRefundId()),
+                    AuditPayloads.object()
+                            .put("paymentId", ctx.paymentId())
+                            .put("amount", refund.amount())
+                            .put("pgRefundId", pgResult.pgRefundId())
+                            .build(),
                     cmd.reason()
             );
 
@@ -155,8 +158,10 @@ public class RefundService implements RefundUseCase {
                     "Refund",
                     refund.id().toString(),
                     null,
-                    "{\"paymentId\":\"%s\",\"errorMessage\":\"%s\"}".formatted(
-                            ctx.paymentId(), pgResult.errorMessage()),
+                    AuditPayloads.object()
+                            .put("paymentId", ctx.paymentId())
+                            .put("errorMessage", pgResult.errorMessage())
+                            .build(),
                     cmd.reason()
             );
 

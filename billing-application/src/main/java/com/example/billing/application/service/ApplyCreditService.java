@@ -126,9 +126,12 @@ public class ApplyCreditService implements ApplyCreditUseCase {
                     "Invoice",
                     cmd.invoiceId().toString(),
                     null,
-                    String.format("{\"customerId\":\"%s\",\"applied\":\"%s\",\"currency\":\"%s\",\"amountDueAfter\":\"%s\"}",
-                            customerId.value(), applied.amount(),
-                            applied.currency().getCurrencyCode(), invoice.amountDue().amount()),
+                    AuditPayloads.object()
+                            .put("customerId", customerId.value())
+                            .put("applied", applied.amount())
+                            .put("currency", applied.currency().getCurrencyCode())
+                            .put("amountDueAfter", invoice.amountDue().amount())
+                            .build(),
                     null
             );
         }

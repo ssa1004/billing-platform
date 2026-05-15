@@ -1,0 +1,57 @@
+# Dependabot — 의존성 / Actions 버전 자동 추적.
+# 멀티모듈 Gradle 이지만 버전은 루트 build.gradle.kts + 각 모듈 build.gradle.kts 에
+# 분산돼 있어 ecosystem 단위 (gradle) 로 한 번에 스캔한다 (디렉토리는 "/" — Gradle
+# 플러그인이 settings.gradle.kts 의 include 를 따라 하위 모듈까지 본다).
+version: 2
+updates:
+  # ─── Gradle 의존성 ───────────────────────────────────────────────
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    commit-message:
+      # 레포 컨벤션 (Conventional Commits) 에 맞춤.
+      prefix: "chore"
+      include: "scope"
+    groups:
+      # Spring Boot / Modulith 는 BOM 으로 묶여 움직이므로 PR 도 묶는다.
+      spring:
+        patterns:
+          - "org.springframework*"
+          - "io.spring.dependency-management"
+      # Kotlin plugin / stdlib / reflect 동반 업데이트.
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+      # 테스트 전용 의존성 묶음 — 본 코드 영향 없음, 리뷰 부담 낮춤.
+      test:
+        patterns:
+          - "org.junit*"
+          - "org.mockito*"
+          - "org.assertj*"
+          - "org.testcontainers*"
+          - "com.redis:testcontainers-redis"
+          - "org.wiremock*"
+          - "org.awaitility*"
+
+  # ─── GitHub Actions ──────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore"
+      include: "scope"

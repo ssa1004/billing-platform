@@ -161,8 +161,11 @@ public class ReconcilePgFailuresService implements ReconcilePgFailuresUseCase {
                         AuditAction.PAYMENT_RECONCILED,
                         "Payment", payment.id().toString(),
                         null,
-                        "{\"resolution\":\"APPROVED\",\"idempotencyKey\":\"%s\",\"pgRef\":\"%s\"}"
-                                .formatted(idempotencyKey, lookup.pgReferenceId()),
+                        AuditPayloads.object()
+                                .put("resolution", "APPROVED")
+                                .put("idempotencyKey", idempotencyKey)
+                                .put("pgRef", lookup.pgReferenceId())
+                                .build(),
                         "phase 3 retry via PG lookup"
                 );
                 log.info("reconciled payment APPROVED id={} key={}", payment.id(), idempotencyKey);
@@ -183,8 +186,11 @@ public class ReconcilePgFailuresService implements ReconcilePgFailuresUseCase {
                         AuditAction.PAYMENT_RECONCILED,
                         "Payment", payment.id().toString(),
                         null,
-                        "{\"resolution\":\"%s\",\"idempotencyKey\":\"%s\",\"errorCode\":\"%s\"}"
-                                .formatted(lookup.status(), idempotencyKey, code),
+                        AuditPayloads.object()
+                                .put("resolution", lookup.status())
+                                .put("idempotencyKey", idempotencyKey)
+                                .put("errorCode", code)
+                                .build(),
                         "phase 3 retry via PG lookup"
                 );
                 log.info("reconciled payment {} id={} key={}", lookup.status(), payment.id(), idempotencyKey);
@@ -230,8 +236,11 @@ public class ReconcilePgFailuresService implements ReconcilePgFailuresUseCase {
                         AuditAction.REFUND_RECONCILED,
                         "Refund", refund.id().toString(),
                         null,
-                        "{\"resolution\":\"APPROVED\",\"idempotencyKey\":\"%s\",\"pgRefundId\":\"%s\"}"
-                                .formatted(idempotencyKey, lookup.pgReferenceId()),
+                        AuditPayloads.object()
+                                .put("resolution", "APPROVED")
+                                .put("idempotencyKey", idempotencyKey)
+                                .put("pgRefundId", lookup.pgReferenceId())
+                                .build(),
                         "phase 3 retry via PG lookup"
                 );
                 log.info("reconciled refund APPROVED id={} key={}", refund.id(), idempotencyKey);
@@ -246,8 +255,10 @@ public class ReconcilePgFailuresService implements ReconcilePgFailuresUseCase {
                         AuditAction.REFUND_RECONCILED,
                         "Refund", refund.id().toString(),
                         null,
-                        "{\"resolution\":\"%s\",\"idempotencyKey\":\"%s\"}"
-                                .formatted(lookup.status(), idempotencyKey),
+                        AuditPayloads.object()
+                                .put("resolution", lookup.status())
+                                .put("idempotencyKey", idempotencyKey)
+                                .build(),
                         "phase 3 retry via PG lookup"
                 );
                 log.info("reconciled refund {} id={} key={}", lookup.status(), refund.id(), idempotencyKey);

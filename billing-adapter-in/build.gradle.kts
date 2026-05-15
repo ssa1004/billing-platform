@@ -24,7 +24,7 @@ dependencies {
     implementation("org.springframework.kafka:spring-kafka")
 
     // OpenAPI
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
 
     // Tracing
     implementation("io.micrometer:micrometer-tracing")

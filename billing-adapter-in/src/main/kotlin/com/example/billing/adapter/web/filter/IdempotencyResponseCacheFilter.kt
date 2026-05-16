@@ -113,11 +113,11 @@ class IdempotencyResponseCacheFilter(
 
         // 2. 캐시 hit — 처음 응답 그대로 반환.
         store.findCachedResponse(k).getOrNull()?.let { cached ->
-            log.info("idempotency cache hit key={} status={}", k, cached.status())
-            res.status = cached.status()
+            log.info("idempotency cache hit key={} status={}", k, cached.status)
+            res.status = cached.status
             res.contentType = "application/json"
             res.setHeader(REPLAY_HEADER, "true")
-            res.writer.write(cached.body() ?: "")
+            res.writer.write(cached.body ?: "")
             res.writer.flush()
             return
         }

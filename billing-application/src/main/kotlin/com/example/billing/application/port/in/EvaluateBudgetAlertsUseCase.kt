@@ -1,6 +1,6 @@
-package com.example.billing.application.port.in;
+package com.example.billing.application.port.`in`
 
-public interface EvaluateBudgetAlertsUseCase {
+interface EvaluateBudgetAlertsUseCase {
 
     /**
      * ACTIVE rule 이 있는 모든 customer 에 대해 forecast 계산 + 각 rule 평가.
@@ -8,5 +8,5 @@ public interface EvaluateBudgetAlertsUseCase {
      *
      * @return 평가된 customer 수
      */
-    int evaluateAll();
+    fun evaluateAll(): Int
 }

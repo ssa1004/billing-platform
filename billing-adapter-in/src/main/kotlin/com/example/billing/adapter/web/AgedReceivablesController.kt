@@ -28,18 +28,18 @@ class AgedReceivablesController(
     @Operation(summary = "(고객 × 통화) 별 aging bucket (0-30 / 31-60 / 61-90 / 90+ 일) 미수 금액")
     fun report(): AgedReportDto {
         val report = agedReceivables.report()
-        val rows = report.byCustomerCurrency().map { (key, buckets) ->
+        val rows = report.byCustomerCurrency.map { (key, buckets) ->
             CustomerAgingDto(
-                customerId = key.customerId().value,
-                currency = key.currency().currencyCode,
-                current = buckets.current().amount,
-                over30 = buckets.over30().amount,
-                over60 = buckets.over60().amount,
-                over90 = buckets.over90().amount,
-                total = buckets.total().amount,
+                customerId = key.customerId.value,
+                currency = key.currency.currencyCode,
+                current = buckets.current.amount,
+                over30 = buckets.over30.amount,
+                over60 = buckets.over60.amount,
+                over90 = buckets.over90.amount,
+                total = buckets.total.amount,
             )
         }
-        return AgedReportDto(report.asOf(), rows)
+        return AgedReportDto(report.asOf, rows)
     }
 }
 

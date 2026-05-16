@@ -227,6 +227,7 @@ threshold 를 왜곡하지 않도록 설계.
 | `K6_CURRENCIES` | `KRW,USD,JPY` | invoice-query / aged 의 currency 풀 |
 | `K6_ORDER_IDS` | (빈 값) | payment-charge 의 orderId pool (CSV) — seed 가 없으면 404 |
 | `K6_AGED_AS_OF` | (빈 값) | aged-receivables 의 asOf 시점 (현재 endpoint 는 server 시점 사용) |
+| `K6_PROMETHEUS_RW_SERVER_URL` | (빈 값) | Prom remote-write target. 비면 disable. |
 
 ## billing 특유 측정 항목
 
@@ -324,13 +325,29 @@ aged-receivables (multi-currency seed 있음)
   aged_response_rows.......... avg=12
 ```
 
+## Prometheus remote-write 연동 (commerce-ops 통합 대시보드)
+
+5 시나리오 결과를 `commerce-ops` 의 Prometheus 로 흘려보내 한 Grafana 대시보드에서
+client load + billing 의 server actuator metric 을 같이 보고 싶을 때:
+
+```bash
+docker compose -f /path/to/commerce-ops/infra/docker-compose.yml up -d prometheus grafana
+
+export K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write
+./scripts/run-load.sh
+```
+
+`run-load.sh` 가 각 시나리오에 `service=billing-platform` / `scenario=<name>` tag 를
+자동 부여한다. Grafana → **Portfolio Load (k6 + actuator)** 대시보드 (uid
+`portfolio-load`) 에서 service 변수를 `billing-platform` 으로 선택. 14번 패널
+"billing advisory lock wait / invoice issued" + 서버 actuator metric
+(`billing.metering.lag.seconds`, `billing.settlement.advisory_lock.wait_ms`,
+`billing.saga.compensation.count`) 이 같은 시간축에 잡힌다. 필요 k6 버전
+**0.42+** (experimental-prometheus-rw output).
+
 ## 더 나아가려면
 
-- 5 시나리오의 결과를 `build/k6-reports/*.json` 으로 떨궈서 dashboard 에 plot.
-- `--out experimental-prometheus-rw=http://prom:9090/api/v1/write` 로 Prometheus
-  remote-write — k6 metric 과 본 플랫폼의 actuator/prometheus metric
-  (`billing.metering.lag.seconds`, `billing.settlement.advisory_lock.wait_ms`,
-  `billing.saga.compensation.count`) 을 같은 시간축에 올린다.
+- 5 시나리오의 결과를 `build/k6-reports/*.json` 으로 떨궈서 별도 dashboard 에도 plot.
 - order / customer / PricingPlan / period 별 usage 의 seed 전용 스크립트 분리 —
   현재 통합 시연용 (`scripts/integration-demo.sh`) 은 1 customer 만 만든다. 부하 측정
   전용 seed 스크립트 (`scripts/seed-load-data.sh`) 가 있으면 더 깔끔.

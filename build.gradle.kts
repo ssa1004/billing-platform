@@ -1,7 +1,7 @@
 // 루트 빌드 — 공통 conventions. 각 모듈이 상속받는 공유 설정.
 plugins {
     java
-    kotlin("jvm") version "2.0.21" apply false
+    kotlin("jvm") version "2.3.21" apply false
     kotlin("plugin.spring") version "2.0.21" apply false
     kotlin("plugin.jpa") version "2.0.21" apply false
     id("org.springframework.boot") version "3.4.13" apply false

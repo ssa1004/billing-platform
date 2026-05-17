@@ -46,7 +46,7 @@ interface IdempotencyKeyStore {
      * 구현체는 cap 보다 큰 입력에 대해 조용히 무시 하지 않고 호출자가 결정한 본문을 그대로
      * 저장합니다.
      */
-    fun cacheResponse(key: String, httpStatus: Int, body: String)
+    fun cacheResponse(key: String, httpStatus: Int, body: String?)
 
     /**
      * 캐시된 응답 조회. 점유만 된 (response 가 아직 안 박힌) 키는 [Optional.empty].

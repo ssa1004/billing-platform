@@ -33,7 +33,7 @@ class OutboxJpaEntity() {
     @Column(name = "published_at")
     var publishedAt: Instant? = null
 
-    /** Lombok `@AllArgsConstructor` 호환. */
+    /** all-args secondary constructor — OutboxEventPublisher 가 위치 인자로 생성. */
     constructor(
         id: UUID?,
         aggregateType: String,
@@ -50,34 +50,5 @@ class OutboxJpaEntity() {
         this.payload = payload
         this.createdAt = createdAt
         this.publishedAt = publishedAt
-    }
-
-    companion object {
-        /** Lombok `@Builder` 호환 — 기존 코드 (OutboxEventPublisher) 가 builder() 사용. */
-        @JvmStatic
-        fun builder(): OutboxJpaEntityBuilder = OutboxJpaEntityBuilder()
-    }
-
-    /** Lombok 이 자동 생성하던 builder 와 동일 시그니처. Group 6 에서 OutboxEventPublisher 가 Kotlin 으로 가면 제거 가능. */
-    class OutboxJpaEntityBuilder {
-        private var id: UUID? = null
-        private var aggregateType: String = ""
-        private var aggregateId: String = ""
-        private var eventType: String = ""
-        private var payload: String = ""
-        private var createdAt: Instant = Instant.EPOCH
-        private var publishedAt: Instant? = null
-
-        fun id(v: UUID?): OutboxJpaEntityBuilder = apply { id = v }
-        fun aggregateType(v: String): OutboxJpaEntityBuilder = apply { aggregateType = v }
-        fun aggregateId(v: String): OutboxJpaEntityBuilder = apply { aggregateId = v }
-        fun eventType(v: String): OutboxJpaEntityBuilder = apply { eventType = v }
-        fun payload(v: String): OutboxJpaEntityBuilder = apply { payload = v }
-        fun createdAt(v: Instant): OutboxJpaEntityBuilder = apply { createdAt = v }
-        fun publishedAt(v: Instant?): OutboxJpaEntityBuilder = apply { publishedAt = v }
-
-        fun build(): OutboxJpaEntity = OutboxJpaEntity(
-            id, aggregateType, aggregateId, eventType, payload, createdAt, publishedAt,
-        )
     }
 }

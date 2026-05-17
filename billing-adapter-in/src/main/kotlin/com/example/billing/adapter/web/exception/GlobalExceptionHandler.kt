@@ -2,9 +2,11 @@ package com.example.billing.adapter.web.exception
 
 import com.example.billing.adapter.web.dto.ErrorResponse
 import com.example.billing.application.exception.BudgetAlertRuleNotFoundException
+import com.example.billing.application.exception.IllegalDlqOperationException
 import com.example.billing.application.exception.InvoiceNotFoundException
 import com.example.billing.application.exception.OrderNotFoundException
 import com.example.billing.application.exception.PaymentNotFoundException
+import com.example.billing.application.exception.RateLimitExceededException
 import com.example.billing.application.exception.RefundNotFoundException
 import com.example.billing.application.exception.WalletNotFoundException
 import com.example.billing.application.exception.WebhookDeliveryNotFoundException
@@ -79,6 +81,35 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
     @ExceptionHandler(IllegalOrderTransitionException::class)
     fun handleIllegalTransition(e: IllegalOrderTransitionException): ResponseEntity<ErrorResponse> =
         build(HttpStatus.CONFLICT, "ILLEGAL_STATE", e.message ?: "illegal state")
+
+    /**
+     * DLQ admin (ADR-0033) — 이미 처리된 메시지 (replay 두번째 호출 등) 에 대해 409. notification-hub
+     * ADR-0015 와 같은 패턴.
+     */
+    @ExceptionHandler(IllegalDlqOperationException::class)
+    fun handleIllegalDlqOperation(e: IllegalDlqOperationException): ResponseEntity<ErrorResponse> =
+        build(HttpStatus.CONFLICT, "ILLEGAL_DLQ_OPERATION", e.message ?: "illegal DLQ operation")
+
+    /**
+     * admin endpoint 호출자 IP × scope rate limit 초과 — 429 + Retry-After. ADR-0033.
+     */
+    @ExceptionHandler(RateLimitExceededException::class)
+    fun handleRateLimit(e: RateLimitExceededException): ResponseEntity<ErrorResponse> {
+        val traceId = tracer.currentSpan()?.context()?.traceId()
+        val retryAfterSeconds = maxOf(1L, e.retryAfterMillis / 1000)
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .header(HttpHeaders.RETRY_AFTER, retryAfterSeconds.toString())
+            .body(ErrorResponse("RATE_LIMITED", e.message ?: "rate limit exceeded", emptyList(), traceId))
+    }
+
+    /**
+     * controller 단에서 `throw UnsupportedOperationException(...)` 로 명시적으로 던지는 거절
+     * (DELETE 등 hard 작업 금지) — 405. 다른 곳의 일반 UnsupportedOperationException 도 같이
+     * 잡히지만 발생 시점이 명확한 곳에서만 던지므로 의미가 어긋날 일 없음.
+     */
+    @ExceptionHandler(UnsupportedOperationException::class)
+    fun handleUnsupported(e: UnsupportedOperationException): ResponseEntity<ErrorResponse> =
+        build(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED", e.message ?: "method not allowed")
 
     @ExceptionHandler(IllegalStateException::class)
     fun handleIllegalState(e: IllegalStateException): ResponseEntity<ErrorResponse> =

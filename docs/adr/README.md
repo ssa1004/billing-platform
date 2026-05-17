@@ -36,3 +36,4 @@
 | [0030](0030-soft-delete-billing-rows.md) | 회계/결제 row soft delete (deleted_at) | 적용 |
 | [0031](0031-api-versioning-path-based.md) | API 버전 routing — path-based v1/v2 | 적용 |
 | [0032](0032-hibernate-query-plan-cache-tuning.md) | Hibernate query plan cache + PG prepared 튜닝 | 적용 |
+| [0033](0033-dlq-admin-api.md) | DLQ 관리 콘솔 백엔드 API — filter / detail / bulk / stats | 적용 |

@@ -32,8 +32,10 @@ class JpaPricingPlanRepositoryAdapter(
         jpa.save(entity)
     }
 
-    override fun findEffective(customerId: CustomerId, at: Instant): Optional<PricingPlan> =
-        jpa.findEffective(customerId.value, at).map(::toDomain)
+    override fun findEffective(customerId: CustomerId, at: Instant): Optional<PricingPlan> {
+        val first = jpa.findEffectiveCandidates(customerId.value, at).firstOrNull()
+        return Optional.ofNullable(first).map(::toDomain)
+    }
 
     private fun toDomain(e: PricingPlanJpaEntity): PricingPlan =
         PricingPlan.restore(e.id!!, e.name, deserialize(e.tiersJson), e.effectiveFrom)

@@ -1,6 +1,8 @@
 // e2e — Postgres + Redis + Kafka 통합 시나리오 (Testcontainers)
 plugins {
     java
+    kotlin("jvm")
+    kotlin("plugin.spring")
     id("io.spring.dependency-management")
 }
 
@@ -22,4 +24,14 @@ dependencies {
     testImplementation("com.redis:testcontainers-redis:2.2.4")
     testImplementation("org.awaitility:awaitility")
     testImplementation("org.springframework.kafka:spring-kafka-test")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+}
+
+kotlin {
+    compilerOptions {
+        // null-safety strict — 다른 모듈과 동일.
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
 }

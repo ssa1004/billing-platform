@@ -63,4 +63,29 @@ enum class AuditAction {
     // ── soft delete (회계/결제 row 의 논리 삭제, ADR-0030) ──
     /** Invoice / Payment / Refund 의 논리 삭제. before=row JSON, after=null, reason=삭제 사유. */
     SOFT_DELETED,
+
+    // ── DLQ admin (ADR-0033 — notification-hub ADR-0015 패턴 이식) ──
+    /** 단건 replay — DLT topic 의 한 메시지를 원본 topic 으로 재발행. before=DLT 헤더, after=원본 topic. */
+    DLQ_REPLAY,
+
+    /** 단건 discard — DLT 메시지 영구 종료 (soft). reason 필수. before=DLT 헤더, after=null. */
+    DLQ_DISCARD,
+
+    /** bulk-replay 의 dry-run — 실제 발행 없음. payload 에 estimatedCount / filter 기록. */
+    DLQ_BULK_REPLAY_DRYRUN,
+
+    /** bulk-replay 의 실 실행 시작 — 비동기 worker 가 batch 처리. payload 에 jobId / estimatedCount. */
+    DLQ_BULK_REPLAY_START,
+
+    /** bulk-replay 의 종료 — partial 포함. payload 에 processed / success / failure / state. */
+    DLQ_BULK_REPLAY_FINISH,
+
+    /** bulk-discard 의 dry-run. */
+    DLQ_BULK_DISCARD_DRYRUN,
+
+    /** bulk-discard 의 실 실행 시작. */
+    DLQ_BULK_DISCARD_START,
+
+    /** bulk-discard 의 종료. */
+    DLQ_BULK_DISCARD_FINISH,
 }

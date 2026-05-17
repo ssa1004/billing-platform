@@ -260,6 +260,69 @@ period), billing 특유 측정 항목 (`metering_lag` / `idempotency_cache_hit_r
 - ThreadPool Bulkhead — PG / webhook / audit-export 도메인별 worker pool 격리 ([ADR-0026](docs/adr/0026-bulkhead-thread-pool-isolation.md))
 - Audit log — 도메인 변경 이벤트의 append-only 기록 ([ADR-0023](docs/adr/0023-audit-log.md))
 
+## 운영 — DLQ 관리 콘솔 API (ADR-0033)
+
+payment / refund / settlement / pg-webhook 컨슈머가 N회 실패한 메시지는 Kafka `.DLT`
+topic 으로 격리됩니다. 운영자가 `/api/v1/admin/dlq` 아래 endpoint 로 조회 / 단건 처리 /
+필터 기반 bulk 처리 가능. 모든 endpoint 는 ADMIN role + 분당 60회 rate limit (IP × scope).
+
+```bash
+# 0) 환경 — JWT 가 활성인 prod 에서는 매 호출에 Bearer token 필요.
+TOKEN="<admin JWT>"
+HOST="https://billing.example.com"
+H=(-H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json")
+
+# 1) 필터 + cursor 페이지네이션 — payment source 최근 1시간.
+curl -G "${HOST}/api/v1/admin/dlq" "${H[@]}" \
+  --data-urlencode "source=PAYMENT" \
+  --data-urlencode "from=2026-05-17T08:00:00Z" \
+  --data-urlencode "size=50"
+
+# 2) 단건 detail — payload + headers + stacktrace + Idempotency-Key 확인.
+MSG="billing.payment.captured.DLT:0:42"
+curl "${HOST}/api/v1/admin/dlq/${MSG}" "${H[@]}"
+
+# 3) 단건 replay — 원본 topic 으로 재발행. Idempotency-Key 자동 복사.
+#    두 번째 호출은 409 ILLEGAL_DLQ_OPERATION.
+curl -X POST "${HOST}/api/v1/admin/dlq/${MSG}/replay" "${H[@]}"
+
+# 4) 단건 discard — 영구 종료 (soft). reason 필수.
+curl -X POST "${HOST}/api/v1/admin/dlq/${MSG}/discard" "${H[@]}" \
+  -d '{"reason":"customer cancelled before retry"}'
+
+# 5) bulk-replay dry-run — confirm 누락 → 강제 dry-run. sample 10건 + 추정 개수만.
+curl -X POST "${HOST}/api/v1/admin/dlq/bulk-replay" "${H[@]}" \
+  -d '{"source":"PAYMENT","from":"2026-05-17T08:00:00Z","reason":"vendor recovery"}'
+
+# 6) bulk-replay 실 실행 — sample 확인 후 confirm=true 로 재호출. 비동기 jobId 반환.
+curl -X POST "${HOST}/api/v1/admin/dlq/bulk-replay" "${H[@]}" \
+  -d '{"source":"PAYMENT","from":"2026-05-17T08:00:00Z","confirm":true,"reason":"vendor recovery"}'
+
+# 7) bulk job 진행도 / 결과 — successCount / failureCount / firstError.
+JOB="<jobId 6번 응답에서>"
+curl "${HOST}/api/v1/admin/dlq/bulk-jobs/${JOB}" "${H[@]}"
+
+# 8) stats — 시간 bucket × source × errorClass × customer.
+curl -G "${HOST}/api/v1/admin/dlq/stats" "${H[@]}" \
+  --data-urlencode "from=2026-05-17T00:00:00Z" \
+  --data-urlencode "to=2026-05-17T23:59:59Z" \
+  --data-urlencode "bucket=PT1H"
+```
+
+**돈 직결 안전망** (ADR-0033 의 billing 특유 처리):
+
+- bulk-replay 의 default 는 dry-run — `confirm=true` 가 명시되지 않으면 응답이
+  `mode=DRY_RUN` 으로 강제 됩니다. 운영자가 sample 을 눈으로 확인 후 `confirm=true` 로
+  재호출 해야 실 실행. 한 번에 수천 건의 재청구 사고를 막는 두 번째 확인.
+- replay 가 원본 메시지의 `Idempotency-Key` / `customer-id` 헤더를 그대로 복사 → 컨슈머가
+  같은 키로 두 번째 도착을 dedup 가능. 이중 결제 / 이중 환불 방지 (ADR-0006 / ADR-0028).
+- `DELETE /api/v1/admin/dlq/{messageId}` 는 항상 405 — soft discard 만 허용 (회계 row
+  보존 원칙 ADR-0030 의 연장).
+
+모든 write endpoint 는 `AuditAction.DLQ_*` 8종으로 audit 됩니다 — actor / messageId /
+customerId / reason 이 한 row 에 박혀 분쟁 시 즉답 가능 (`GET /api/v1/audit?action=
+DLQ_REPLAY` 같은 쿼리).
+
 ## Helm Chart
 
 Kubernetes 배포는 [`helm/billing-platform/`](helm/billing-platform/) chart 로

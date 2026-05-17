@@ -1,6 +1,8 @@
 // Spring Boot 진입점. main + 통합 config + Spring Modulith 검증.
 plugins {
     java
+    kotlin("jvm")
+    kotlin("plugin.spring")
     id("org.springframework.boot")
     id("io.spring.dependency-management")
 }
@@ -11,6 +13,9 @@ dependencies {
     implementation(project(":billing-adapter-in"))
     implementation(project(":billing-adapter-out"))
     implementation(project(":billing-batch"))
+
+    // Kotlin runtime — reflect 는 Spring proxy / @ConfigurationProperties / open class 분석에 필요.
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     // Bootstrap 자체에서 사용하는 starter 들
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")    // PersistenceConfig
@@ -42,6 +47,16 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:kafka")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+}
+
+kotlin {
+    compilerOptions {
+        // null-safety strict — 다른 모듈과 동일.
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
 }
 
 tasks.named("bootJar") {

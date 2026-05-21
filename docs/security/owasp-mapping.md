@@ -27,7 +27,7 @@
 
 ## 항목별 상세
 
-### API1 — BOLA (Broken Object Level Authorization) ★
+### API1 — BOLA (Broken Object Level Authorization)
 
 **위협**: B2B SaaS 에서 가장 흔한 사고. customer A 가 customer B 의 invoice id 를 추측 /
 enumeration / 로그 누출로 얻은 뒤 `GET /api/v1/invoices/{B-invoice-id}` 로 조회하면, 도메인
@@ -134,7 +134,7 @@ enumeration / 로그 누출로 얻은 뒤 `GET /api/v1/invoices/{B-invoice-id}` 
 - `WebhookController.listDeliveries(status=...)` — endpoint 필터 없이 status 만 주면
   customer 격리가 불가능 (status 는 customer 와 무관) → admin 전용으로 분리.
 
-### API6 — Unrestricted Sensitive Flow ★
+### API6 — Unrestricted Sensitive Flow
 
 **위협**:
 

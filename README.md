@@ -19,7 +19,7 @@ B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 �
 
 ## 기술 스택
 
-- **Language**: Kotlin 2.0 (전 모듈), JVM 21 target
+- **Language**: Kotlin 2.0 (전 모듈 main 소스), JVM 21 target — domain / application 일부 단위 테스트는 아직 Java
 - **Framework**: Spring Boot 3.4, Spring Modulith, Spring Batch
 - **Database**: PostgreSQL 16, H2 (local/dev)
 - **Cache / KV**: Caffeine (local/dev), Redis (prod 캐시 + 멱등성 키)
@@ -373,7 +373,7 @@ helm upgrade --install billing-platform helm/billing-platform/ \
 
 ## Portfolio Set 통합
 
-본 레포는 단독으로도 돌아가지만, 8 개 레포로 구성된 포트폴리오 묶음의 한 조각이기도 합니다.
+본 레포는 단독으로도 돌아가지만, 10 개 레포로 구성된 포트폴리오 묶음의 한 조각이기도 합니다.
 다른 레포들이 발사한 사용량 이벤트를 받아 청구서로 만들고, 발행/결제/연체 알림을 알림
 허브로 흘려보내는 위치입니다. 묶음 전체 인덱스는 프로필 README
 [ssa1004/ssa1004](https://github.com/ssa1004/ssa1004) 에 있습니다.
@@ -387,6 +387,8 @@ helm upgrade --install billing-platform helm/billing-platform/ \
 | **billing-platform** *(본 레포)* | **결제 / 청구 / 정산** | **두 종류 usage event 를 받아 invoice 발행, 결과를 알림으로 흘림** |
 | [bid-ask-marketplace](https://github.com/ssa1004/bid-ask-marketplace) | 리셀 거래 매칭 / 체결 | 거래 체결마다 usage event 를 본 레포로 발사 |
 | [gpu-job-orchestrator](https://github.com/ssa1004/gpu-job-orchestrator) | GPU job 스케줄러 | job 완료 시 GPU 사용 시간 usage event 를 본 레포로 발사 |
+| [realtime-feed-service](https://github.com/ssa1004/realtime-feed-service) | 실시간 피드 / WebSocket 전송 | invoice / payment 상태 변화를 실시간 피드로 push |
+| [graphql-gateway](https://github.com/ssa1004/graphql-gateway) | GraphQL API 게이트웨이 | invoice / settlement 조회를 GraphQL 스키마로 노출 |
 | [commerce-ops](https://github.com/ssa1004/commerce-ops) | observability 플레이그라운드 | OpenTelemetry / Prometheus / Loki 셋업 참고 출처 |
 
 ### 묶음 안에서의 데이터 흐름

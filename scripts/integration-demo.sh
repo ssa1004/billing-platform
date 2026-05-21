@@ -14,7 +14,7 @@
 #      auth-stub 의 JWK Set 에도 같은 public key 를 주입해서 "billing-platform
 #      이 verify 하려고 한다면 통과" 하는 상태로 만든다 (실제 verify 는 dev
 #      프로필이라 skip 됨 — 시연은 인터페이스 모양 위주).
-#   2. usage event 발사 — resell-orderbook + gpu-job-orchestrator 가 보낸
+#   2. usage event 발사 — bid-ask-marketplace + gpu-job-orchestrator 가 보낸
 #      모양으로 5건씩 (도메인 ResourceType enum 에 매핑해서 전송).
 #   3. forecast → 정산 트리거 → invoice 발행. 발행 outbox 가 kafka 로 흘러
 #      notification-stub 가 받는다.
@@ -132,14 +132,14 @@ note "토큰 payload (검증은 dev 프로필에서 skip — 시연은 모양 �
 echo "$JWT" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | jq
 
 #
-# 2. usage event — resell-orderbook + gpu-job-orchestrator
+# 2. usage event — bid-ask-marketplace + gpu-job-orchestrator
 #
 say "2. usage event 발사 (다른 두 레포가 보낸 모양)"
 # 본 레포 도메인 ResourceType enum 은 API_CALL / STORAGE_GB_HOUR /
 # ACTIVE_USER_SEAT / DATA_TRANSFER_GB 4종. 두 producer 의 실세계 단위를
 # 가장 가까운 enum 으로 매핑한다 — 시연 의도는 *서로 다른 두 외부 서비스가
 # 같은 ingest endpoint 를 친다* 이지 새 enum 도입이 아님.
-note "resell-orderbook → API_CALL × 5 (거래 1건 = 1 호출)"
+note "bid-ask-marketplace → API_CALL × 5 (거래 1건 = 1 호출)"
 for i in 1 2 3 4 5; do
   curl -fsS -X POST "$BASE/api/v1/usage" \
     -H 'Content-Type: application/json' \

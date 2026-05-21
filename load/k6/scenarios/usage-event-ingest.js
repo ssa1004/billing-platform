@@ -1,7 +1,7 @@
 // POST /api/v1/usage 사용량 이벤트 수신 부하 — metering throughput 측정.
 //
 // 시나리오 의도:
-//   - billing-platform 의 ingest path 는 가장 hot 한 write — resell-orderbook 의 거래
+//   - billing-platform 의 ingest path 는 가장 hot 한 write — bid-ask-marketplace 의 거래
 //     체결, gpu-job-orchestrator 의 job 완료 등 다른 레포가 발사한 usage event 가 모두
 //     이 endpoint 로 모인다. eventId 가 PK 겸 UNIQUE 제약이라 한 INSERT + (있다면)
 //     UNIQUE constraint check 만의 가벼운 write path.

@@ -43,7 +43,7 @@ class BudgetAlertHistoryJpaEntity() {
     @Column(name = "occurred_at", nullable = false)
     var occurredAt: Instant = Instant.EPOCH
 
-    /** Lombok `@AllArgsConstructor` 호환 — mapper 가 positional 로 생성. */
+    /** 전체 필드 positional 생성자 — mapper 가 positional 로 생성. */
     constructor(
         id: UUID?,
         ruleId: UUID?,

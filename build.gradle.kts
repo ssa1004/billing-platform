@@ -4,7 +4,7 @@ plugins {
     kotlin("jvm") version "2.0.21" apply false
     kotlin("plugin.spring") version "2.0.21" apply false
     kotlin("plugin.jpa") version "2.0.21" apply false
-    id("org.springframework.boot") version "3.4.13" apply false
+    id("org.springframework.boot") version "4.0.6" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
     // OpenAPI spec build-time export — 실제 적용은 bootstrap 모듈.
     id("org.springdoc.openapi-gradle-plugin") version "1.9.0" apply false
@@ -31,8 +31,8 @@ subprojects {
 
     the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.13")
-            mavenBom("org.springframework.modulith:spring-modulith-bom:1.3.12")
+            mavenBom("org.springframework.boot:spring-boot-dependencies:4.0.6")
+            mavenBom("org.springframework.modulith:spring-modulith-bom:2.0.6")
         }
     }
 

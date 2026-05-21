@@ -15,3 +15,6 @@
 .env.local
 .claude/
 .kotlin/
+# AI assistant 메타파일 (작업용 노트, 공개 repo 에 올리지 않음)
+AGENTS.md
+.Codex/

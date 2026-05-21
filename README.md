@@ -19,7 +19,7 @@ B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 �
 
 ## 기술 스택
 
-- **Language**: Kotlin (domain / application / adapter-in 모듈), Java 21 (adapter-out / batch)
+- **Language**: Kotlin 2.0 (전 모듈), JVM 21 target
 - **Framework**: Spring Boot 3.4, Spring Modulith, Spring Batch
 - **Database**: PostgreSQL 16, H2 (local/dev)
 - **Cache / KV**: Caffeine (local/dev), Redis (prod 캐시 + 멱등성 키)
@@ -65,7 +65,7 @@ B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 �
 
 ## 핵심 설계 결정
 
-설계 결정의 상세 배경은 [docs/adr/](docs/adr/)의 ADR 32건에 정리되어 있습니다. 빌링
+설계 결정의 상세 배경은 [docs/adr/](docs/adr/)의 ADR 33건에 정리되어 있습니다. 빌링
 도메인 특화 결정은 다음과 같습니다.
 
 - [ADR-0013: 정산 동시성 — Postgres advisory lock](docs/adr/0013-settlement-advisory-lock.md)
@@ -118,10 +118,10 @@ Spring Modulith가 모듈 간 의존 방향을 빌드 시점에 검증합니다.
 graph LR
     in[billing-adapter-in<br/>REST 컨트롤러<br/>Kotlin]
     app[billing-application<br/>유스케이스 + 포트<br/>Kotlin]
-    domain[billing-domain<br/>14개 도메인 sub-package + shared<br/>Kotlin]
-    out[billing-adapter-out<br/>JPA + Outbox + PG + AdvisoryLock]
-    batch[billing-batch<br/>Spring Batch]
-    boot[billing-bootstrap<br/>Boot main + Flyway]
+    domain[billing-domain<br/>13개 도메인 sub-package + shared<br/>Kotlin]
+    out[billing-adapter-out<br/>JPA + Outbox + PG + AdvisoryLock<br/>Kotlin]
+    batch[billing-batch<br/>Spring Batch<br/>Kotlin]
+    boot[billing-bootstrap<br/>Boot main + Flyway<br/>Kotlin]
 
     in --> app
     boot --> in

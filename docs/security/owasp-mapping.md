@@ -226,7 +226,7 @@ client 가 어느 시점에 마이그레이션 해야 할지 모르고, 운영�
 
 **막은 방식**:
 
-- PG 호출은 [Resilience4j Circuit Breaker + Retry](../../billing-adapter-out/src/main/java/com/example/billing/adapter/out/pg/RestClientPgClient.java) (`@CircuitBreaker(name="pg")` / `@Retry(name="pg")`).
+- PG 호출은 [Resilience4j Circuit Breaker + Retry](../../billing-adapter-out/src/main/kotlin/com/example/billing/adapter/out/pg/RestClientPgClient.kt) (`@CircuitBreaker(name="pg")` / `@Retry(name="pg")`).
 - 모든 PG 응답은 `AuthorizeResult` / `RefundResult` / `LookupResult` enum 으로 정상화 — 도메인은
   enum 값으로만 분기. PG 가 알 수 없는 status 를 보내도 fallback 메서드가 `rejected` /
   `inProgress` 로 변환.

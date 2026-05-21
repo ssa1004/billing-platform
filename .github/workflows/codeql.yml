@@ -1,8 +1,8 @@
 name: CodeQL
 
 # Java/Kotlin SAST (static application security testing).
-# CodeQL 의 'java-kotlin' 언어 팩 하나가 JVM 소스 전체를 본다 — billing-domain /
-# billing-adapter-in 은 Kotlin, 나머지 모듈은 Java 라 단일 분석으로 양쪽을 커버한다.
+# CodeQL 의 'java-kotlin' 언어 팩 하나가 JVM 소스 전체를 본다 — main 소스는 전 모듈
+# Kotlin, 일부 단위 테스트만 Java 라 단일 분석으로 양쪽을 커버한다.
 #
 # ci.yml 과 동일하게 포폴 단계 동안 push / PR 자동 trigger 는 OFF (수동 + 주간 스캔만).
 # 자동 trigger 복원 시 아래 push / pull_request 블록 주석 해제.

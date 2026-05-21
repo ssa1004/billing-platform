@@ -52,7 +52,7 @@ class BudgetAlertRuleJpaEntity() {
     @Column(name = "version", nullable = false)
     var version: Long = 0
 
-    /** Lombok `@AllArgsConstructor` 호환 — mapper 가 positional 로 생성. */
+    /** 전체 필드 positional 생성자 — mapper 가 positional 로 생성. */
     constructor(
         id: UUID?,
         customerId: String,

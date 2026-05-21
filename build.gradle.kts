@@ -37,11 +37,6 @@ subprojects {
     }
 
     dependencies {
-        // 모든 모듈 공통: Lombok + JUnit launcher
-        "compileOnly"("org.projectlombok:lombok")
-        "annotationProcessor"("org.projectlombok:lombok")
-        "testCompileOnly"("org.projectlombok:lombok")
-        "testAnnotationProcessor"("org.projectlombok:lombok")
         // Gradle 8+ 부터 launcher 가 transitively 안 끌려옴 → 명시
         "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
     }

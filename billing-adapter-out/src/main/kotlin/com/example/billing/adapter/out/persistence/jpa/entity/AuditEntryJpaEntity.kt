@@ -15,10 +15,10 @@ import java.util.UUID
 /**
  * Audit entry persistence.
  *
- * `@Setter` 없음 — 의도: append-only 라 영속 후 mutate 금지. 새 row 만 INSERT.
+ * setter 없음 — 의도: append-only 라 영속 후 mutate 금지. 새 row 만 INSERT.
  *
  * 2단 방어:
- *  - 도메인/Lombok — setter 가 아예 없어 정상 코드 경로로는 수정 불가.
+ *  - 엔티티 자체 — setter 가 아예 없어 정상 코드 경로로는 수정 불가.
  *  - JPA listener ([AuditAppendOnlyGuard]) — 누군가 EntityManager 직접 접근으로
  *    UPDATE / DELETE 를 시도해도 `@PreUpdate` / `@PreRemove` 에서 예외.
  *

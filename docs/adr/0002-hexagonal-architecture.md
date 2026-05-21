@@ -23,5 +23,5 @@
 - 도메인 단위 테스트가 milliseconds — Spring context 를 띄우지 않음
 - 어댑터 교체 자유 (예: JPA → JOOQ, Kafka → RabbitMQ — port 인터페이스만 같으면 됨)
 - Spring Modulith verify 가 의존 방향 위반을 잡아냄
-- (단점) entity ↔ domain 매핑 보일러플레이트가 생김 — Lombok + 정적 mapper 로 완화
+- (단점) entity ↔ domain 매핑 보일러플레이트가 생김 — 정적 mapper 로 완화
 - (단점) 신규 개발자 학습 곡선 (port/adapter 용어에 익숙해질 때까지)

@@ -13,7 +13,7 @@ dependencies {
     api("org.springframework:spring-context")        // @Service, @Component
     api("org.springframework:spring-tx")              // @Transactional
     api("org.springframework.boot:spring-boot-starter-cache")   // @Cacheable
-    api("org.slf4j:slf4j-api")                       // Lombok @Slf4j
+    api("org.slf4j:slf4j-api")                       // LoggerFactory
     compileOnly("org.springframework.modulith:spring-modulith-api")
 
     testImplementation("org.junit.jupiter:junit-jupiter")

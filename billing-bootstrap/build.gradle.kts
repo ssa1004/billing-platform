@@ -5,6 +5,9 @@ plugins {
     kotlin("plugin.spring")
     id("org.springframework.boot")
     id("io.spring.dependency-management")
+    // OpenAPI spec build-time export — generateOpenApiDocs 가 앱을 부팅한 뒤
+    // /v3/api-docs 를 fetch 해 docs/openapi/billing-platform.yaml 로 떨어뜨린다.
+    id("org.springdoc.openapi-gradle-plugin")
 }
 
 dependencies {
@@ -72,4 +75,15 @@ tasks.named<Jar>("jar") {
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     archiveClassifier.set("boot")
+}
+
+// OpenAPI spec export 설정 — ./gradlew :billing-bootstrap:generateOpenApiDocs.
+// 플러그인이 bootRun 으로 앱을 띄우고 apiDocsUrl 을 fetch 해 outputFileName 으로 저장한다.
+// 앱 부팅에 Postgres / Kafka 가 필요하므로 로컬 단독 실행보다는 CI 에서
+// docker compose 와 함께 돌리는 것을 권장 (docs/openapi/README.md 참고).
+openApi {
+    apiDocsUrl.set("http://localhost:8080/v3/api-docs.yaml")
+    outputDir.set(layout.projectDirectory.dir("../docs/openapi"))
+    outputFileName.set("billing-platform.yaml")
+    waitTimeInSeconds.set(120)
 }

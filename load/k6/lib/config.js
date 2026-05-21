@@ -47,7 +47,7 @@ export function pickSettlementCustomer(vuId, iter) {
 
 /**
  * ResourceType enum 매핑 — billing-domain 의 metering.ResourceType 과 1:1.
- *   - API_CALL: 거래 1건 / API 호출 1건 (resell-orderbook 발사 모양)
+ *   - API_CALL: 거래 1건 / API 호출 1건 (bid-ask-marketplace 발사 모양)
  *   - STORAGE_GB_HOUR: 스토리지 (gpu-job-orchestrator 의 GB·시간 환산)
  *   - ACTIVE_USER_SEAT: 일 단위 활성 사용자
  *   - DATA_TRANSFER_GB: 데이터 전송량

@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
-# usage-producer stub — resell-orderbook / gpu-job-orchestrator 가
+# usage-producer stub — bid-ask-marketplace / gpu-job-orchestrator 가
 # billing-platform 의 /api/v1/usage 로 발사하는 사용량 이벤트 모양을 흉내냄.
 #
 # 본 레포 도메인 ResourceType enum 은 API_CALL / STORAGE_GB_HOUR /
 # ACTIVE_USER_SEAT / DATA_TRANSFER_GB 4종이라, 두 producer 의 실세계 단위를
 # 가장 가까운 enum 으로 매핑해서 보낸다.
-#   - resell-orderbook  → API_CALL          (거래 1건 = 1 호출)
+#   - bid-ask-marketplace  → API_CALL       (거래 1건 = 1 호출)
 #   - gpu-job-orchestrator → STORAGE_GB_HOUR (GPU 1시간 = 1 GB·hour 로 환산)
 #
 # 멱등성 시연 — 마지막 한 건은 같은 eventId 로 두 번 보내 DB UNIQUE 제약이
@@ -55,7 +55,7 @@ post_usage() {
   echo
 }
 
-echo "[usage-producer] resell-orderbook 5건 (API_CALL)"
+echo "[usage-producer] bid-ask-marketplace 5건 (API_CALL)"
 for i in 1 2 3 4 5; do
   post_usage API_CALL 1 "$(gen_uuid)"
 done

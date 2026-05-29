@@ -30,11 +30,16 @@ services:
       KAFKA_CFG_NODE_ID: 1
       KAFKA_CFG_PROCESS_ROLES: controller,broker
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      # 두 listener 로 분리 — 호스트에서 ./gradlew :billing-bootstrap:bootRun 으로 띄운 앱(localhost:9092)과
+      # 컨테이너 내부 서비스(kafka:29092)가 둘 다 붙을 수 있게.
+      #   EXTERNAL  : 호스트 → localhost:9092  (통합 데모의 SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092 와 일치)
+      #   INTERNAL  : 컨테이너 끼리 → kafka:29092 (broker 간 통신도 INTERNAL)
+      # 단일 listener(advertised: kafka:9092)면 호스트가 kafka 호스트명을 못 풀어 Outbox→Kafka 발행이 hang/실패한다.
+      KAFKA_CFG_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: INTERNAL
       ALLOW_PLAINTEXT_LISTENER: "yes"
     ports: ["9092:9092"]
     healthcheck:
@@ -65,7 +70,7 @@ services:
       DB_PASSWORD: billing
       DB_NAME: billing
       REDIS_HOST: redis
-      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_BOOTSTRAP: kafka:29092   # 컨테이너 내부 → INTERNAL listener (위 kafka 서비스 참조)
       PG_BASE_URL: http://wiremock:8080
       OAUTH_ISSUER_URI: http://auth.local/dummy
       WALLET_SECURITY_JWT_ENABLED: "false"   # 데모용 — JWT 없이

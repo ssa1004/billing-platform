@@ -72,6 +72,10 @@ B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 �
 - [ADR-0014: Worker pool 병렬 처리 — `FOR UPDATE SKIP LOCKED`](docs/adr/0014-skip-locked-worker-pool.md)
 - [ADR-0015: 청구서의 가격 정책 snapshot](docs/adr/0015-pricing-snapshot.md)
 
+백엔드 패턴을 **공부 목적**으로 본다면 → [docs/backend-skills-index.md](docs/backend-skills-index.md):
+이 레포가 시연하는 패턴을 "코드 위치 → 왜(ADR) → 이론([dev-lab](https://github.com/ssa1004/dev-lab))"
+으로 잇는 학습 인덱스.
+
 ## 사용량 → 청구 → 정산 흐름
 
 ```mermaid
@@ -153,11 +157,24 @@ graph LR
 
 ## 실행 방법
 
+> `make help` 로 전체 명령을 볼 수 있습니다. 가장 빠른 길:
+> ```bash
+> make run                       # 앱 기동 (:8080, H2 + Mock PG — 외부 의존성 0)
+> make demo                      # 다른 셸에서: 결제 + 사용량→청구→정산 한 사이클
+> # Kafka 까지 붙는 통합 데모는 아래 "통합 데모" 절 참고
+> make up                        # (선택) Postgres/Redis/Kafka/Wiremock 컨테이너 기동
+> ```
+
 H2와 Mock PG로 외부 의존성 없이 실행할 수 있습니다.
 
 ```bash
 ./gradlew :billing-bootstrap:bootRun
 ```
+
+> **Kafka listener 설계**: `infrastructure/docker-compose.yml` 의 Kafka 는 EXTERNAL/INTERNAL 두
+> listener 로 분리되어 있습니다. 호스트에서 띄운 앱은 `localhost:9092`(EXTERNAL) 로, 컨테이너끼리는
+> `kafka:29092`(INTERNAL) 로 붙습니다. 단일 listener(`advertised: kafka:9092`)면 호스트가 `kafka`
+> 호스트명을 못 풀어 Outbox relay 의 Kafka 발행이 무한 대기/실패하는 흔한 함정이 있습니다.
 
 ### 사용량 → 청구 → 정산 한 사이클 (curl)
 

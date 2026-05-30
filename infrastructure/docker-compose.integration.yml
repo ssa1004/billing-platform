@@ -25,7 +25,7 @@
 #   docker compose -f infrastructure/docker-compose.integration.yml down -v
 services:
   kafka:
-    image: bitnamilegacy/kafka:3.7   # bitnamilegacy/kafka:3.7 은 docker hub 에서 내려갔음 (2026Q1 정책 변경)
+    image: bitnamilegacy/kafka:3.7   # bitnami/* 무료 카탈로그가 bitnamilegacy/ 로 이전됨(2025) — 같은 이미지
     environment:
       KAFKA_CFG_NODE_ID: 1
       KAFKA_CFG_PROCESS_ROLES: controller,broker
@@ -65,7 +65,7 @@ services:
   # notification-hub stub. billing.* 토픽 (invoice / payment / overdue / ...)
   # 을 구독해서 stdout 으로 dump. `docker compose logs notification-stub` 로 본다.
   notification-stub:
-    image: bitnamilegacy/kafka:3.7   # console-consumer 만 쓰기 위한 같은 이미지
+    image: bitnamilegacy/kafka:3.7   # console-consumer 만 쓰기 위한 같은 이미지 (bitnamilegacy = bitnami 무료 카탈로그 이전)
     entrypoint: ["/bin/sh", "/opt/notification-stub/consume.sh"]
     environment:
       BOOTSTRAP: kafka:29092         # 컨테이너 내부에서는 INTERNAL 리스너로

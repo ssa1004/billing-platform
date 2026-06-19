@@ -1,6 +1,7 @@
 # Billing Platform
 
 [![CI](https://github.com/ssa1004/billing-platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ssa1004/billing-platform/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage%20(domain%2Bapplication)-75%25%20line-brightgreen.svg)](#test-coverage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?logo=kotlin)](https://kotlinlang.org/)
@@ -227,6 +228,22 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
 ./gradlew :billing-bootstrap:bootJar    # 배포용 jar
 ./gradlew :billing-bootstrap:test       # Modulith verify
 ```
+
+### Test coverage
+
+헥사고날 핵심인 **domain + application** 모듈의 커버리지를 [Kover](https://github.com/Kotlin/kotlinx-kover)
+로 측정한다. 두 모듈은 Spring context / Testcontainers / Docker 없이 도는 순수 단위 테스트라
+인프라 없이도 측정·재현이 가능하다. adapter 슬라이스·e2e(Testcontainers)·batch 는 Docker 가
+필요해 측정 범위에서 제외했다.
+
+```bash
+./gradlew :billing-domain:test :billing-application:test koverHtmlReport
+# 리포트: build/reports/kover/html/index.html
+./gradlew koverXmlReport koverLog        # XML + 콘솔 요약 (CI 용)
+```
+
+배지의 수치는 위 두 모듈 머지 기준 **line 75% (instruction 78%, branch 68%)** 이며, 코드 변경에
+따라 달라질 수 있다. 최신 값은 CI 의 `koverLog` 출력 또는 위 HTML 리포트로 확인한다.
 
 ## Load test
 

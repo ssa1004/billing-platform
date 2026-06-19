@@ -32,7 +32,7 @@ class JpaUsageEventRepositoryAdapter(
     override fun existsById(eventId: UUID): Boolean = jpa.existsById(eventId)
 
     override fun findInRange(fromInclusive: Instant, toExclusive: Instant, limit: Int): List<UsageEvent> =
-        jpa.findByReceivedAtBetweenOrderByReceivedAt(fromInclusive, toExclusive, PageRequest.of(0, limit))
+        jpa.findByOccurredAtBetweenOrderByOccurredAt(fromInclusive, toExclusive, PageRequest.of(0, limit))
             .map(::toDomain)
 
     private fun toEntity(e: UsageEvent): UsageEventJpaEntity {

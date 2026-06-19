@@ -6,6 +6,8 @@ plugins {
     `java-library`
     kotlin("jvm")
     kotlin("plugin.spring")
+    // 커버리지 측정 — 루트가 koverXmlReport 로 merge 한다.
+    id("org.jetbrains.kotlinx.kover")
 }
 
 dependencies {

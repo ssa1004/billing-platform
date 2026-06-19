@@ -41,6 +41,9 @@ jobs:
       - name: Run unit tests (domain + application)
         run: ./gradlew --no-daemon :billing-domain:test :billing-application:test
 
+      - name: Coverage report (domain + application, Kover)
+        run: ./gradlew --no-daemon koverXmlReport koverLog
+
       - name: Spring Modulith verification
         run: ./gradlew --no-daemon :billing-bootstrap:test --tests '*ModulithTest'
 
@@ -50,6 +53,13 @@ jobs:
         with:
           name: test-reports
           path: '**/build/reports/tests/'
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/reports/kover/
 
   # ─── 2. Integration tests (Testcontainers) ──────────────────────
   integration-test:

@@ -7,6 +7,52 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?logo=kotlin)](https://kotlinlang.org/)
 [![Spring Boot 3.4](https://img.shields.io/badge/Spring%20Boot-3.4-6DB33F.svg?logo=springboot)](https://spring.io/projects/spring-boot)
 
+> **English summary below. 한국어 문서는 [개요](#개요)부터 이어집니다.**
+
+## Overview (English)
+
+A B2B SaaS billing backend that handles two flows in one system:
+
+- **Real-time payments** — debit the user's `Wallet` balance, call an external PG
+  (payment gateway), and record the result in an append-only ledger (entries are only
+  added, never updated or deleted).
+- **Usage-based billing** — ingest `UsageEvent`s, aggregate per month, apply the pricing
+  plan, issue an `Invoice`, attempt payment, and report on settlement.
+
+Prepaid (top up first, then debit) and postpaid (charge for what was used) models share the
+same domain infrastructure: Outbox, Idempotency, Resilience4j, and Spring Batch.
+
+**Architecture.** Modular monolith built with Spring Modulith, hexagonal (ports & adapters)
+per module, and DDD aggregates. Production code is 100% Kotlin (JVM 21 target); some
+`billing-domain` / `billing-application` unit tests are still Java. Multi-module Gradle:
+`billing-domain` (pure domain, zero Spring), `billing-application` (use cases + ports),
+`billing-adapter-in` / `billing-adapter-out`, `billing-batch`, `billing-bootstrap`, and
+`e2e-tests`.
+
+**Core problems solved.** Payment de-duplication (Idempotency-Key + Redis SETNX), external
+PG fault isolation (Resilience4j circuit breaker), event/DB atomicity (Outbox pattern),
+negative-balance prevention (optimistic `@Version` locking), settlement concurrency
+(Postgres advisory locks), worker pool parallelism (`FOR UPDATE SKIP LOCKED`), and frozen
+pricing on past invoices (`PricingSnapshot`).
+
+**Tech stack.** Kotlin 2.0 / JVM 21, Spring Boot 3.4, Spring Modulith, Spring Batch,
+PostgreSQL 16 (H2 for local/dev), Caffeine + Redis, Apache Kafka, Spring Security
+(OAuth2 / JWT), Resilience4j, Gradle 8, GitHub Actions, Docker, Kubernetes.
+
+**Run / test.**
+
+```bash
+make run                                 # boot the app on :8080 (H2 + Mock PG, no infra)
+./gradlew :billing-domain:test :billing-application:test koverHtmlReport   # unit tests + coverage
+```
+
+Design rationale lives in [docs/adr/](docs/adr/) (33 ADRs). The sections below continue in
+Korean.
+
+---
+
+## 개요
+
 B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 한 시스템에서 처리합니다.
 
 - **실시간 결제** — 사용자 지갑(Wallet) 잔액 차감, 외부 PG(결제대행사) 호출, 한 번 기록되면

@@ -3,7 +3,7 @@ plugins {
     java
     kotlin("jvm") version "2.0.21" apply false
     kotlin("plugin.spring") version "2.0.21" apply false
-    kotlin("plugin.jpa") version "2.0.21" apply false
+    kotlin("plugin.jpa") version "2.4.0" apply false
     id("org.springframework.boot") version "3.5.15" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
     // OpenAPI spec build-time export — 실제 적용은 bootstrap 모듈.

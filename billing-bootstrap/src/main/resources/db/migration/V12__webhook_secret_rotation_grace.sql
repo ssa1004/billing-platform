@@ -9,9 +9,11 @@
 -- 이전 정책 (즉시 invalidate) 의 단점: customer 가 새 secret 을 반영할 짧은 시간 동안 모든 webhook
 -- 이 검증 실패로 떨어짐. grace 가 deployment overlap 을 자연스럽게 흡수.
 
+-- 컬럼은 한 줄에 하나씩 ADD — 멀티-ADD 문법은 H2 가 거부하므로 (Postgres 는 둘 다 허용).
 ALTER TABLE webhook_endpoints
-    ADD COLUMN previous_secret              VARCHAR(128),
-    ADD COLUMN previous_secret_valid_until  TIMESTAMP;
+    ADD COLUMN previous_secret VARCHAR(128);
+ALTER TABLE webhook_endpoints
+    ADD COLUMN previous_secret_valid_until TIMESTAMP;
 
 -- invariant: previous_secret 과 previous_secret_valid_until 은 항상 짝.
 -- (둘 다 NULL 이거나 둘 다 set — 한쪽만 set 인 row 는 운영 사고 신호.)

@@ -20,8 +20,10 @@
 -- ────────────────────────────────────────────────────────
 -- INVOICES — 청구서 soft delete
 -- ────────────────────────────────────────────────────────
+-- 컬럼은 한 줄에 하나씩 ADD — 멀티-ADD 문법은 H2 가 거부하므로 (Postgres 는 둘 다 허용).
 ALTER TABLE invoices
-    ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE invoices
     ADD COLUMN deleted_by VARCHAR(128);
 
 -- 활성 row 의 lookup 효율을 위한 인덱스. 대부분의 read 가 deleted_at IS NULL 을 함께 검.
@@ -41,7 +43,8 @@ ALTER TABLE invoices
 -- PAYMENTS — 결제 soft delete (PG 매칭 row 라 물리 삭제 절대 금지)
 -- ────────────────────────────────────────────────────────
 ALTER TABLE payments
-    ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE payments
     ADD COLUMN deleted_by VARCHAR(128);
 
 CREATE INDEX idx_payments_deleted_at ON payments (deleted_at);
@@ -57,7 +60,8 @@ ALTER TABLE payments
 -- REFUNDS — 환불 soft delete
 -- ────────────────────────────────────────────────────────
 ALTER TABLE refunds
-    ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE refunds
     ADD COLUMN deleted_by VARCHAR(128);
 
 CREATE INDEX idx_refunds_deleted_at ON refunds (deleted_at);

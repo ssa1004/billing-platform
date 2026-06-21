@@ -20,6 +20,12 @@ permissions:
   contents: read
   security-events: write
 
+# 수동/주간 스캔이라 동시 실행이 겹칠 일은 드물지만, workflow_dispatch 연타 시
+# 중복 분석을 막는다 (schedule 은 ref 가 default 라 자연히 묶임).
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze (java-kotlin)

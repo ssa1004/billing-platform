@@ -55,3 +55,22 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+
+  # ─── Docker base image ───────────────────────────────────────────
+  # Dockerfile 의 eclipse-temurin base (builder/runtime 두 스테이지) 패치
+  # 버전을 추적. OS CVE (openssl/libcrypto3 등) 는 runtime 의 apk upgrade 가
+  # 1차로 막지만, base digest 자체가 갱신되면 dependabot 이 PR 을 연다.
+  - package-ecosystem: "docker"
+    directory: "/infrastructure"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore"
+      include: "scope"

@@ -1,0 +1,17 @@
+# CODEOWNERS — PR 자동 리뷰어 지정.
+# 매칭은 마지막 규칙이 우선 (아래로 갈수록 더 구체적인 경로).
+# 자세한 문법: https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+
+# 기본 — 명시 규칙이 없는 모든 변경.
+*                       @ssa1004
+
+# ─── 돈 path: 도메인 / 애플리케이션 핵심 ──────────────────────────────
+# 결제·정산 로직은 변경 영향이 커서 항상 리뷰 대상.
+/billing-domain/        @ssa1004
+/billing-application/   @ssa1004
+
+# ─── 배포 / 인프라 surface ───────────────────────────────────────────
+# CI, Helm chart, k8s 매니페스트, Dockerfile 변경은 운영 영향 큼.
+/.github/               @ssa1004
+/helm/                  @ssa1004
+/infrastructure/        @ssa1004

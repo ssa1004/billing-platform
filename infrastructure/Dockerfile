@@ -27,6 +27,20 @@ RUN ./gradlew --no-daemon :billing-bootstrap:bootJar -x test
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+# OCI image labels — 레지스트리/스캐너가 출처·버전을 추적할 수 있게 표준 메타를
+# 박는다. revision/created 는 CI 가 --build-arg 로 주입 (없으면 빈 값/dev).
+ARG VCS_REF=dev
+ARG BUILD_DATE=""
+ARG VERSION=dev
+LABEL org.opencontainers.image.title="billing-platform" \
+      org.opencontainers.image.description="B2B SaaS billing / payment / settlement platform" \
+      org.opencontainers.image.source="https://github.com/ssa1004/billing-platform" \
+      org.opencontainers.image.url="https://github.com/ssa1004/billing-platform" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.version="${VERSION}"
+
 # base 이미지에 박힌 OS 패키지의 패치된 보안 업데이트를 끌어온다 — Trivy 가 잡는
 # fixable HIGH/CRITICAL (예: openssl/libcrypto3/libssl3 CVE-2026-45447) 를
 # 마스킹 없이 실제로 해소한다. non-root 로 내려가기 전 root 에서 수행.

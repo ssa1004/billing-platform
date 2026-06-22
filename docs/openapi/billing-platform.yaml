@@ -1,0 +1,2313 @@
+openapi: 3.1.0
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+- url: http://localhost:18080
+  description: Generated server url
+tags:
+- name: admin-dlq
+  description: DLQ 운영 — list / detail / replay / discard / bulk / stats
+- name: usage
+  description: 사용량 이벤트 수신 / 예측
+- name: credit
+  description: 크레딧 발급 / 적용 / 조회
+- name: invoice-v2
+  description: 청구서 조회 v2 — appliedCredit / amountDue 포함
+- name: refunds
+  description: 환불 처리
+- name: audit
+  description: 감사 로그 조회 (append-only)
+- name: settlement
+  description: 정산 운영 (수동 트리거)
+- name: orders
+  description: 주문 라이프사이클
+- name: invoice
+  description: 청구서 조회 및 PDF 다운로드
+- name: webhook
+  description: Webhook endpoint 등록 / delivery 조회·재시도
+- name: wallet
+  description: 지갑 잔액 + 거래 내역
+- name: aged-receivables
+  description: 미수금 분석 (운영자 전용)
+- name: budget-alert
+  description: 예산 임계 알림 규칙
+- name: payments
+  description: 결제 처리
+paths:
+  /api/v1/webhooks/endpoints:
+    get:
+      tags:
+      - webhook
+      summary: Customer 의 endpoint 목록 (secret 미포함)
+      operationId: listEndpoints
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/WebhookEndpointListResponse"
+    post:
+      tags:
+      - webhook
+      summary: Endpoint 등록 — secret 은 응답에 한 번만 평문 노출
+      operationId: register
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterWebhookEndpointRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RegisterWebhookEndpointResponse"
+  /api/v1/webhooks/endpoints/{id}/rotate-secret:
+    post:
+      tags:
+      - webhook
+      summary: Secret 갱신 — 새 평문이 응답에 한 번만 노출
+      operationId: rotateSecret
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RotateSecretResponse"
+  /api/v1/webhooks/endpoints/{id}/resume:
+    post:
+      tags:
+      - webhook
+      summary: Endpoint 재개
+      operationId: resume
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/webhooks/endpoints/{id}/pause:
+    post:
+      tags:
+      - webhook
+      summary: Endpoint 일시 정지 (PAUSED — 새 delivery 안 만들어짐)
+      operationId: pause
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/webhooks/deliveries/{id}/replay:
+    post:
+      tags:
+      - webhook
+      summary: Dead-lettered delivery 수동 재시도 (큐에 다시 넣음) — 운영자 전용
+      operationId: replay
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/usage:
+    post:
+      tags:
+      - usage
+      summary: 사용량 이벤트 수신 (eventId 기반 멱등성)
+      operationId: ingest
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestUsageRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/IngestUsageResponse"
+  /api/v1/settlement/run:
+    post:
+      tags:
+      - settlement
+      summary: 특정 customer × period 정산 실행 (운영자 전용)
+      operationId: run
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: period
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SettlementResult"
+  /api/v1/refunds:
+    post:
+      tags:
+      - refunds
+      summary: 환불 요청 + PG 환불 + 상태 갱신
+      operationId: refund
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RefundResponse"
+  /api/v1/payments:
+    post:
+      tags:
+      - payments
+      summary: 결제 처리 (PG 호출 + Order 상태 천이)
+      operationId: process
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProcessPaymentRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+  /api/v1/orders:
+    post:
+      tags:
+      - orders
+      summary: 주문 생성
+      operationId: place
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaceOrderRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+  /api/v1/credits:
+    get:
+      tags:
+      - credit
+      summary: "고객의 모든 Credit (status 무관, 최근 발급 우선)"
+      operationId: list
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 100
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CreditListResponse"
+    post:
+      tags:
+      - credit
+      summary: 크레딧 발급 (PROMO / PREPAID / COMPENSATION / REFUND_TO_CREDIT)
+      operationId: grant
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrantCreditRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/GrantCreditResponse"
+  /api/v1/credits/apply:
+    post:
+      tags:
+      - credit
+      summary: 사용 가능한 크레딧을 invoice 에 적용 (만료 임박 우선)
+      operationId: apply
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyCreditRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApplyCreditResponse"
+  /api/v1/budget-alerts:
+    get:
+      tags:
+      - budget-alert
+      summary: 고객의 모든 budget alert rule 조회
+      operationId: list_1
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BudgetAlertRuleListResponse"
+    post:
+      tags:
+      - budget-alert
+      summary: Budget alert rule 생성
+      operationId: create
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBudgetAlertRuleRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BudgetAlertRuleView"
+  /api/v1/budget-alerts/{ruleId}/resume:
+    post:
+      tags:
+      - budget-alert
+      summary: Rule 재개 (PAUSED → ACTIVE)
+      operationId: resume_1
+      parameters:
+      - name: ruleId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/budget-alerts/{ruleId}/pause:
+    post:
+      tags:
+      - budget-alert
+      summary: Rule 일시 정지 (ACTIVE → PAUSED)
+      operationId: pause_1
+      parameters:
+      - name: ruleId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/admin/dlq/{messageId}/replay:
+    post:
+      tags:
+      - admin-dlq
+      summary: DLQ 단건 replay — 원본 topic 으로 재발행 (Idempotency-Key 복사)
+      operationId: replay_1
+      parameters:
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DlqMessageResponse"
+  /api/v1/admin/dlq/{messageId}/discard:
+    post:
+      tags:
+      - admin-dlq
+      summary: "DLQ 단건 discard — 영구 종료 (soft, reason 필수)"
+      operationId: discard
+      parameters:
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DlqDiscardRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DlqMessageResponse"
+  /api/v1/admin/dlq/bulk-replay:
+    post:
+      tags:
+      - admin-dlq
+      summary: DLQ bulk replay — confirm=true 가 없으면 dry-run 강제
+      operationId: bulkReplay
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DlqBulkRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DlqBulkResultResponse"
+  /api/v1/admin/dlq/bulk-discard:
+    post:
+      tags:
+      - admin-dlq
+      summary: "DLQ bulk discard — reason 필수, confirm=true 가 없으면 dry-run 강제"
+      operationId: bulkDiscard
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DlqBulkDiscardRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DlqBulkResultResponse"
+  /api/v2/invoices:
+    get:
+      tags:
+      - invoice-v2
+      summary: 고객별 청구서 목록 v2 (최근 N개)
+      operationId: listByCustomer
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      - name: currency
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InvoiceV2Response"
+  /api/v2/invoices/{id}:
+    get:
+      tags:
+      - invoice-v2
+      summary: 청구서 단건 조회 v2
+      operationId: get
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InvoiceV2Response"
+  /api/v1/webhooks/deliveries:
+    get:
+      tags:
+      - webhook
+      summary: Endpoint 의 delivery 이력 (status 필터 가능)
+      operationId: listDeliveries
+      parameters:
+      - name: endpointId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 100
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/WebhookDeliveryListResponse"
+  /api/v1/wallet:
+    get:
+      tags:
+      - wallet
+      summary: "내 지갑 (잔액, 사용 가능 등)"
+      operationId: me
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/WalletResponse"
+  /api/v1/wallet/transactions:
+    get:
+      tags:
+      - wallet
+      summary: 최근 거래 내역
+      operationId: transactions
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TransactionResponse"
+  /api/v1/usage/forecast:
+    get:
+      tags:
+      - usage
+      summary: 현재 BillingPeriod 의 월말 사용량 + 예상 청구 금액
+      operationId: forecastCurrentPeriod
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UsageForecastResponse"
+  /api/v1/invoices:
+    get:
+      tags:
+      - invoice
+      summary: 고객별 청구서 목록 (최근 N개)
+      operationId: listByCustomer_1
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InvoiceResponse"
+  /api/v1/invoices/{id}:
+    get:
+      tags:
+      - invoice
+      summary: 청구서 단건 조회
+      operationId: get_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+  /api/v1/invoices/{id}/pdf:
+    get:
+      tags:
+      - invoice
+      summary: 청구서 PDF 다운로드
+      operationId: downloadPdf
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: byte
+  /api/v1/credits/expiring:
+    get:
+      tags:
+      - credit
+      summary: 만료 임박 크레딧 — 알림 / 사용자 대시보드용
+      operationId: expiring
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: withinDays
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 7
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CreditListResponse"
+  /api/v1/credits/balance:
+    get:
+      tags:
+      - credit
+      summary: 고객 단위 사용 가능 크레딧 잔액 (통화별)
+      operationId: balance
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CreditBalanceResponse"
+  /api/v1/budget-alerts/{ruleId}/history:
+    get:
+      tags:
+      - budget-alert
+      summary: 특정 rule 의 트리거 이력 (최근 → 과거)
+      operationId: historyByRule
+      parameters:
+      - name: ruleId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 100
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BudgetAlertHistoryResponse"
+  /api/v1/budget-alerts/history:
+    get:
+      tags:
+      - budget-alert
+      summary: Customer 의 모든 rule 통합 트리거 이력
+      operationId: historyByCustomer
+      parameters:
+      - name: customerId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 100
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BudgetAlertHistoryResponse"
+  /api/v1/audit:
+    get:
+      tags:
+      - audit
+      summary: audit 조회 — 4가지 query 패턴 중 하나로 호출
+      operationId: query
+      parameters:
+      - name: targetType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: targetId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: actorType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: actorId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: traceId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 100
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AuditEntryListResponse"
+  /api/v1/aged-receivables:
+    get:
+      tags:
+      - aged-receivables
+      summary: (고객 × 통화) 별 aging bucket (0-30 / 31-60 / 61-90 / 90+ 일) 미수 금액
+      operationId: report
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AgedReportDto"
+  /api/v1/admin/dlq:
+    get:
+      tags:
+      - admin-dlq
+      summary: DLQ list — filter + cursor 페이지네이션
+      operationId: search
+      parameters:
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PAYMENT
+          - REFUND
+          - SETTLEMENT
+          - PG_WEBHOOK
+          - OUTBOX
+      - name: topic
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: consumerGroup
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: errorType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 50
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DlqListResponse"
+  /api/v1/admin/dlq/{messageId}:
+    get:
+      tags:
+      - admin-dlq
+      summary: DLQ 단건 상세 — payload / headers / stacktrace
+      operationId: detail
+      parameters:
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DlqMessageDetailResponse"
+    delete:
+      tags:
+      - admin-dlq
+      operationId: hardDeleteNotAllowed
+      parameters:
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/admin/dlq/stats:
+    get:
+      tags:
+      - admin-dlq
+      summary: DLQ 시간 bucket × source × errorClass × customer 통계
+      operationId: stats
+      parameters:
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PAYMENT
+          - REFUND
+          - SETTLEMENT
+          - PG_WEBHOOK
+          - OUTBOX
+      - name: topic
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: consumerGroup
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: bucket
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: errorType
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DlqStatsResponse"
+  /api/v1/admin/dlq/bulk-jobs/{jobId}:
+    get:
+      tags:
+      - admin-dlq
+      summary: DLQ bulk job 진행도 / 결과 조회
+      operationId: bulkJob
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DlqBulkJobResponse"
+components:
+  schemas:
+    RegisterWebhookEndpointRequest:
+      type: object
+      properties:
+        customerId:
+          type: string
+          maxLength: 64
+          minLength: 0
+        url:
+          type: string
+          maxLength: 2048
+          minLength: 0
+          pattern: ^https://.+|^http://localhost.*|^http://127\.0\.0\.1.*
+        subscribedEventTypes:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+      required:
+      - customerId
+      - subscribedEventTypes
+      - url
+    RegisterWebhookEndpointResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        url:
+          type: string
+        secret:
+          type: string
+        subscribedEventTypes:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        status:
+          type: string
+      required:
+      - customerId
+      - id
+      - secret
+      - status
+      - subscribedEventTypes
+      - url
+    RotateSecretResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        secret:
+          type: string
+      required:
+      - id
+      - secret
+    IngestUsageRequest:
+      type: object
+      properties:
+        eventId:
+          type: string
+          minLength: 1
+          pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        customerId:
+          type: string
+          maxLength: 64
+          minLength: 0
+        resourceType:
+          type: string
+          maxLength: 32
+          minLength: 0
+        quantity:
+          type: integer
+          format: int64
+          maximum: 1000000000
+        occurredAt:
+          type: string
+          minLength: 1
+      required:
+      - customerId
+      - eventId
+      - occurredAt
+      - quantity
+      - resourceType
+    IngestUsageResponse:
+      type: object
+      properties:
+        eventId:
+          type: string
+        accepted:
+          type: boolean
+      required:
+      - accepted
+      - eventId
+    BillingPeriod:
+      type: object
+      properties:
+        yearMonth:
+          type: string
+          example: 2025-03
+          writeOnly: true
+    CustomerId:
+      type: object
+      properties:
+        value:
+          type: string
+          writeOnly: true
+    SettlementResult:
+      type: object
+      properties:
+        customerId:
+          $ref: "#/components/schemas/CustomerId"
+        period:
+          $ref: "#/components/schemas/BillingPeriod"
+        invoiceId:
+          type: string
+          format: uuid
+        alreadyProcessed:
+          type: boolean
+        paymentSucceeded:
+          type: boolean
+        message:
+          type: string
+      required:
+      - alreadyProcessed
+      - customerId
+      - message
+      - paymentSucceeded
+      - period
+    RefundRequest:
+      type: object
+      properties:
+        paymentId:
+          type: string
+          maxLength: 64
+          minLength: 0
+        reason:
+          type: string
+          maxLength: 512
+          minLength: 0
+      required:
+      - paymentId
+    RefundResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        paymentId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+        pgRefundId:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+      required:
+      - amount
+      - currency
+      - id
+      - paymentId
+      - requestedAt
+      - status
+    ProcessPaymentRequest:
+      type: object
+      properties:
+        orderId:
+          type: string
+          maxLength: 64
+          minLength: 0
+        method:
+          type: string
+          enum:
+          - CARD
+          - BANK_TRANSFER
+          - WALLET
+          - IAP
+      required:
+      - method
+      - orderId
+    PaymentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        orderId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        method:
+          type: string
+        status:
+          type: string
+        pgTransactionId:
+          type: string
+        errorCode:
+          type: string
+        errorMessage:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - amount
+      - createdAt
+      - currency
+      - id
+      - method
+      - orderId
+      - status
+      - updatedAt
+    OrderItemRequest:
+      type: object
+      properties:
+        sku:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+        unitPrice:
+          type: number
+          minimum: 0.01
+      required:
+      - quantity
+      - sku
+      - unitPrice
+    PlaceOrderRequest:
+      type: object
+      properties:
+        currency:
+          type: string
+          maxLength: 3
+          minLength: 3
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItemRequest"
+          maxItems: 100
+          minItems: 0
+      required:
+      - currency
+      - items
+    OrderItemResponse:
+      type: object
+      properties:
+        sku:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+        unitPrice:
+          type: number
+      required:
+      - quantity
+      - sku
+      - unitPrice
+    OrderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        buyerId:
+          type: string
+        totalAmount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+        paymentId:
+          type: string
+        refundId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItemResponse"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - buyerId
+      - createdAt
+      - currency
+      - id
+      - items
+      - status
+      - totalAmount
+      - updatedAt
+    GrantCreditRequest:
+      type: object
+      properties:
+        customerId:
+          type: string
+          maxLength: 64
+          minLength: 0
+        type:
+          type: string
+          maxLength: 32
+          minLength: 0
+        amount:
+          type: number
+        currency:
+          type: string
+          maxLength: 3
+          minLength: 3
+        validFrom:
+          type: string
+          minLength: 1
+        validUntil:
+          type: string
+        reason:
+          type: string
+          maxLength: 256
+          minLength: 0
+      required:
+      - amount
+      - currency
+      - customerId
+      - type
+      - validFrom
+    GrantCreditResponse:
+      type: object
+      properties:
+        creditId:
+          type: string
+        customerId:
+          type: string
+        type:
+          type: string
+        grantedAmount:
+          type: number
+        currency:
+          type: string
+        validFrom:
+          type: string
+        validUntil:
+          type: string
+        status:
+          type: string
+      required:
+      - creditId
+      - currency
+      - customerId
+      - grantedAmount
+      - status
+      - type
+      - validFrom
+    ApplyCreditRequest:
+      type: object
+      properties:
+        customerId:
+          type: string
+          maxLength: 64
+          minLength: 0
+        invoiceId:
+          type: string
+          maxLength: 64
+          minLength: 0
+        applyAtMost:
+          type: number
+        currency:
+          type: string
+          maxLength: 3
+          minLength: 3
+      required:
+      - applyAtMost
+      - currency
+      - customerId
+      - invoiceId
+    ApplyCreditResponse:
+      type: object
+      properties:
+        invoiceId:
+          type: string
+        customerId:
+          type: string
+        appliedAmount:
+          type: number
+        currency:
+          type: string
+      required:
+      - appliedAmount
+      - currency
+      - customerId
+      - invoiceId
+    CreateBudgetAlertRuleRequest:
+      type: object
+      properties:
+        customerId:
+          type: string
+          maxLength: 64
+          minLength: 0
+        threshold:
+          type: number
+        currency:
+          type: string
+          maxLength: 3
+          minLength: 3
+        cooldown:
+          type: string
+      required:
+      - currency
+      - customerId
+      - threshold
+    BudgetAlertRuleView:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        threshold:
+          type: number
+        currency:
+          type: string
+        cooldownSeconds:
+          type: integer
+          format: int64
+        status:
+          type: string
+        lastEvaluatedAt:
+          type: string
+        lastTriggeredAt:
+          type: string
+        createdAt:
+          type: string
+      required:
+      - cooldownSeconds
+      - createdAt
+      - currency
+      - customerId
+      - id
+      - status
+      - threshold
+    DlqMessageResponse:
+      type: object
+      properties:
+        messageId:
+          type: string
+        source:
+          type: string
+        dltTopic:
+          type: string
+        originalTopic:
+          type: string
+        partition:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int64
+        key:
+          type: string
+        errorClass:
+          type: string
+        failureReason:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        payloadLength:
+          type: integer
+          format: int32
+      required:
+      - dltTopic
+      - messageId
+      - occurredAt
+      - offset
+      - originalTopic
+      - partition
+      - payloadLength
+      - source
+    DlqDiscardRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 256
+          minLength: 0
+      required:
+      - reason
+    DlqBulkRequest:
+      type: object
+      properties:
+        source:
+          type: string
+          enum:
+          - PAYMENT
+          - REFUND
+          - SETTLEMENT
+          - PG_WEBHOOK
+          - OUTBOX
+        topic:
+          type: string
+        consumerGroup:
+          type: string
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        errorType:
+          type: string
+          maxLength: 256
+          minLength: 0
+        confirm:
+          type: boolean
+        reason:
+          type: string
+          maxLength: 256
+          minLength: 0
+    DlqBulkResultResponse:
+      type: object
+      properties:
+        mode:
+          type: string
+        estimatedCount:
+          type: integer
+          format: int64
+        sampleMessageIds:
+          type: array
+          items:
+            type: string
+        jobId:
+          type: string
+          format: uuid
+        startedAt:
+          type: string
+          format: date-time
+      required:
+      - estimatedCount
+      - mode
+      - sampleMessageIds
+    DlqBulkDiscardRequest:
+      type: object
+      properties:
+        source:
+          type: string
+          enum:
+          - PAYMENT
+          - REFUND
+          - SETTLEMENT
+          - PG_WEBHOOK
+          - OUTBOX
+        topic:
+          type: string
+        consumerGroup:
+          type: string
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        errorType:
+          type: string
+          maxLength: 256
+          minLength: 0
+        confirm:
+          type: boolean
+        reason:
+          type: string
+          maxLength: 256
+          minLength: 0
+      required:
+      - reason
+    InvoiceLineV2Response:
+      type: object
+      properties:
+        resourceType:
+          type: string
+        quantity:
+          type: integer
+          format: int64
+        lineTotal:
+          $ref: "#/components/schemas/MoneyV2"
+        description:
+          type: string
+      required:
+      - description
+      - lineTotal
+      - quantity
+      - resourceType
+    InvoiceV2Response:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        period:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ISSUED
+          - PAID
+          - OVERDUE
+          - CANCELLED
+        total:
+          $ref: "#/components/schemas/MoneyV2"
+        appliedCredit:
+          $ref: "#/components/schemas/MoneyV2"
+        amountDue:
+          $ref: "#/components/schemas/MoneyV2"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineV2Response"
+        issuedAt:
+          type: string
+          format: date-time
+        dueAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+      required:
+      - amountDue
+      - appliedCredit
+      - customerId
+      - id
+      - lines
+      - period
+      - status
+      - total
+    MoneyV2:
+      type: object
+      properties:
+        amount:
+          type: number
+        currency:
+          type: string
+      required:
+      - amount
+      - currency
+    WebhookEndpointListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEndpointView"
+      required:
+      - items
+    WebhookEndpointView:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        url:
+          type: string
+        subscribedEventTypes:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        status:
+          type: string
+        createdAt:
+          type: string
+      required:
+      - createdAt
+      - customerId
+      - id
+      - status
+      - subscribedEventTypes
+      - url
+    WebhookDeliveryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookDeliveryView"
+      required:
+      - items
+    WebhookDeliveryView:
+      type: object
+      properties:
+        id:
+          type: string
+        endpointId:
+          type: string
+        eventType:
+          type: string
+        status:
+          type: string
+        attemptCount:
+          type: integer
+          format: int32
+        nextAttemptAt:
+          type: string
+        lastResponseStatus:
+          type: integer
+          format: int32
+        lastError:
+          type: string
+        createdAt:
+          type: string
+        deliveredAt:
+          type: string
+      required:
+      - attemptCount
+      - createdAt
+      - endpointId
+      - eventType
+      - id
+      - status
+    WalletResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        ownerId:
+          type: string
+        currency:
+          type: string
+        balance:
+          type: number
+        blocked:
+          type: number
+        available:
+          type: number
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - available
+      - balance
+      - blocked
+      - currency
+      - id
+      - ownerId
+      - updatedAt
+    TransactionResponse:
+      type: object
+      properties:
+        entryType:
+          type: string
+        amount:
+          type: number
+        balanceAfter:
+          type: number
+        referenceType:
+          type: string
+        referenceId:
+          type: string
+        traceId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+      required:
+      - amount
+      - balanceAfter
+      - entryType
+      - occurredAt
+    ForecastResourceView:
+      type: object
+      properties:
+        resourceType:
+          type: string
+        mtdQuantity:
+          type: integer
+          format: int64
+        projectedQuantity:
+          type: integer
+          format: int64
+        mtdCost:
+          type: number
+        projectedCost:
+          type: number
+      required:
+      - mtdCost
+      - mtdQuantity
+      - projectedCost
+      - projectedQuantity
+      - resourceType
+    UsageForecastResponse:
+      type: object
+      properties:
+        customerId:
+          type: string
+        period:
+          type: string
+        asOf:
+          type: string
+        periodProgressRatio:
+          type: number
+          format: double
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ForecastResourceView"
+        projectedTotalCost:
+          type: number
+        currency:
+          type: string
+      required:
+      - asOf
+      - currency
+      - customerId
+      - period
+      - periodProgressRatio
+      - projectedTotalCost
+      - resources
+    InvoiceLineResponse:
+      type: object
+      properties:
+        resourceType:
+          type: string
+        quantity:
+          type: integer
+          format: int64
+        amount:
+          type: number
+        currency:
+          type: string
+        description:
+          type: string
+      required:
+      - amount
+      - currency
+      - description
+      - quantity
+      - resourceType
+    InvoiceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        period:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ISSUED
+          - PAID
+          - OVERDUE
+          - CANCELLED
+        total:
+          type: number
+        currency:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineResponse"
+        issuedAt:
+          type: string
+          format: date-time
+        dueAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+      required:
+      - currency
+      - customerId
+      - id
+      - lines
+      - period
+      - status
+      - total
+    CreditListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreditView"
+      required:
+      - items
+    CreditView:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        type:
+          type: string
+        currency:
+          type: string
+        grantedAmount:
+          type: number
+        balance:
+          type: number
+        validFrom:
+          type: string
+        validUntil:
+          type: string
+        status:
+          type: string
+        reason:
+          type: string
+      required:
+      - balance
+      - currency
+      - customerId
+      - grantedAmount
+      - id
+      - status
+      - type
+      - validFrom
+    CreditBalanceResponse:
+      type: object
+      properties:
+        customerId:
+          type: string
+        balances:
+          type: array
+          items:
+            $ref: "#/components/schemas/CurrencyBalance"
+      required:
+      - balances
+      - customerId
+    CurrencyBalance:
+      type: object
+      properties:
+        currency:
+          type: string
+        amount:
+          type: number
+      required:
+      - amount
+      - currency
+    BudgetAlertRuleListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BudgetAlertRuleView"
+      required:
+      - items
+    BudgetAlertHistoryResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BudgetAlertHistoryView"
+      required:
+      - items
+    BudgetAlertHistoryView:
+      type: object
+      properties:
+        id:
+          type: string
+        ruleId:
+          type: string
+        customerId:
+          type: string
+        thresholdAtTrigger:
+          type: number
+        projectedCostAtTrigger:
+          type: number
+        currency:
+          type: string
+        overshootRatio:
+          type: number
+          format: double
+        period:
+          type: string
+        periodProgressRatioAtTrigger:
+          type: number
+          format: double
+        occurredAt:
+          type: string
+      required:
+      - currency
+      - customerId
+      - id
+      - occurredAt
+      - overshootRatio
+      - period
+      - periodProgressRatioAtTrigger
+      - projectedCostAtTrigger
+      - ruleId
+      - thresholdAtTrigger
+    AuditEntryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEntryView"
+      required:
+      - items
+    AuditEntryView:
+      type: object
+      properties:
+        id:
+          type: string
+        actorType:
+          type: string
+        actorId:
+          type: string
+        actorIp:
+          type: string
+        action:
+          type: string
+        targetType:
+          type: string
+        targetId:
+          type: string
+        beforeJson:
+          type: string
+        afterJson:
+          type: string
+        reason:
+          type: string
+        traceId:
+          type: string
+        occurredAt:
+          type: string
+      required:
+      - action
+      - actorId
+      - actorType
+      - id
+      - occurredAt
+      - targetId
+      - targetType
+    AgedReportDto:
+      type: object
+      properties:
+        asOf:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerAgingDto"
+      required:
+      - asOf
+      - rows
+    CustomerAgingDto:
+      type: object
+      properties:
+        customerId:
+          type: string
+        currency:
+          type: string
+        current:
+          type: number
+        over30:
+          type: number
+        over60:
+          type: number
+        over90:
+          type: number
+        total:
+          type: number
+      required:
+      - currency
+      - current
+      - customerId
+      - over30
+      - over60
+      - over90
+      - total
+    DlqListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DlqMessageResponse"
+        nextCursor:
+          type: string
+        size:
+          type: integer
+          format: int32
+      required:
+      - items
+      - size
+    DlqMessageDetailResponse:
+      type: object
+      properties:
+        messageId:
+          type: string
+        source:
+          type: string
+        dltTopic:
+          type: string
+        originalTopic:
+          type: string
+        partition:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int64
+        key:
+          type: string
+        payload:
+          type: string
+        payloadLength:
+          type: integer
+          format: int32
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        errorClass:
+          type: string
+        failureReason:
+          type: string
+        originalStacktrace:
+          type: string
+        originalConsumerGroup:
+          type: string
+        originalTimestamp:
+          type: string
+          format: date-time
+        occurredAt:
+          type: string
+          format: date-time
+        retryCount:
+          type: integer
+          format: int32
+        idempotencyKey:
+          type: string
+        customerId:
+          type: string
+      required:
+      - dltTopic
+      - headers
+      - messageId
+      - occurredAt
+      - offset
+      - originalTopic
+      - partition
+      - payload
+      - payloadLength
+      - retryCount
+      - source
+    BucketCountResponse:
+      type: object
+      properties:
+        bucketStart:
+          type: string
+          format: date-time
+        count:
+          type: integer
+          format: int64
+      required:
+      - bucketStart
+      - count
+    DlqStatsResponse:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        bucketDuration:
+          type: string
+        totalCount:
+          type: integer
+          format: int64
+        byBucket:
+          type: array
+          items:
+            $ref: "#/components/schemas/BucketCountResponse"
+        bySource:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyedCountResponse"
+        byErrorClass:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyedCountResponse"
+        byCustomer:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyedCountResponse"
+      required:
+      - bucketDuration
+      - byBucket
+      - byCustomer
+      - byErrorClass
+      - bySource
+      - from
+      - to
+      - totalCount
+    KeyedCountResponse:
+      type: object
+      properties:
+        key:
+          type: string
+        count:
+          type: integer
+          format: int64
+      required:
+      - count
+      - key
+    DlqBulkJobResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        operation:
+          type: string
+        state:
+          type: string
+        totalCount:
+          type: integer
+          format: int64
+        processedCount:
+          type: integer
+          format: int64
+        successCount:
+          type: integer
+          format: int64
+        failureCount:
+          type: integer
+          format: int64
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        firstError:
+          type: string
+      required:
+      - failureCount
+      - jobId
+      - operation
+      - processedCount
+      - startedAt
+      - state
+      - successCount
+      - totalCount

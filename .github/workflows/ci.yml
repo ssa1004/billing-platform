@@ -94,6 +94,73 @@ jobs:
             e2e-tests/build/reports/tests/**
             e2e-tests/build/test-results/**
 
+  # ─── OpenAPI spec drift gate ─────────────────────────────────────
+  # docs/openapi/billing-platform.yaml 은 코드(컨트롤러)에서 생성되는 산출물이다.
+  # 기본 프로필(H2 in-memory / Caffeine)은 Postgres / Kafka 같은 외부 인프라 없이
+  # 부팅되므로 service container 없이 앱을 띄워 /v3/api-docs.yaml 을 다시 받아
+  # commit 된 yaml 과 비교한다. 엔드포인트가 추가·변경됐는데 spec 을 갱신하지 않으면
+  # git diff 가 0 이 아니어서 잡이 실패한다 (drift 차단).
+  openapi-spec:
+    name: OpenAPI spec drift gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+
+      - name: Regenerate OpenAPI spec (zero-infra H2 boot)
+        run: |
+          set -euo pipefail
+          PORT=18080
+          ./gradlew --no-daemon :billing-bootstrap:bootRun \
+            --args="--server.port=${PORT}" > /tmp/billing-boot.log 2>&1 &
+          GRADLE_PID=$!
+
+          # 부팅 대기 — Tomcat 이 포트를 열 때까지 폴링 (최대 ~4분).
+          ready=0
+          attempt=0
+          while [ "${attempt}" -lt 120 ]; do
+            if grep -qE "Tomcat started on port ${PORT}|Started BillingApplication" /tmp/billing-boot.log; then
+              ready=1; break
+            fi
+            if ! kill -0 "${GRADLE_PID}" 2>/dev/null; then
+              echo "::error::bootRun exited before serving"; break
+            fi
+            attempt=$((attempt + 1))
+            sleep 2
+          done
+          if [ "${ready}" -ne 1 ]; then
+            echo "::error::app did not start in time"; tail -n 60 /tmp/billing-boot.log; exit 1
+          fi
+
+          # /v3/api-docs.yaml 을 받아 commit 된 위치를 덮어쓴다.
+          curl -sf "http://localhost:${PORT}/v3/api-docs.yaml" \
+            -o docs/openapi/billing-platform.yaml
+
+          # 앱 종료 — gradle 프로세스 트리 정리.
+          kill "${GRADLE_PID}" 2>/dev/null || true
+          pkill -f "server.port=${PORT}" 2>/dev/null || true
+
+      - name: Fail on spec drift
+        run: |
+          if ! git diff --exit-code -- docs/openapi/billing-platform.yaml; then
+            echo "::error::docs/openapi/billing-platform.yaml is out of date." \
+              "Regenerate locally with ./gradlew :billing-bootstrap:generateOpenApiDocs and commit."
+            exit 1
+          fi
+
+      - name: Upload boot log on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openapi-boot-log
+          path: /tmp/billing-boot.log
+
   # ─── 3. Static analysis (PR only) ───────────────────────────────
   static-analysis:
     name: OWASP Dependency-Check + ktlint

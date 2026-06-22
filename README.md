@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?logo=kotlin)](https://kotlinlang.org/)
-[![Spring Boot 3.4](https://img.shields.io/badge/Spring%20Boot-3.4-6DB33F.svg?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F.svg?logo=springboot)](https://spring.io/projects/spring-boot)
 
 > **English summary below. 한국어 문서는 [개요](#개요)부터 이어집니다.**
 
@@ -35,7 +35,7 @@ negative-balance prevention (optimistic `@Version` locking), settlement concurre
 (Postgres advisory locks), worker pool parallelism (`FOR UPDATE SKIP LOCKED`), and frozen
 pricing on past invoices (`PricingSnapshot`).
 
-**Tech stack.** Kotlin 2.0 / JVM 21, Spring Boot 3.4, Spring Modulith, Spring Batch,
+**Tech stack.** Kotlin 2.0 / JVM 21, Spring Boot 3.5, Spring Modulith, Spring Batch,
 PostgreSQL 16 (H2 for local/dev), Caffeine + Redis, Apache Kafka, Spring Security
 (OAuth2 / JWT), Resilience4j, Gradle 8, GitHub Actions, Docker, Kubernetes.
 
@@ -67,7 +67,7 @@ B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 �
 ## 기술 스택
 
 - **Language**: Kotlin 2.0 (전 모듈 main 소스), JVM 21 target — domain / application 일부 단위 테스트는 아직 Java
-- **Framework**: Spring Boot 3.4, Spring Modulith, Spring Batch
+- **Framework**: Spring Boot 3.5, Spring Modulith, Spring Batch
 - **Database**: PostgreSQL 16, H2 (local/dev)
 - **Cache / KV**: Caffeine (local/dev), Redis (prod 캐시 + 멱등성 키)
 - **Messaging**: Apache Kafka (Outbox + DLQ)

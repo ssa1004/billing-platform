@@ -9,7 +9,7 @@ plugins {
     // OpenAPI spec build-time export — 실제 적용은 bootstrap 모듈.
     id("org.springdoc.openapi-gradle-plugin") version "1.9.0" apply false
     // 커버리지 집계 — 루트에 적용하고 모듈별 측정값을 merge (아래 dependencies 블록).
-    id("org.jetbrains.kotlinx.kover") version "0.8.3"
+    id("org.jetbrains.kotlinx.kover") version "0.9.8"
 }
 
 allprojects {

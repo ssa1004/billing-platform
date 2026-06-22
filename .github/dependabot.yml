@@ -2,17 +2,22 @@
 # 멀티모듈 Gradle 이지만 버전은 루트 build.gradle.kts + 각 모듈 build.gradle.kts 에
 # 분산돼 있어 ecosystem 단위 (gradle) 로 한 번에 스캔한다 (디렉토리는 "/" — Gradle
 # 플러그인이 settings.gradle.kts 의 include 를 따라 하위 모듈까지 본다).
+#
+# 알림/PR 소음을 줄이기 위한 정책:
+#   - schedule.interval: monthly  (주간 → 월간으로 빈도 축소)
+#   - open-pull-requests-limit: 5
+#   - groups: 각 ecosystem 의 모든 업데이트를 PR 하나로 묶는다 (patterns: ["*"]).
 version: 2
 updates:
   # ─── Gradle 의존성 ───────────────────────────────────────────────
   - package-ecosystem: "gradle"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
       time: "09:00"
       timezone: "Asia/Seoul"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
     commit-message:
@@ -20,31 +25,16 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      # Spring Boot / Modulith 는 BOM 으로 묶여 움직이므로 PR 도 묶는다.
-      spring:
+      # 모든 gradle 의존성을 월 1회 PR 하나로 묶어 리뷰/알림 부담을 낮춘다.
+      gradle-all:
         patterns:
-          - "org.springframework*"
-          - "io.spring.dependency-management"
-      # Kotlin plugin / stdlib / reflect 동반 업데이트.
-      kotlin:
-        patterns:
-          - "org.jetbrains.kotlin*"
-      # 테스트 전용 의존성 묶음 — 본 코드 영향 없음, 리뷰 부담 낮춤.
-      test:
-        patterns:
-          - "org.junit*"
-          - "org.mockito*"
-          - "org.assertj*"
-          - "org.testcontainers*"
-          - "com.redis:testcontainers-redis"
-          - "org.wiremock*"
-          - "org.awaitility*"
+          - "*"
 
   # ─── GitHub Actions ──────────────────────────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
       time: "09:00"
       timezone: "Asia/Seoul"
@@ -55,6 +45,11 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      # 모든 Actions 버전 업데이트를 PR 하나로 묶는다.
+      github-actions-all:
+        patterns:
+          - "*"
 
   # ─── Docker base image ───────────────────────────────────────────
   # Dockerfile 의 eclipse-temurin base (builder/runtime 두 스테이지) 패치
@@ -63,7 +58,7 @@ updates:
   - package-ecosystem: "docker"
     directory: "/infrastructure"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
       time: "09:00"
       timezone: "Asia/Seoul"
@@ -74,3 +69,8 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      # infrastructure 의 모든 Docker base image 업데이트를 PR 하나로 묶는다.
+      docker-infrastructure-all:
+        patterns:
+          - "*"

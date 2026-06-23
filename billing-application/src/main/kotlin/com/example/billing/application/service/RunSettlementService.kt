@@ -74,6 +74,9 @@ open class RunSettlementService(
         }
 
         // 4. 적용 가능한 가격 정책 + 스냅샷
+        //    as-of 로 period 의 시작이 아닌 toExclusive() (= 다음 달 1일 00:00) 를 넘긴다.
+        //    findEffective 는 effectiveFrom <= at 인 plan 중 최신을 고르는데, 기간 끝을 기준으로
+        //    잡아야 그 달 안에 발효된 가장 최근 plan 까지 포함된다 (월 초 기준이면 월 중 변경분 누락).
         val plan = pricingPlanRepository.findEffective(cmd.customerId, cmd.period.toExclusive())
             .orElseThrow {
                 IllegalStateException("no pricing plan for customer ${cmd.customerId}")

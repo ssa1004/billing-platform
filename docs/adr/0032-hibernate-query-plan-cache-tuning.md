@@ -191,6 +191,15 @@ Hibernate 의 statistics 객체는 atomic counter 들이라 비용이 나노초 
 - transaction-pooling 으로 운영을 옮기게 되면 `prepareThreshold = -1` (server-side disable) 또는
   PgBouncer 의 "max prepared statements" 옵션 (1.21+) 으로 우회.
 
+## 용어 풀이 (쉽게)
+
+- **query plan / plan compilation (실행 계획·계획 컴파일)** — DB가 "이 SQL을 어떤 순서로, 어느 인덱스를 타고 처리할지" 미리 짜둔 작전 계획. 매번 새로 짜면 비싸서 한 번 짠 걸 재사용한다(같은 길을 갈 때마다 지도를 새로 그리지 않고 외워둔 길로 가는 셈).
+- **plan cache + LRU eviction (계획 캐시·오래된 것부터 버리기)** — 짜둔 실행 계획을 보관하는 선반. 칸이 다 차면 '가장 오랫동안 안 쓴 것(LRU)'부터 버리는데, 자주 쓰는 계획이 잘못 버려지면 매번 다시 짜느라 느려진다(자주 입는 옷을 안쪽에 처박아 매번 다시 찾는 격).
+- **server-side prepared statement (서버측 준비 문장)** — 같은 SQL을 DB 서버에 '미리 컴파일해 등록'해 두고 값만 바꿔 재사용하는 것. `prepareThreshold=5`는 "같은 SQL이 5번째 오면 그제야 등록"이라는 뜻(자주 시키는 메뉴를 주방이 외워둬 주문 즉시 만드는 것).
+- **IN clause padding (IN 절 자리 맞추기)** — `IN (?, ?, ?)`의 물음표 개수가 매번 달라지면 그때마다 다른 SQL로 취급돼 계획 선반을 잡아먹는다. 개수를 1·2·4·8처럼 정해진 칸에 맞춰 마지막 값으로 채워 종류를 확 줄이는 기법(신발 사이즈를 0.5 단위가 아니라 1 단위로만 만들어 재고 종류를 줄이듯).
+- **PgBouncer pooling mode (커넥션 풀 모드)** — 여러 앱이 DB 연결을 공유하게 앞에서 빌려주는 중개소. transaction-pooling은 거래 한 건마다 다른 연결을 줄 수 있어, 서버에 외워둔 '준비 문장'이 다음 연결에선 사라져 무용지물이 된다(매번 다른 창구로 가면 단골 대우를 못 받는 격).
+- **CTE / temp table (공통 테이블 식·임시 테이블)** — 수만 개를 `IN`에 욱여넣는 대신, 그 목록을 잠깐 쓰는 임시 테이블로 만들어 조인하는 방식. 긴 목록을 SQL 한 줄에 늘어놓지 않고 따로 빼서 다루는 우회로.
+
 ## 다시 검토할 시점
 
 - Prometheus 의 `hibernate_query_plan_cache_miss_count_total / hibernate_query_plan_cache_hit_count_total`

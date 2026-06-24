@@ -116,6 +116,14 @@ Postgres streaming replication 은 보통 < 100ms 이지만 초 단위까지 늦
 이들이 자동으로 replica 로 라우팅됨. 별도 코드 변경 없음 — annotation 한 줄로 라우팅이
 바뀌는 게 본 패턴의 큰 장점.
 
+## 용어 풀이 (쉽게)
+
+- **master / replica (주 DB·복제 DB)** — 쓰기(결제·환불)는 원본인 master 한 곳에만 하고, 그 내용을 그대로 베껴 둔 replica는 읽기 전용으로만 쓰는 구조. 원본 장부는 한 권, 열람용 사본은 여러 권 두는 셈.
+- **OLTP (온라인 트랜잭션 처리)** — 결제·환불·잔액 차감처럼 짧고 빠르게 끝나야 하는 실시간 거래 작업. 무거운 통계 조회와 한 DB를 같이 쓰면 이 빠른 거래가 줄 서다 느려진다.
+- **read replica routing (읽기 분배)** — `@Transactional(readOnly=true)`가 붙은 메서드면 자동으로 사본 DB로, 쓰기면 원본 DB로 보내는 교통정리. 어노테이션 한 줄로 행선지가 바뀐다.
+- **replication lag (복제 지연)** — 원본에 쓴 내용이 사본에 베껴지기까지의 짧은 시차(보통 0.1초 안). 방금 쓴 걸 사본에서 바로 읽으면 아직 안 베껴진 옛 값(stale)을 볼 수 있다(방금 부친 편지를 복사본 함에서 찾으면 아직 없는 격).
+- **LazyConnectionDataSourceProxy (연결을 늦게 잡는 대리인)** — 행선지(읽기/쓰기)가 정해지기도 전에 DB 연결부터 잡아버리면 분배가 다 깨진다. 그래서 실제 SQL을 날리는 순간까지 연결 잡기를 미뤄, 그때 정해진 행선지로 보내게 하는 장치.
+
 ## 대안 검토
 
 - **JPA 의 second-level cache 로 read 부하 흡수**: cache invalidation 정책이 복잡 (write 후 stale).

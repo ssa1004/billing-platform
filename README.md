@@ -134,15 +134,14 @@ sequenceDiagram
     participant DB as Postgres
     participant Batch as Spring Batch
     participant PG as 외부 PG
-    participant K as Kafka
 
     SDK->>API: POST /usage (eventId, customerId, quantity)
     API->>DB: INSERT usage_events (UNIQUE eventId)
     API-->>SDK: 202 Accepted
 
-    Note over Batch: 월말, AggregateUsageJob
-    Batch->>DB: SELECT usage_events for period
-    Batch->>DB: INSERT aggregated_usage (rollup)
+    Note over App: AggregateUsageService (API/수동 호출 — 배치 미와이어링)
+    App->>DB: SELECT usage_events for period
+    App->>DB: INSERT aggregated_usage (rollup)
 
     Note over Batch: MonthlySettlementJob
     Batch->>DB: claim PENDING SettlementRun (FOR UPDATE SKIP LOCKED)
@@ -153,8 +152,7 @@ sequenceDiagram
     alt 결제 성공
         PG-->>App: paid
         App->>DB: UPDATE invoice status=PAID
-        App->>DB: INSERT outbox (InvoicePaid)
-        DB-->>K: OutboxRelay → InvoicePaid
+        App->>DB: INSERT audit_log (AuditAction.INVOICE_PAID)
     else 결제 실패
         PG-->>App: rejected (또는 일시 실패)
         Note over App: invoice는 ISSUED로 남음<br/>재시도 job이 처리
@@ -497,10 +495,10 @@ sequenceDiagram
     Bill->>Notif: Kafka billing.payment.completed
     Notif-->>User: 결제 완료 영수증
 
-    Note over Auth,User: 3) 연체 감시 → 알림
-    Bill->>Bill: SettlementOverdueScan (배치)
-    Bill->>Notif: Kafka billing.overdue.notice
-    Notif-->>User: 연체 안내
+    Note over Auth,User: 3) 연체 감시 → 알림 (계획/미구현)
+    Bill-->>Bill: 연체 스캔 (계획/미구현 — Invoice.markOverdue 호출자 0)
+    Bill-->>Notif: Kafka billing.overdue.notice (계획/미구현)
+    Notif-->>User: 연체 안내 (계획/미구현)
 ```
 
 ### 통합 데모

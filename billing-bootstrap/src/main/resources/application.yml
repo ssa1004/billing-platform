@@ -71,6 +71,9 @@ management:
     health:
       probes:
         enabled: true
+  health:
+    redis:
+      enabled: false   # 로컬 zero-infra: Redis 미사용(cache.redis-enabled=false)이라 health probe 끔 — 집계 /actuator/health 503 방지
   metrics:
     tags:
       application: ${spring.application.name}

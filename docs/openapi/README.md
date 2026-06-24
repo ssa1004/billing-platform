@@ -31,7 +31,7 @@ spec 생성도 의존 인프라 없이 가능하다. 직접 부팅해 받고 싶
 curl -sf http://localhost:8080/v3/api-docs.yaml -o docs/openapi/billing-platform.yaml
 ```
 
-CI 의 `openapi-spec` 잡이 동일한 zero-infra 부팅으로 spec 을 재생성하고
+CI 의 `openapi-spec` 잡이 동일한 zero-infra 부팅(= Postgres·Kafka·Redis 같은 외부 인프라 없이 H2·메모리 캐시만으로 앱을 띄우는 것)으로 spec 을 재생성하고
 `git diff --exit-code` 로 drift 를 검사한다 (커밋된 yaml 과 코드가 어긋나면 실패).
 
 ## 보는 법

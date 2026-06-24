@@ -277,7 +277,7 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
 
 ### Test coverage
 
-헥사고날 핵심인 **domain + application** 모듈의 커버리지를 [Kover](https://github.com/Kotlin/kotlinx-kover)
+헥사고날(= 핵심 업무 로직을 한가운데 두고 DB·웹·Kafka 는 콘센트와 플러그처럼 갈아끼우게 분리한 구조) 핵심인 **domain + application** 모듈의 커버리지를 [Kover](https://github.com/Kotlin/kotlinx-kover)
 로 측정한다. 두 모듈은 Spring context / Testcontainers / Docker 없이 도는 순수 단위 테스트라
 인프라 없이도 측정·재현이 가능하다. adapter 슬라이스·e2e(Testcontainers)·batch 는 Docker 가
 필요해 측정 범위에서 제외했다.
@@ -337,7 +337,7 @@ period), billing 특유 측정 항목 (`metering_lag` / `idempotency_cache_hit_r
 - OAuth2 Resource Server (JWT 토큰 검증) 인증 (local/dev 는 모두 통과)
 - Outbox Relay (DB 의 outbox 테이블에서 메시지를 읽어 Kafka 로 보내는 워커) 활성화
 - Read-replica 라우팅 — 읽기 전용 트랜잭션은 replica 로 ([ADR-0025](docs/adr/0025-read-replica-routing.md))
-- ThreadPool Bulkhead — PG / webhook / audit-export 도메인별 worker pool 격리 ([ADR-0026](docs/adr/0026-bulkhead-thread-pool-isolation.md))
+- ThreadPool Bulkhead(= 배의 방수 격벽처럼 외부 호출을 도메인별 전용 일꾼 묶음에 가둬, 한 곳이 느려져도 전체로 안 번지게 하는 격리) — PG / webhook / audit-export 도메인별 worker pool 격리 ([ADR-0026](docs/adr/0026-bulkhead-thread-pool-isolation.md))
 - Audit log — 도메인 변경 이벤트의 append-only 기록 ([ADR-0023](docs/adr/0023-audit-log.md))
 
 ## 운영 — DLQ 관리 콘솔 API (ADR-0033)

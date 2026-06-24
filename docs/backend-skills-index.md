@@ -65,7 +65,7 @@
 | **Row-level 멀티테넌시 (`customer_id`)** | 전 repository 가 `customerId` 필터 강제 | [ADR-0017](adr/0017-multi-tenancy-row-level.md) | tenant 수 무한 확장 + 운영 단순. application 레벨 격리(누락 위험은 코드리뷰로) — RLS 는 향후 |
 | **PricingPlan snapshot** | `domain/pricing` (PricingSnapshot in Invoice) | [ADR-0015](adr/0015-pricing-snapshot.md) | 요금제가 바뀌어도 과거 invoice 금액 불변 — invoice 가 그 시점 요금표를 품음 (회계/감사) |
 | **Credit 를 Wallet 과 분리** | `domain/credit` | [ADR-0018](adr/0018-credit-separate-from-wallet.md), [ADR-0019](adr/0019-credit-invoice-application-flow.md) | 발급/만료/회수 라이프사이클 + 환불 불가 — Wallet(현금성)과 다른 애그리거트. invoice 적용 + 만료 batch |
-| **헥사고날 + Spring Modulith** | 6개 gradle 모듈 (in/app/domain/out/batch/bootstrap) | [ADR-0001](adr/0001-modular-monolith.md), [ADR-0002](adr/0002-hexagonal-architecture.md), [ADR-0004](adr/0004-cqrs.md) | 모듈 의존 방향을 빌드 시점에 검증. MSA 대신 모듈러 모놀리스 + 부분 CQRS |
+| **헥사고날 + Spring Modulith**(= 핵심 로직을 가운데 두고 바깥(DB·웹)은 콘센트·플러그로만 잇는 헥사고날 구조에, 모듈 간 의존 방향이 어긋나면 빌드가 깨지게 검증해 주는 Spring 도구를 얹은 것) | 6개 gradle 모듈 (in/app/domain/out/batch/bootstrap) | [ADR-0001](adr/0001-modular-monolith.md), [ADR-0002](adr/0002-hexagonal-architecture.md), [ADR-0004](adr/0004-cqrs.md) | 모듈 의존 방향을 빌드 시점에 검증. MSA 대신 모듈러 모놀리스 + 부분 CQRS |
 
 → 이론: `dev-lab/system-design` (헥사고날 / 모듈 경계 / 멀티테넌시 / DDD 애그리거트), `dev-lab/postgresql` (인덱스 / 격리 모델)
 

@@ -70,6 +70,6 @@ PR 전 `./gradlew test` 통과가 필수입니다. 빠른 단위 테스트만 �
 
 ## 코드 스타일
 
-- Kotlin: ktlint (전 모듈 main 소스)
+- Kotlin: 공식 코틀린 컨벤션 (4-space, 와일드카드 import 지양)
 - Java: Google Java Format 또는 IntelliJ default — domain / application 의 일부 단위 테스트만 아직 Java
 - 주석 / 문서는 자연스러운 한국어 (영어 직역체 지양)

@@ -163,7 +163,7 @@ jobs:
 
   # ─── 3. Static analysis (PR only) ───────────────────────────────
   static-analysis:
-    name: OWASP Dependency-Check + ktlint
+    name: OWASP Dependency-Check
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: github.event_name == 'pull_request'

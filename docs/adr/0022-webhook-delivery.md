@@ -56,8 +56,7 @@ WebhookDelivery   ─┘  한 이벤트 × 한 endpoint 의 전송 시도 (retry
 
 ### Retry 정책
 
-총 5번 시도, exponential backoff (간격을 점점 늘리는 재시도): **1분 → 5분 → 30분 → 2시간
-→ 12시간** (총 약 14시간 동안 시도).
+총 5번 시도, exponential backoff (간격을 점점 늘리는 재시도): **1분 → 5분 → 30분 → 2시간** (4회 대기, 5회째 실패 시 즉시 DEAD_LETTERED).
 
 - 5xx / timeout / network 오류 → 재시도 가능 (다음 시도까지 backoff 만큼 대기, PENDING 으로
   돌림)

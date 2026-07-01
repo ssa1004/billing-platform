@@ -3,7 +3,6 @@ package com.example.billing.batch
 import com.example.billing.adapter.out.persistence.jpa.entity.SettlementRunJpaEntity
 import com.example.billing.application.command.RunSettlementCommand
 import com.example.billing.application.port.`in`.RunSettlementUseCase
-import com.example.billing.application.port.out.SettlementRunRepository
 import com.example.billing.domain.settlement.BillingPeriod
 import com.example.billing.domain.settlement.SettlementStatus
 import com.example.billing.domain.shared.CustomerId
@@ -31,7 +30,7 @@ import java.time.YearMonth
  *  1. PENDING 상태의 SettlementRun row 를 chunk-paging 으로 조회
  *  2. 각 row 에 대해 [RunSettlementUseCase.run] 호출 — 그 안에서 advisory lock 으로
  *     동일 정산 중복 실행 방지
- *  3. 처리 결과 (success / fail) 는 SettlementRun 에 기록
+ *  3. 처리 결과 (success / fail) 는 RunSettlementUseCase.run 내부에서 SettlementRun 에 기록
  *
  * 여러 인스턴스가 동시에 이 job 을 돌리면 SKIP LOCKED query 로 같은 row 를 두 번 잡지
  * 않도록 보장. 즉 worker pool 패턴.
@@ -40,7 +39,6 @@ import java.time.YearMonth
 open class MonthlySettlementJobConfig(
     private val entityManagerFactory: EntityManagerFactory,
     private val runSettlement: RunSettlementUseCase,
-    @Suppress("unused") private val settlementRunRepository: SettlementRunRepository,
 ) {
 
     @Bean

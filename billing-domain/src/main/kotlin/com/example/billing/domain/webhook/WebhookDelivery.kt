@@ -17,7 +17,7 @@ import kotlin.math.max
  * 판단할 수 없기에 재시도냐 dead 냐 결정을 호출자 (HTTP 클라이언트) 가 내려서 도메인에 알려준다.
  *
  * **왜 exponential backoff (간격을 점점 늘리는 재시도)**: customer 서버가 다운된 동안 우리가
- * 1초마다 retry 하면 customer 입장에선 사실상 우리가 DDoS. 1분 → 5분 → 30분 → 2시간 → 12시간
+ * 1초마다 retry 하면 customer 입장에선 사실상 우리가 DDoS. 1분 → 5분 → 30분 → 2시간(4회 대기 후 5회째 실패 시 즉시 DEAD_LETTERED)
  * 식으로 늦춰가며 시도 → customer 가 복구할 시간 + 우리도 큐가 안 막힘.
  *
  * **왜 dead letter (영구 실패 메시지를 별도로 모아두는 큐) 가 필요한가**: 결국 도달 못 한
@@ -166,13 +166,13 @@ class WebhookDelivery private constructor(
     }
 
     companion object {
-        /** 최대 재시도 횟수. 5번이면 1분 + 5분 + 30분 + 2시간 + 12시간 ≈ 14시간 동안 시도. */
+        /** 최대 시도 횟수. 5회 시도(5회째 실패 시 즉시 DEAD_LETTERED). 적용 대기는 1분+5분+30분+2시간 ≈ 2.6시간. */
         const val MAX_ATTEMPTS: Int = 5
 
         /**
          * 재시도 간격. 시도 N 번 실패 후 다음 대기 시간 = `BACKOFFS[N - 1]`.
-         * 마지막은 12시간 — 여기까지 갔다면 customer 측이 거의 확실히 길게 다운된 (long outage)
-         * 상태라는 뜻.
+         * 마지막 12시간 항목은 방어적 상한 — MAX_ATTEMPTS=5 에선 5회째 실패가 즉시
+         * DEAD_LETTERED 라 실제로는 도달하지 않는다.
          */
         private val BACKOFFS: Array<Duration> = arrayOf(
             Duration.ofMinutes(1),

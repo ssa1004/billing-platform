@@ -34,7 +34,7 @@ import java.util.concurrent.Executor
  * Kafka 폭주 방지. 결과는 [DlqBulkJobRepository] 에 보존 — 운영자가 polling.
  *
  * **billing 특유 — 돈 직결 안전망**: dry-run 강제. replay 의 경우 의도치 않은 재청구를 막기
- * 위해 운영자가 sample 을 눈으로 확인 후 `confirm=true` 로 재호출 해야 실 실행.
+ * 위해 운영자가 sample을 검토한 후 `confirm=true`로 재호출해야 실 실행.
  */
 @Service
 open class DlqBulkAdminService(

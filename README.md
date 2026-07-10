@@ -23,13 +23,13 @@ Prepaid (top up first, then debit) and postpaid (charge for what was used) model
 same domain infrastructure: Outbox, Idempotency, Resilience4j, and Spring Batch.
 
 **Architecture.** Modular monolith built with Spring Modulith, hexagonal (ports & adapters)
-per module, and DDD aggregates. Production code is 100% Kotlin (JVM 21 target); some
-`billing-domain` / `billing-application` unit tests are still Java. Multi-module Gradle:
+per module, and DDD aggregates. Production code is Kotlin (JVM 21 target); some
+`billing-domain` / `billing-application` unit tests are Java. Multi-module Gradle:
 `billing-domain` (pure domain, zero Spring), `billing-application` (use cases + ports),
 `billing-adapter-in` / `billing-adapter-out`, `billing-batch`, `billing-bootstrap`, and
 `e2e-tests`.
 
-**Core problems solved.** Payment de-duplication (Idempotency-Key + Redis SETNX), external
+**Key constraints.** Payment de-duplication (Idempotency-Key + Redis SETNX), external
 PG fault isolation (Resilience4j circuit breaker), event/DB atomicity (Outbox pattern),
 negative-balance prevention (optimistic `@Version` locking), settlement concurrency
 (Postgres advisory locks), worker pool parallelism (`FOR UPDATE SKIP LOCKED`), and frozen
@@ -119,9 +119,8 @@ B2B SaaS의 결제 / 청구 / 정산 백엔드입니다. 두 가지 흐름을 �
 - [ADR-0014: Worker pool 병렬 처리 — `FOR UPDATE SKIP LOCKED`](docs/adr/0014-skip-locked-worker-pool.md)
 - [ADR-0015: 청구서의 가격 정책 snapshot](docs/adr/0015-pricing-snapshot.md)
 
-백엔드 패턴을 **공부 목적**으로 본다면 → [docs/backend-skills-index.md](docs/backend-skills-index.md):
-이 레포가 시연하는 패턴을 "코드 위치 → 왜(ADR) → 이론([dev-lab](https://github.com/ssa1004/dev-lab))"
-으로 잇는 학습 인덱스.
+구현 위치와 관련 ADR은 [docs/implementation-index.md](docs/implementation-index.md)에
+정리되어 있습니다.
 
 ## 사용량 → 청구 → 정산 흐름
 
@@ -275,7 +274,7 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
 
 ### Test coverage
 
-헥사고날(= 핵심 업무 로직을 한가운데 두고 DB·웹·Kafka 는 콘센트와 플러그처럼 갈아끼우게 분리한 구조) 핵심인 **domain + application** 모듈의 커버리지를 [Kover](https://github.com/Kotlin/kotlinx-kover)
+ports & adapters 구조의 **domain + application** 모듈 커버리지를 [Kover](https://github.com/Kotlin/kotlinx-kover)
 로 측정한다. 두 모듈은 Spring context / Testcontainers / Docker 없이 도는 순수 단위 테스트라
 인프라 없이도 측정·재현이 가능하다. adapter 슬라이스·e2e(Testcontainers)·batch 는 Docker 가
 필요해 측정 범위에서 제외했다.
@@ -335,7 +334,7 @@ period), billing 특유 측정 항목 (`metering_lag` / `idempotency_cache_hit_r
 - OAuth2 Resource Server (JWT 토큰 검증) 인증 (local/dev 는 모두 통과)
 - Outbox Relay (DB 의 outbox 테이블에서 메시지를 읽어 Kafka 로 보내는 워커) 활성화
 - Read-replica 라우팅 — 읽기 전용 트랜잭션은 replica 로 ([ADR-0025](docs/adr/0025-read-replica-routing.md))
-- ThreadPool Bulkhead(= 배의 방수 격벽처럼 외부 호출을 도메인별 전용 일꾼 묶음에 가둬, 한 곳이 느려져도 전체로 안 번지게 하는 격리) — PG / webhook / audit-export 도메인별 worker pool 격리 ([ADR-0026](docs/adr/0026-bulkhead-thread-pool-isolation.md))
+- ThreadPool Bulkhead — PG / webhook / audit-export 도메인별 worker pool 격리 ([ADR-0026](docs/adr/0026-bulkhead-thread-pool-isolation.md))
 - Audit log — 도메인 변경 이벤트의 append-only 기록 ([ADR-0023](docs/adr/0023-audit-log.md))
 
 ## 운영 — DLQ 관리 콘솔 API (ADR-0033)
@@ -390,7 +389,7 @@ curl -G "${HOST}/api/v1/admin/dlq/stats" "${H[@]}" \
 **돈 직결 안전망** (ADR-0033 의 billing 특유 처리):
 
 - bulk-replay 의 default 는 dry-run — `confirm=true` 가 명시되지 않으면 응답이
-  `mode=DRY_RUN` 으로 강제 됩니다. 운영자가 sample 을 눈으로 확인 후 `confirm=true` 로
+  `mode=DRY_RUN`으로 강제됩니다. 운영자가 sample을 검토한 후 `confirm=true`로
   재호출 해야 실 실행. 한 번에 수천 건의 재청구 사고를 막는 두 번째 확인.
 - replay 가 원본 메시지의 `Idempotency-Key` / `customer-id` 헤더를 그대로 복사 → 컨슈머가
   같은 키로 두 번째 도착을 dedup 가능. 이중 결제 / 이중 환불 방지 (ADR-0006 / ADR-0028).
@@ -449,11 +448,10 @@ helm upgrade --install billing-platform helm/billing-platform/ \
 [`values-prod.yaml`](helm/billing-platform/values-prod.yaml) 에 인라인으로
 달아두었습니다.
 
-## Portfolio Set 통합
+## 연동 서비스
 
-본 레포는 단독으로도 돌아가지만, 10 개 레포로 구성된 포트폴리오 묶음의 한 조각이기도 합니다.
-다른 레포들이 발사한 사용량 이벤트를 받아 청구서로 만들고, 발행/결제/연체 알림을 알림
-허브로 흘려보내는 위치입니다. 묶음 전체 인덱스는 프로필 README
+다른 서비스가 발행한 사용량 이벤트를 청구서로 만들고, 발행·결제·연체 이벤트를
+notification-hub로 전달합니다. 전체 저장소 목록은 프로필 README
 [ssa1004/ssa1004](https://github.com/ssa1004/ssa1004) 에 있습니다.
 
 | 레포 | 역할 | 본 레포와의 관계 |

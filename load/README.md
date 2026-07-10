@@ -338,8 +338,8 @@ export K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write
 ```
 
 `run-load.sh` 가 각 시나리오에 `service=billing-platform` / `scenario=<name>` tag 를
-자동 부여한다. Grafana → **Portfolio Load (k6 + actuator)** 대시보드 (uid
-`portfolio-load`) 에서 service 변수를 `billing-platform` 으로 선택. 14번 패널
+자동 부여한다. Grafana → **Service Load (k6 + actuator)** 대시보드 (uid
+`service-load`) 에서 service 변수를 `billing-platform` 으로 선택. 14번 패널
 "billing advisory lock wait / invoice issued" + 서버 actuator metric
 (`billing.metering.lag.seconds`, `billing.settlement.advisory_lock.wait_ms`,
 `billing.saga.compensation.count`) 이 같은 시간축에 잡힌다. 필요 k6 버전

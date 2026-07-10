@@ -29,7 +29,7 @@ spec:
   type: service
   lifecycle: experimental
   owner: user:ssa1004
-  system: ssa1004-portfolio
+  system: ssa1004-backend-services
   providesApis:
     - billing-rest
     - billing-platform-domain-events
@@ -48,7 +48,7 @@ spec:
   type: openapi
   lifecycle: experimental
   owner: user:ssa1004
-  system: ssa1004-portfolio
+  system: ssa1004-backend-services
   definition: |
     openapi: 3.0.3
     info:
@@ -130,7 +130,7 @@ spec:
   type: asyncapi
   lifecycle: experimental
   owner: user:ssa1004
-  system: ssa1004-portfolio
+  system: ssa1004-backend-services
   definition: |
     asyncapi: 2.6.0
     info:

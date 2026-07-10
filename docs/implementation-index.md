@@ -1,9 +1,7 @@
-# 백엔드 스킬 인덱스 — 이 레포에서 무엇을 배우나
+# 구현 인덱스
 
-> 이 레포(B2B SaaS 결제/청구/정산 백엔드)가 시연하는 백엔드 / 운영 패턴을
-> **"무엇 → 이 레포 어디서 → 왜(ADR) → 더 깊은 이론"** 으로 잇는 학습용 인덱스.
-> "이 패턴 공부하려면 어디부터 보나"의 진입점. 설명을 다시 쓰지 않고 코드·결정·이론으로 연결만 한다.
-> 결정 배경은 [docs/adr/](adr/) 의 ADR 33건에 정리되어 있다.
+> 결제, 청구와 정산 기능의 주요 구현 위치와 관련 ADR을 연결합니다.
+> 결정 배경은 [docs/adr/](adr/)에 정리되어 있습니다.
 
 ## 돈 · 멱등성 · 정확히 한 번
 
@@ -81,13 +79,13 @@
 
 → 이론: `dev-lab/observability` (감사 로그 / SIEM export / 3축), `dev-lab/resilience` (DLQ replay / webhook retry), `dev-lab/incident-response` (운영 콘솔 / 안전망)
 
-## 학습 순서 제안 (이 레포 기준)
+## 문서 탐색 순서
 
-1. **README 상단 + 흐름 다이어그램** → 사용량→청구→정산 / 실시간 결제 두 흐름 감 잡기
-2. **[docs/adr/](adr/)** → 왜 그렇게 했나 (ADR 33건) ← 이 레포의 핵심 학습 자료. 특히 빌링 특화는 ADR-0013(advisory lock) / 0014(SKIP LOCKED) / 0015(pricing snapshot) / 0024+0028(idempotency) / 0026(bulkhead) / 0033(DLQ admin)
+1. **README 상단 + 흐름 다이어그램** → 사용량→청구→정산과 실시간 결제 흐름
+2. **[docs/adr/](adr/)** → 설계 결정과 배경. 빌링 관련 항목은 ADR-0013(advisory lock) / 0014(SKIP LOCKED) / 0015(pricing snapshot) / 0024+0028(idempotency) / 0026(bulkhead) / 0033(DLQ admin)
 3. **위 패턴 표** 에서 관심 패턴 → 코드 위치 + 해당 ADR + dev-lab 이론
 4. **돈 직결 안전망** (Idempotency 24h 캐시 + body fingerprint + DLQ dry-run) → 결제 도메인 특유의 정합성 방어선이 어떻게 겹쳐 있는지
 5. **`load/`** → k6 시나리오가 가드하는 invariant (Idempotency hit ratio / advisory lock 대기 / multi-currency 분리)
 
-> 짝 학습 레포: [dev-lab](https://github.com/ssa1004/dev-lab) (이론) ↔ 이 레포 (구현). 이론에서 "왜"를, 여기서 "실제로 어떻게"를 본다.
-> 결제/정산 도메인은 특히 `dev-lab/postgresql`(락·MVCC) · `dev-lab/distributed-systems`(멱등성·exactly-once) · `dev-lab/resilience`(CB·bulkhead) · `dev-lab/cdc`(Outbox) 와 짝으로 보면 좋다.
+> 관련 개념은 `dev-lab/postgresql`(락·MVCC), `dev-lab/distributed-systems`(멱등성·exactly-once),
+> `dev-lab/resilience`(CB·bulkhead), `dev-lab/cdc`(Outbox)를 참고합니다.

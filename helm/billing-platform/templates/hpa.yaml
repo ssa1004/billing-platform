@@ -19,7 +19,7 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
-    # Memory 는 일부러 안 씀 — JVM heap 은 -XX:MaxRAMPercentage=75 로 묶여있어
+    # JVM heap은 -XX:MaxRAMPercentage=75로 제한하므로 memory 기준 scaling은 사용하지 않는다.
     # working set 이 사실상 limit 의 75% 에 항상 가까움. memory metric 으로
     # scale 하면 minReplicas 위에서 바로 maxReplicas 까지 튀는 사고가 잘 남.
   {{- with .Values.autoscaling.behavior }}

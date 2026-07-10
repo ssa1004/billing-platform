@@ -6,7 +6,7 @@ import java.time.Instant
 /**
  * DLQ stats — 시간 bucket 별 메시지 개수 + source / error class 별 cardinality.
  *
- * 운영 화면에서 시간대별 추세 + 어느 source 가 가장 많이 실패 중인지 한눈에. 일반 page-by-page
+ * 운영 화면에서 시간대별 추세와 source별 실패 건수를 조회한다. 일반 page-by-page
  * list 로는 보기 어려움. notification-hub ADR-0015 의 [DlqStats] 와 같은 형태.
  *
  * billing 의 도메인 특유 — `byCustomer` 추가. 같은 customer 의 payment / refund / settlement 가

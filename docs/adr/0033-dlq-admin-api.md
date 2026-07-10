@@ -53,7 +53,7 @@ bulk worker / cursor pagination) 그대로 이식.
 
 - **bulk-replay dry-run 강제** — request body 의 `confirm` 이 명시적으로 `true` 가 아니면
   application service 단에서 응답을 `mode=DRY_RUN` 으로 강제. 대상 개수 추정 + sample
-  messageId 10개만 반환. 운영자가 sample 을 눈으로 확인 후 `confirm=true` 로 재호출해야 실
+  messageId 10개만 반환. 운영자가 sample을 검토한 후 `confirm=true`로 재호출해야 실
   실행. 한 번에 수천 건의 재청구 사고 방지.
 - **Idempotency-Key 복사** — `KafkaDlqMessageStore.replay` 가 원본 메시지의
   `Idempotency-Key` 헤더와 `customer-id` 헤더를 원본 topic 재발행 시 그대로 복사. 컨슈머가

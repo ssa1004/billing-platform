@@ -3,6 +3,7 @@ package com.example.billing.application.service
 import com.example.billing.application.command.RefundCommand
 import com.example.billing.application.exception.OrderNotFoundException
 import com.example.billing.application.exception.PaymentNotFoundException
+import com.example.billing.application.exception.RefundAlreadyRequestedException
 import com.example.billing.application.exception.RefundNotFoundException
 import com.example.billing.application.port.`in`.AuditLogger
 import com.example.billing.application.port.`in`.RefundUseCase
@@ -79,6 +80,12 @@ open class RefundService(
 
         val payment = payments.findById(cmd.paymentId)
             .orElseThrow { PaymentNotFoundException(cmd.paymentId) }
+
+        // 결제 단위 이중 환불 차단 — 같은 payment 에 활성(FAILED 아님) 환불이 이미 있으면 거절한다.
+        // 요청 Idempotency-Key 는 "같은 요청의 재시도"만 막을 뿐, 다른 키로 오는 중복 환불은 못 막는다.
+        if (refunds.existsActiveByPaymentId(payment.id)) {
+            throw RefundAlreadyRequestedException(payment.id)
+        }
 
         val refund = Refund.request(
             payment.id, payment.amount, cmd.reason,

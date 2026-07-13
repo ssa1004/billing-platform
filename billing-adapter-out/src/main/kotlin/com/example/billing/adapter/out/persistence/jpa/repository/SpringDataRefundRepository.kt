@@ -13,6 +13,12 @@ import java.util.UUID
 interface SpringDataRefundRepository : JpaRepository<RefundJpaEntity, UUID> {
 
     /**
+     * payment 에 status != :status(=FAILED) 인 활성 환불이 존재하는지.
+     * 엔티티의 @SQLRestriction("deleted_at IS NULL") 로 삭제 row 는 자동 제외된다.
+     */
+    fun existsByPaymentIdAndStatusNot(paymentId: UUID, status: String): Boolean
+
+    /**
      * Reconciler 가 호출. REQUESTED 로 stale 된 Refund 들을 오래된 순으로.
      * idempotencyKey 가 null 인 옛날 row 는 lookup 불가라 제외.
      */

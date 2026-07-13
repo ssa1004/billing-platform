@@ -3,6 +3,7 @@ package com.example.billing.application.service;
 import com.example.billing.application.command.RefundCommand;
 import com.example.billing.application.exception.OrderNotFoundException;
 import com.example.billing.application.exception.PaymentNotFoundException;
+import com.example.billing.application.exception.RefundAlreadyRequestedException;
 import com.example.billing.application.port.out.EventPublisher;
 import com.example.billing.application.port.out.OrderRepository;
 import com.example.billing.application.port.out.PaymentRepository;
@@ -107,6 +108,23 @@ class RefundServiceTest {
         assertThat(r.status()).isEqualTo(RefundStatus.COMPLETED);
         assertThat(r.pgRefundId()).isEqualTo("pg-refund-1");
         verify(events, atLeast(2)).publish(any());   // RefundApproved + RefundCompleted + OrderRefunded
+    }
+
+    @Test
+    void 같은_payment_에_활성_환불이_있으면_거절하고_PG를_호출하지_않는다() {
+        Order order = paidOrder();
+        Payment payment = Payment.initiate(order.id(), order.totalAmount(), PaymentMethod.CARD, "k", CLOCK);
+        payment.approve("pg-tx-1", CLOCK);
+
+        when(payments.findById(payment.id())).thenReturn(Optional.of(payment));
+        when(refunds.existsActiveByPaymentId(payment.id())).thenReturn(true);
+
+        // 다른 Idempotency-Key 로 같은 결제를 다시 환불하려 하면 이중 지급 대신 거절되어야 한다.
+        assertThatThrownBy(() -> service.refund(new RefundCommand("k2", payment.id(), "duplicate")))
+                .isInstanceOf(RefundAlreadyRequestedException.class);
+
+        verify(refunds, never()).save(any());
+        verify(pgClient, never()).refund(any());
     }
 
     @Test

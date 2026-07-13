@@ -7,6 +7,7 @@ import com.example.billing.application.exception.InvoiceNotFoundException
 import com.example.billing.application.exception.OrderNotFoundException
 import com.example.billing.application.exception.PaymentNotFoundException
 import com.example.billing.application.exception.RateLimitExceededException
+import com.example.billing.application.exception.RefundAlreadyRequestedException
 import com.example.billing.application.exception.RefundNotFoundException
 import com.example.billing.application.exception.WalletNotFoundException
 import com.example.billing.application.exception.WebhookDeliveryNotFoundException
@@ -50,6 +51,10 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
     @ExceptionHandler(IdempotencyKeyStore.DuplicateRequestException::class)
     fun handleDuplicate(e: IdempotencyKeyStore.DuplicateRequestException): ResponseEntity<ErrorResponse> =
         build(HttpStatus.CONFLICT, "DUPLICATE_REQUEST", e.message ?: "duplicate request")
+
+    @ExceptionHandler(RefundAlreadyRequestedException::class)
+    fun handleRefundAlreadyRequested(e: RefundAlreadyRequestedException): ResponseEntity<ErrorResponse> =
+        build(HttpStatus.CONFLICT, "REFUND_ALREADY_REQUESTED", e.message ?: "refund already requested")
 
     /**
      * BOLA (OWASP API1) / Function-level Auth (API5) 거절 — Spring Security 의 표준

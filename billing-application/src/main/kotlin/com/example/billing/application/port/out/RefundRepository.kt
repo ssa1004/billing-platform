@@ -1,5 +1,6 @@
 package com.example.billing.application.port.out
 
+import com.example.billing.domain.payment.PaymentId
 import com.example.billing.domain.refund.Refund
 import com.example.billing.domain.refund.RefundId
 import java.time.Instant
@@ -8,6 +9,13 @@ import java.util.Optional
 interface RefundRepository {
     fun save(refund: Refund)
     fun findById(id: RefundId): Optional<Refund>
+
+    /**
+     * 해당 payment 에 FAILED 가 아닌(활성) 환불이 이미 있으면 true.
+     * 서로 다른 Idempotency-Key 로 같은 결제를 두 번 환불하는 이중 지급을 막는 선검사.
+     * DB 의 부분 유니크 인덱스(postgres)가 동시 요청의 최종 방어선.
+     */
+    fun existsActiveByPaymentId(paymentId: PaymentId): Boolean
 
     /**
      * Reconciler 가 호출. `requestedAt <= staleBefore` 인 REQUESTED Refund 들.

@@ -20,6 +20,12 @@ import com.example.billing.domain.shared.Money;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionException;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -31,6 +37,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -41,6 +48,22 @@ class RunSettlementServiceTest {
 
     private static final Currency KRW = Currency.getInstance("KRW");
     private static final Clock FIXED = Clock.fixed(Instant.parse("2026-06-01T01:00:00Z"), ZoneOffset.UTC);
+
+    // 콜백을 그대로 실행하는 no-op 트랜잭션 매니저 (다른 서비스 테스트와 동일 패턴)
+    private static final PlatformTransactionManager NO_OP_TX_MANAGER = new PlatformTransactionManager() {
+        @Override
+        public TransactionStatus getTransaction(TransactionDefinition definition) throws TransactionException {
+            return new SimpleTransactionStatus();
+        }
+
+        @Override
+        public void commit(TransactionStatus status) throws TransactionException {
+        }
+
+        @Override
+        public void rollback(TransactionStatus status) throws TransactionException {
+        }
+    };
 
     private AdvisoryLock advisoryLock;
     private AggregatedUsageRepository usageRepo;
@@ -62,7 +85,7 @@ class RunSettlementServiceTest {
         paymentClient = mock(PaymentClient.class);
         audit = mock(AuditLogger.class);
         service = new RunSettlementService(advisoryLock, usageRepo, pricingRepo, invoiceRepo,
-                paymentClient, audit, FIXED);
+                paymentClient, audit, FIXED, NO_OP_TX_MANAGER);
     }
 
     @Test
@@ -123,6 +146,27 @@ class RunSettlementServiceTest {
         Invoice saved = captor.getAllValues().get(0);
         assertThat(saved.lines()).hasSize(1);
         assertThat(saved.total().amount()).isEqualByComparingTo("10000");  // 10000 초과분 × 1원
+    }
+
+    @Test
+    void invoice_는_PG_결제_이전에_저장된다() {
+        // 이중청구 방지의 핵심: 발행(ISSUED)이 charge 이전에 커밋되어야 재실행이 재청구하지 않는다.
+        when(invoiceRepo.findBy(customer, period)).thenReturn(Optional.empty());
+        when(usageRepo.findByCustomerAndPeriod(customer, period)).thenReturn(List.of(
+                AggregatedUsage.of(customer, ResourceType.API_CALL, period,
+                        100L, 1L, FIXED.instant())
+        ));
+        PricingPlan plan = PricingPlan.create("Standard", List.of(
+                new Tier(ResourceType.API_CALL, null, Money.of(BigDecimal.valueOf(1L), KRW))
+        ), Instant.parse("2026-01-01T00:00:00Z"));
+        when(pricingRepo.findEffective(customer, period.toExclusive())).thenReturn(Optional.of(plan));
+        when(paymentClient.charge(any())).thenReturn(true);
+
+        service.run(new RunSettlementCommand(customer, period));
+
+        InOrder inOrder = inOrder(invoiceRepo, paymentClient);
+        inOrder.verify(invoiceRepo).save(any());     // Phase 1: ISSUED 저장 (커밋)
+        inOrder.verify(paymentClient).charge(any());  // Phase 2: 그 다음에 외부 결제
     }
 
     @Test

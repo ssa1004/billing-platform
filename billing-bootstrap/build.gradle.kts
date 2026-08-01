@@ -38,7 +38,7 @@ dependencies {
     // billing-adapter-out 에 이미 들어 있어 runtime 에는 가능하지만, bootstrap 의 @Configuration
     // 클래스가 직접 ThreadPoolBulkheadConfigCustomizer / ContextPropagator 타입을 참조하므로
     // compile time 에도 필요.
-    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.3.0")
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.4.0")
 
     // Spring Modulith (헥사고날/모듈 경계 강제 + 진단). events 패키지는 우리 Outbox 와 중복이라 제외.
     implementation("org.springframework.modulith:spring-modulith-starter-core")
@@ -51,7 +51,7 @@ dependencies {
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:kafka")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
 }
 
 kotlin {

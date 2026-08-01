@@ -1,15 +1,15 @@
 // 루트 빌드 — 공통 conventions. 각 모듈이 상속받는 공유 설정.
 plugins {
     java
-    kotlin("jvm") version "2.0.21" apply false
-    kotlin("plugin.spring") version "2.0.21" apply false
-    kotlin("plugin.jpa") version "2.0.21" apply false
-    id("org.springframework.boot") version "3.5.15" apply false
+    kotlin("jvm") version "2.4.10" apply false
+    kotlin("plugin.spring") version "2.4.10" apply false
+    kotlin("plugin.jpa") version "2.4.10" apply false
+    id("org.springframework.boot") version "4.1.0" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
     // OpenAPI spec build-time export — 실제 적용은 bootstrap 모듈.
     id("org.springdoc.openapi-gradle-plugin") version "1.9.0" apply false
     // 커버리지 집계 — 루트에 적용하고 모듈별 측정값을 merge (아래 dependencies 블록).
-    id("org.jetbrains.kotlinx.kover") version "0.8.3"
+    id("org.jetbrains.kotlinx.kover") version "0.9.9"
 }
 
 allprojects {
@@ -27,8 +27,8 @@ allprojects {
 apply(plugin = "io.spring.dependency-management")
 the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.15")
-        mavenBom("org.springframework.modulith:spring-modulith-bom:1.4.12")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.0")
+        mavenBom("org.springframework.modulith:spring-modulith-bom:2.1.0")
     }
 }
 
@@ -44,8 +44,8 @@ subprojects {
 
     the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
         imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.15")
-            mavenBom("org.springframework.modulith:spring-modulith-bom:1.4.12")
+            mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.0")
+            mavenBom("org.springframework.modulith:spring-modulith-bom:2.1.0")
         }
     }
 
